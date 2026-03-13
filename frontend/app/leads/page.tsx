@@ -1,0 +1,158 @@
+"use client";
+
+import { useEffect, useState, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import type { LeadDashboard } from "@/lib/supabase";
+import { LeadRow } from "@/components/LeadRow";
+import { FiltrosBar } from "@/components/FiltrosBar";
+
+export default function LeadsPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-20 text-slate-400 text-sm">Cargando...</div>}>
+      <LeadsContent />
+    </Suspense>
+  );
+}
+
+function LeadsContent() {
+  const searchParams = useSearchParams();
+  const [leads, setLeads] = useState<LeadDashboard[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [total, setTotal] = useState(0);
+
+  const [temperatura, setTemperatura] = useState(searchParams.get("temperatura") ?? "");
+  const [prioridad, setPrioridad] = useState(searchParams.get("prioridad") ?? "");
+  const [busqueda, setBusqueda] = useState("");
+
+  const cargarLeads = useCallback(async () => {
+    setLoading(true);
+    let query = supabase
+      .from("leads_dashboard")
+      .select("*", { count: "exact" })
+      .order("nivel_interes", { ascending: false })
+      .limit(100);
+
+    if (temperatura) query = query.eq("temperatura", temperatura);
+    if (prioridad) query = query.eq("prioridad", prioridad);
+
+    const { data, count } = await query;
+    let resultado = (data as LeadDashboard[]) ?? [];
+
+    // Filtro por búsqueda en cliente (rápido para volúmenes bajos)
+    if (busqueda.trim()) {
+      const q = busqueda.toLowerCase();
+      resultado = resultado.filter(
+        (l) =>
+          l.nombre?.toLowerCase().includes(q) ||
+          l.apellidos?.toLowerCase().includes(q) ||
+          l.empresa?.toLowerCase().includes(q) ||
+          l.cargo?.toLowerCase().includes(q) ||
+          l.ciudad?.toLowerCase().includes(q)
+      );
+    }
+
+    setLeads(resultado);
+    setTotal(count ?? 0);
+    setLoading(false);
+  }, [temperatura, prioridad, busqueda]);
+
+  useEffect(() => {
+    cargarLeads();
+  }, [cargarLeads]);
+
+  const ESTADO_ORDEN = [
+    "nuevo", "enriquecido", "segmentado", "mensaje_generado",
+    "mensaje_enviado", "respondio", "cita_agendada", "en_negociacion",
+    "cerrado_ganado", "cerrado_perdido", "descartado"
+  ];
+
+  // Agrupar por temperatura para mostrar secciones
+  const calientes = leads.filter((l) => l.temperatura === "caliente");
+  const templados = leads.filter((l) => l.temperatura === "templado");
+  const frios = leads.filter((l) => l.temperatura === "frio");
+
+  const grupos =
+    temperatura === "caliente"
+      ? [{ titulo: "Calientes", leads: calientes, color: "text-red-600" }]
+      : temperatura === "templado"
+      ? [{ titulo: "Templados", leads: templados, color: "text-amber-600" }]
+      : temperatura === "frio"
+      ? [{ titulo: "Fríos", leads: frios, color: "text-blue-600" }]
+      : [
+          { titulo: "Calientes", leads: calientes, color: "text-red-600" },
+          { titulo: "Templados", leads: templados, color: "text-amber-600" },
+          { titulo: "Fríos", leads: frios, color: "text-blue-600" },
+        ];
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Leads</h1>
+          {!loading && (
+            <p className="text-sm text-slate-400 mt-0.5">
+              {leads.length} leads{temperatura || prioridad ? " (filtrado)" : ""}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Filtros */}
+      <div className="bg-white rounded-xl border border-slate-200 px-4">
+        <FiltrosBar
+          temperatura={temperatura}
+          prioridad={prioridad}
+          busqueda={busqueda}
+          onTemperatura={setTemperatura}
+          onPrioridad={setPrioridad}
+          onBusqueda={setBusqueda}
+        />
+      </div>
+
+      {/* Tabla de leads */}
+      {loading ? (
+        <div className="bg-white rounded-xl border border-slate-200 px-4 py-12 text-center text-sm text-slate-400">
+          Cargando leads...
+        </div>
+      ) : leads.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 px-4 py-12 text-center">
+          <p className="text-slate-400 text-sm">No hay leads con estos filtros.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {grupos.map(({ titulo, leads: grupoLeads, color }) => {
+            if (grupoLeads.length === 0) return null;
+            return (
+              <div key={titulo} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                {/* Header del grupo */}
+                <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
+                  <div className="flex items-center gap-2">
+                    <h3 className={`text-sm font-semibold ${color}`}>{titulo}</h3>
+                    <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+                      {grupoLeads.length}
+                    </span>
+                  </div>
+                  {/* Cabeceras de columna */}
+                  <div className="hidden md:flex items-center gap-4 text-xs text-slate-400 pr-6">
+                    <span className="w-28 hidden lg:block">Ciudad / Fuente</span>
+                    <span className="w-36 hidden lg:block">Productos</span>
+                    <span className="w-32 hidden sm:block">Interés</span>
+                    <span className="w-16 text-center">Prioridad</span>
+                    <span className="w-28 text-right">Actividad</span>
+                  </div>
+                </div>
+                {/* Filas */}
+                {grupoLeads.map((lead) => (
+                  <LeadRow key={lead.id} lead={lead} />
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+

@@ -1,0 +1,660 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+
+// ─── Tipos ────────────────────────────────────────────────────────────────────
+
+type FunnelStep = {
+  label: string;
+  estado: string;
+  count: number;
+  color: string;
+};
+
+type StatsFilaFuente = {
+  fuente: string;
+  total: number;
+  respondieron: number;
+  tasaRespuesta: number;
+  calientes: number;
+};
+
+type StatsFilaSector = {
+  sector: string;
+  total: number;
+  respondieron: number;
+  tasaRespuesta: number;
+  calientes: number;
+};
+
+type SeguimientoCounts = {
+  recordatorio1: number;
+  recordatorio2: number;
+  abandonados: number;
+};
+
+type TiempoEtapa = {
+  etapa: string;
+  dias: number | null;
+};
+
+// ─── Constantes ───────────────────────────────────────────────────────────────
+
+const FUENTES = ["scraping", "linkedin", "inbound", "referido", "base_existente", "manual"];
+
+const SECTORES = [
+  "Inmobiliaria",
+  "Hostelería",
+  "Asesoría",
+  "Clínica / Salud",
+  "Taller mecánico",
+  "Peluquería / Estética",
+  "Otro",
+];
+
+const FUNNEL_STEPS: Pick<FunnelStep, "label" | "estado" | "color">[] = [
+  { label: "Total leads",       estado: "",               color: "bg-indigo-100" },
+  { label: "Contactados",       estado: "mensaje_enviado", color: "bg-indigo-200" },
+  { label: "Respondieron",      estado: "respondio",       color: "bg-indigo-300" },
+  { label: "Cita agendada",     estado: "cita_agendada",   color: "bg-indigo-500" },
+  { label: "Cerrado ganado",    estado: "cerrado_ganado",  color: "bg-indigo-700" },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function pct(a: number, b: number): string {
+  if (b === 0) return "—";
+  return `${Math.round((a / b) * 100)}%`;
+}
+
+function diasEntre(desde: string, hasta: string): number {
+  const d1 = new Date(desde).getTime();
+  const d2 = new Date(hasta).getTime();
+  return Math.max(0, Math.round((d2 - d1) / 86_400_000));
+}
+
+// ─── Componente principal ─────────────────────────────────────────────────────
+
+export default function MetricasPage() {
+  const [funnel, setFunnel] = useState<FunnelStep[]>([]);
+  const [statsFuente, setStatsFuente] = useState<StatsFilaFuente[]>([]);
+  const [statsSector, setStatsSector] = useState<StatsFilaSector[]>([]);
+  const [seguimiento, setSeguimiento] = useState<SeguimientoCounts>({
+    recordatorio1: 0,
+    recordatorio2: 0,
+    abandonados: 0,
+  });
+  const [tiempos, setTiempos] = useState<TiempoEtapa[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [ejecutandoSeguimiento, setEjecutandoSeguimiento] = useState<string | null>(null);
+  const [mensajeSeguimiento, setMensajeSeguimiento] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function cargarDatos() {
+      setLoading(true);
+      await Promise.all([
+        cargarFunnel(),
+        cargarStatsFuente(),
+        cargarStatsSector(),
+        cargarSeguimiento(),
+        cargarTiempos(),
+      ]);
+      setLoading(false);
+    }
+    cargarDatos();
+  }, []);
+
+  // ── Funnel ──────────────────────────────────────────────────────────────────
+
+  async function cargarFunnel() {
+    const steps: FunnelStep[] = [];
+
+    // Total leads
+    const { count: total } = await supabase
+      .from("leads")
+      .select("*", { count: "exact", head: true });
+    steps.push({ ...FUNNEL_STEPS[0], count: total ?? 0 });
+
+    // Resto de etapas
+    for (let i = 1; i < FUNNEL_STEPS.length; i++) {
+      const { count } = await supabase
+        .from("leads")
+        .select("*", { count: "exact", head: true })
+        .eq("estado", FUNNEL_STEPS[i].estado);
+      steps.push({ ...FUNNEL_STEPS[i], count: count ?? 0 });
+    }
+
+    setFunnel(steps);
+  }
+
+  // ── Stats por fuente ─────────────────────────────────────────────────────────
+
+  async function cargarStatsFuente() {
+    const rows: StatsFilaFuente[] = [];
+
+    for (const fuente of FUENTES) {
+      const { count: total } = await supabase
+        .from("leads")
+        .select("*", { count: "exact", head: true })
+        .eq("fuente", fuente);
+
+      const { count: respondieron } = await supabase
+        .from("leads")
+        .select("*", { count: "exact", head: true })
+        .eq("fuente", fuente)
+        .in("estado", ["respondio", "cita_agendada", "cerrado_ganado"]);
+
+      const { count: calientes } = await supabase
+        .from("leads")
+        .select("*", { count: "exact", head: true })
+        .eq("fuente", fuente)
+        .eq("temperatura", "caliente");
+
+      const t = total ?? 0;
+      const r = respondieron ?? 0;
+      rows.push({
+        fuente,
+        total: t,
+        respondieron: r,
+        tasaRespuesta: t > 0 ? Math.round((r / t) * 100) : 0,
+        calientes: calientes ?? 0,
+      });
+    }
+
+    setStatsFuente(rows);
+  }
+
+  // ── Stats por sector ─────────────────────────────────────────────────────────
+
+  async function cargarStatsSector() {
+    const rows: StatsFilaSector[] = [];
+
+    for (const sector of SECTORES) {
+      const filtro = sector === "Otro"
+        ? supabase.from("leads").select("*", { count: "exact", head: true }).is("sector", null)
+        : supabase.from("leads").select("*", { count: "exact", head: true }).ilike("sector", `%${sector}%`);
+
+      const { count: total } = await filtro;
+
+      const filtroR = sector === "Otro"
+        ? supabase.from("leads").select("*", { count: "exact", head: true }).is("sector", null).in("estado", ["respondio", "cita_agendada", "cerrado_ganado"])
+        : supabase.from("leads").select("*", { count: "exact", head: true }).ilike("sector", `%${sector}%`).in("estado", ["respondio", "cita_agendada", "cerrado_ganado"]);
+      const { count: respondieron } = await filtroR;
+
+      const filtroC = sector === "Otro"
+        ? supabase.from("leads").select("*", { count: "exact", head: true }).is("sector", null).eq("temperatura", "caliente")
+        : supabase.from("leads").select("*", { count: "exact", head: true }).ilike("sector", `%${sector}%`).eq("temperatura", "caliente");
+      const { count: calientes } = await filtroC;
+
+      const t = total ?? 0;
+      const r = respondieron ?? 0;
+      rows.push({
+        sector,
+        total: t,
+        respondieron: r,
+        tasaRespuesta: t > 0 ? Math.round((r / t) * 100) : 0,
+        calientes: calientes ?? 0,
+      });
+    }
+
+    setStatsSector(rows.filter((r) => r.total > 0));
+  }
+
+  // ── Seguimiento pendiente ────────────────────────────────────────────────────
+
+  async function cargarSeguimiento() {
+    const ahora = new Date();
+
+    const hace3dias = new Date(ahora.getTime() - 3 * 86_400_000).toISOString();
+    const hace7dias = new Date(ahora.getTime() - 7 * 86_400_000).toISOString();
+    const hace14dias = new Date(ahora.getTime() - 14 * 86_400_000).toISOString();
+
+    // recordatorio1: mensaje_enviado + updated_at entre hace7 y hace3 días
+    const { count: r1 } = await supabase
+      .from("leads")
+      .select("*", { count: "exact", head: true })
+      .eq("estado", "mensaje_enviado")
+      .lte("updated_at", hace3dias)
+      .gte("updated_at", hace7dias);
+
+    // recordatorio2: mensaje_enviado + updated_at entre hace14 y hace7 días
+    const { count: r2 } = await supabase
+      .from("leads")
+      .select("*", { count: "exact", head: true })
+      .eq("estado", "mensaje_enviado")
+      .lte("updated_at", hace7dias)
+      .gte("updated_at", hace14dias);
+
+    // abandonados: mensaje_enviado + updated_at > hace14 días
+    const { count: ab } = await supabase
+      .from("leads")
+      .select("*", { count: "exact", head: true })
+      .eq("estado", "mensaje_enviado")
+      .lte("updated_at", hace14dias);
+
+    setSeguimiento({
+      recordatorio1: r1 ?? 0,
+      recordatorio2: r2 ?? 0,
+      abandonados: ab ?? 0,
+    });
+  }
+
+  // ── Tiempo medio por etapa ───────────────────────────────────────────────────
+
+  async function cargarTiempos() {
+    // Obtenemos todos los leads con fecha_captacion y updated_at para estimación
+    const { data } = await supabase
+      .from("leads")
+      .select("estado, fecha_captacion, updated_at")
+      .in("estado", ["mensaje_enviado", "respondio", "cita_agendada", "cerrado_ganado"])
+      .limit(500);
+
+    if (!data || data.length === 0) {
+      setTiempos([]);
+      return;
+    }
+
+    const grupos: Record<string, number[]> = {
+      mensaje_enviado: [],
+      respondio: [],
+      cita_agendada: [],
+      cerrado_ganado: [],
+    };
+
+    for (const lead of data) {
+      const d = diasEntre(lead.fecha_captacion, lead.updated_at);
+      if (grupos[lead.estado]) grupos[lead.estado].push(d);
+    }
+
+    const media = (arr: number[]) =>
+      arr.length === 0 ? null : Math.round(arr.reduce((a, b) => a + b, 0) / arr.length);
+
+    setTiempos([
+      { etapa: "Nuevo → Contactado",   dias: media(grupos["mensaje_enviado"]) },
+      { etapa: "Contactado → Respondió", dias: media(grupos["respondio"]) },
+      { etapa: "Respondió → Cita",     dias: media(grupos["cita_agendada"]) },
+      { etapa: "Cita → Cerrado",       dias: media(grupos["cerrado_ganado"]) },
+    ]);
+  }
+
+  // ── Ejecutar seguimiento ─────────────────────────────────────────────────────
+
+  async function ejecutarSeguimiento(tipo: "recordatorio1" | "recordatorio2" | "abandonados") {
+    setEjecutandoSeguimiento(tipo);
+    setMensajeSeguimiento(null);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+      const resp = await fetch(`${apiUrl}/api/seguimiento/ejecutar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tipo }),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        setMensajeSeguimiento(data.mensaje ?? "Seguimiento ejecutado correctamente.");
+      } else {
+        setMensajeSeguimiento("Error al ejecutar el seguimiento. Revisa el backend.");
+      }
+    } catch {
+      setMensajeSeguimiento("Backend no disponible. Conecta el backend para usar esta función.");
+    } finally {
+      setEjecutandoSeguimiento(null);
+      // Refrescar contadores tras ejecución
+      await cargarSeguimiento();
+    }
+  }
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
+
+  const maxFunnel = funnel[0]?.count ?? 1;
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-slate-900">Métricas de conversión</h1>
+        <p className="text-sm text-slate-500 mt-0.5">
+          Análisis del pipeline, fuentes y seguimiento pendiente
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="py-24 text-center text-sm text-slate-400">Cargando métricas...</div>
+      ) : (
+        <>
+          {/* ── Sección 1: Funnel de ventas ─────────────────────────────────────── */}
+          <section>
+            <h2 className="text-base font-semibold text-slate-800 mb-4">Funnel de ventas</h2>
+            <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-3">
+              {funnel.map((step, i) => {
+                const anchoPct = maxFunnel > 0 ? Math.max(4, Math.round((step.count / maxFunnel) * 100)) : 4;
+                const conversionAnterior = i > 0 ? funnel[i - 1].count : null;
+
+                return (
+                  <div key={step.estado || "total"} className="flex items-center gap-4">
+                    {/* Label */}
+                    <div className="w-36 shrink-0 text-sm text-slate-600 text-right">
+                      {step.label}
+                    </div>
+
+                    {/* Barra */}
+                    <div className="flex-1 flex items-center gap-3">
+                      <div className="flex-1 h-8 bg-slate-50 rounded-lg overflow-hidden">
+                        <div
+                          className={`h-full rounded-lg transition-all duration-500 flex items-center px-3 ${step.color}`}
+                          style={{ width: `${anchoPct}%` }}
+                        >
+                          <span className="text-xs font-semibold text-slate-700 whitespace-nowrap">
+                            {step.count.toLocaleString("es-ES")}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Conversión respecto al paso anterior */}
+                      <div className="w-16 text-right">
+                        {conversionAnterior !== null && (
+                          <span className="text-xs font-medium text-indigo-600">
+                            {pct(step.count, conversionAnterior)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Leyenda conversión total */}
+              {funnel.length >= 2 && (
+                <p className="text-xs text-slate-400 pt-2 border-t border-slate-100">
+                  Conversión total:{" "}
+                  <span className="font-semibold text-indigo-600">
+                    {pct(funnel[funnel.length - 1].count, funnel[0].count)}
+                  </span>{" "}
+                  de leads nuevos a cerrado ganado
+                </p>
+              )}
+            </div>
+          </section>
+
+          {/* ── Sección 2: Stats por fuente ─────────────────────────────────────── */}
+          <section>
+            <h2 className="text-base font-semibold text-slate-800 mb-4">Rendimiento por fuente</h2>
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    <th className="px-4 py-3 text-left">Fuente</th>
+                    <th className="px-4 py-3 text-right">Total leads</th>
+                    <th className="px-4 py-3 text-right">Respondieron</th>
+                    <th className="px-4 py-3 text-right">Tasa respuesta</th>
+                    <th className="px-4 py-3 text-right">Temperatura caliente</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {statsFuente
+                    .sort((a, b) => b.total - a.total)
+                    .map((row) => (
+                      <tr key={row.fuente} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 font-medium text-slate-700 capitalize">
+                          {row.fuente.replace(/_/g, " ")}
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-600">
+                          {row.total.toLocaleString("es-ES")}
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-600">
+                          {row.respondieron.toLocaleString("es-ES")}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <TasaBadge valor={row.tasaRespuesta} />
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          {row.calientes > 0 ? (
+                            <span className="inline-flex items-center gap-1 text-orange-600 font-medium">
+                              <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
+                              {row.calientes}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">—</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  {statsFuente.every((r) => r.total === 0) && (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-sm">
+                        Sin datos todavía
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* ── Sección 3: Stats por sector ─────────────────────────────────────── */}
+          <section>
+            <h2 className="text-base font-semibold text-slate-800 mb-4">Rendimiento por sector</h2>
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                    <th className="px-4 py-3 text-left">Sector</th>
+                    <th className="px-4 py-3 text-right">Total leads</th>
+                    <th className="px-4 py-3 text-right">Respondieron</th>
+                    <th className="px-4 py-3 text-right">Tasa respuesta</th>
+                    <th className="px-4 py-3 text-right">Temperatura caliente</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {statsSector.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-sm">
+                        Sin datos todavía
+                      </td>
+                    </tr>
+                  ) : (
+                    statsSector
+                      .sort((a, b) => b.total - a.total)
+                      .map((row) => (
+                        <tr key={row.sector} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3 font-medium text-slate-700">{row.sector}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">
+                            {row.total.toLocaleString("es-ES")}
+                          </td>
+                          <td className="px-4 py-3 text-right text-slate-600">
+                            {row.respondieron.toLocaleString("es-ES")}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <TasaBadge valor={row.tasaRespuesta} />
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            {row.calientes > 0 ? (
+                              <span className="inline-flex items-center gap-1 text-orange-600 font-medium">
+                                <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
+                                {row.calientes}
+                              </span>
+                            ) : (
+                              <span className="text-slate-300">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          {/* ── Sección 4: Seguimiento pendiente ────────────────────────────────── */}
+          <section>
+            <h2 className="text-base font-semibold text-slate-800 mb-1">Seguimiento pendiente</h2>
+            <p className="text-sm text-slate-500 mb-4">
+              Leads que necesitan acción según días sin actividad desde último contacto
+            </p>
+
+            {mensajeSeguimiento && (
+              <div className="mb-4 px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-700">
+                {mensajeSeguimiento}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* Recordatorio 1 */}
+              <SeguimientoCard
+                titulo="Recordatorio 1"
+                descripcion="Contactados hace 3-7 días sin respuesta"
+                count={seguimiento.recordatorio1}
+                color="amber"
+                tipo="recordatorio1"
+                ejecutando={ejecutandoSeguimiento === "recordatorio1"}
+                onEjecutar={() => ejecutarSeguimiento("recordatorio1")}
+              />
+
+              {/* Recordatorio 2 */}
+              <SeguimientoCard
+                titulo="Recordatorio 2"
+                descripcion="Contactados hace 7-14 días sin respuesta"
+                count={seguimiento.recordatorio2}
+                color="orange"
+                tipo="recordatorio2"
+                ejecutando={ejecutandoSeguimiento === "recordatorio2"}
+                onEjecutar={() => ejecutarSeguimiento("recordatorio2")}
+              />
+
+              {/* Abandonados */}
+              <SeguimientoCard
+                titulo="Abandonados"
+                descripcion="Más de 14 días sin actividad — marcar frío"
+                count={seguimiento.abandonados}
+                color="red"
+                tipo="abandonados"
+                ejecutando={ejecutandoSeguimiento === "abandonados"}
+                onEjecutar={() => ejecutarSeguimiento("abandonados")}
+              />
+            </div>
+          </section>
+
+          {/* ── Sección 5: Tiempo medio por etapa ───────────────────────────────── */}
+          <section>
+            <h2 className="text-base font-semibold text-slate-800 mb-4">Tiempo medio por etapa</h2>
+            <div className="bg-white rounded-xl border border-slate-200 p-6">
+              {tiempos.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-4">Sin datos suficientes todavía</p>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {tiempos.map((t) => (
+                    <div key={t.etapa} className="text-center p-4 bg-slate-50 rounded-xl border border-slate-100">
+                      <p className="text-3xl font-bold text-indigo-600">
+                        {t.dias !== null ? t.dias : "—"}
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {t.dias !== null ? (t.dias === 1 ? "día" : "días") : ""}
+                      </p>
+                      <p className="text-xs font-medium text-slate-600 mt-2">{t.etapa}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <p className="text-xs text-slate-400 mt-4">
+                Calculado sobre los últimos 500 leads con fecha de captación y última actualización registradas.
+              </p>
+            </div>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Subcomponentes ───────────────────────────────────────────────────────────
+
+function TasaBadge({ valor }: { valor: number }) {
+  if (valor === 0) return <span className="text-slate-300">0%</span>;
+  const color =
+    valor >= 20 ? "text-green-600 bg-green-50" :
+    valor >= 10 ? "text-amber-600 bg-amber-50" :
+    "text-red-600 bg-red-50";
+  return (
+    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${color}`}>
+      {valor}%
+    </span>
+  );
+}
+
+type ColorVariant = "amber" | "orange" | "red";
+
+const colorMap: Record<ColorVariant, {
+  border: string;
+  bg: string;
+  count: string;
+  desc: string;
+  btn: string;
+}> = {
+  amber: {
+    border: "border-amber-200",
+    bg: "bg-amber-50",
+    count: "text-amber-700",
+    desc: "text-amber-600",
+    btn: "bg-amber-600 hover:bg-amber-700",
+  },
+  orange: {
+    border: "border-orange-200",
+    bg: "bg-orange-50",
+    count: "text-orange-700",
+    desc: "text-orange-600",
+    btn: "bg-orange-600 hover:bg-orange-700",
+  },
+  red: {
+    border: "border-red-200",
+    bg: "bg-red-50",
+    count: "text-red-700",
+    desc: "text-red-600",
+    btn: "bg-red-600 hover:bg-red-700",
+  },
+};
+
+function SeguimientoCard({
+  titulo,
+  descripcion,
+  count,
+  color,
+  ejecutando,
+  onEjecutar,
+}: {
+  titulo: string;
+  descripcion: string;
+  count: number;
+  color: ColorVariant;
+  tipo: string;
+  ejecutando: boolean;
+  onEjecutar: () => void;
+}) {
+  const c = colorMap[color];
+  return (
+    <div className={`rounded-xl border ${c.border} ${c.bg} p-5 flex flex-col gap-3`}>
+      <div>
+        <p className={`text-sm font-semibold ${c.count}`}>{titulo}</p>
+        <p className={`text-xs mt-0.5 ${c.desc}`}>{descripcion}</p>
+      </div>
+      <p className={`text-4xl font-bold ${c.count}`}>{count}</p>
+      <button
+        onClick={onEjecutar}
+        disabled={ejecutando || count === 0}
+        className={`mt-auto px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${c.btn}`}
+      >
+        {ejecutando ? (
+          <span className="flex items-center justify-center gap-2">
+            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+            </svg>
+            Ejecutando...
+          </span>
+        ) : (
+          "Ejecutar seguimiento"
+        )}
+      </button>
+    </div>
+  );
+}

@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+.env
+.env.local
+.env.*.local
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.DS_Store
+*.log
+
+# Secrets y claves — NUNCA subir al repositorio
+backend/.env
+frontend/.env.local
+*.pem
+*.key
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude Code internal files
+.claude/
+
+# Documentos PDF (grandes, no necesarios en el repo de código)
+"Documentos de servicios "/
+Documentos de servicios /
