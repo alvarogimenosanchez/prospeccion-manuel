@@ -1,0 +1,373 @@
+{
+  "version": "1.1",
+  "updated": "2026-03-13",
+  "source": "Folletos oficiales Nationale-Nederlanden + datos Manuel",
+  "productos": [
+    {
+      "id": "contigo_futuro",
+      "nombre": "Contigo Futuro",
+      "categoria": "ahorro_inversion",
+      "descripcion_corta": "Plan de ahorro garantizado a largo plazo con capital asegurado",
+      "descripcion_chatbot": "Contigo Futuro es un plan de ahorro que te garantiza recuperar al menos el 80% de lo que aportas, más una rentabilidad adicional. Es ideal si quieres generar un capital para el futuro (jubilación, estudios de los hijos, colchón) con aportaciones desde 83€ al mes. Puedes rescatar tu dinero a partir del primer año.",
+      "precio_desde": "83€/mes",
+      "garantia": "80% del capital aportado garantizado",
+      "disponibilidad": "Rescate posible desde el primer año",
+      "perfil_ideal": [
+        "Empleados con nómina estable",
+        "Autónomos con ingresos regulares",
+        "Personas 30-55 años",
+        "Personas con capacidad de ahorro mensual"
+      ],
+      "señales_matching": [
+        "Habla de jubilación o futuro financiero",
+        "Tiene hijos y quiere ahorrar para su educación",
+        "Busca alternativa a planes de pensiones",
+        "Empleado con estabilidad laboral",
+        "Quiere un colchón de seguridad"
+      ],
+      "preguntas_frecuentes": [
+        "¿Puedo recuperar mi dinero cuando quiera? Sí, desde el primer año.",
+        "¿Qué pasa si dejo de aportar? Puedes pausar o reducir aportaciones.",
+        "¿Es seguro? Sí, tienes garantizado el 80% del capital aportado."
+      ],
+      "ventaja_diferencial": "Garantía de capital con rentabilidad adicional, mayor que una cuenta de ahorro tradicional"
+    },
+    {
+      "id": "sialp",
+      "nombre": "Plan Creciente SIALP",
+      "categoria": "ahorro_fiscal",
+      "descripcion_corta": "Ahorro con ventaja fiscal: exención total de IRPF al quinto año",
+      "descripcion_chatbot": "El SIALP (Seguro Individual de Ahorro a Largo Plazo) es un producto de ahorro con una ventaja fiscal única: si mantienes el dinero 5 años, los intereses están completamente exentos de IRPF. Puedes aportar hasta 5.000€/año y tienes el 85% del capital garantizado. Es el producto de ahorro más eficiente fiscalmente que existe hoy en España.",
+      "precio_desde": "Aportación libre hasta 5.000€/año",
+      "garantia": "85% del capital aportado garantizado",
+      "limite_anual": "5.000€/año por persona",
+      "beneficio_fiscal": "100% exención de IRPF sobre rendimientos al mantener 5+ años",
+      "disponibilidad": "Rescate posible, pero pierde ventaja fiscal si es antes de 5 años",
+      "perfil_ideal": [
+        "Personas con capacidad de ahorro que pagan mucho IRPF",
+        "Autónomos con ingresos variables que quieren optimizar fiscalidad",
+        "Empleados en tramos altos de IRPF (>30%)",
+        "Personas entre 30-55 años"
+      ],
+      "señales_matching": [
+        "Busca reducir impuestos o IRPF",
+        "Tiene dinero sin rentabilizar en cuenta corriente",
+        "Autónomo preocupado por su declaración de la renta",
+        "Habla de planificación financiera o fiscal",
+        "Ya tiene plan de pensiones y busca más vías de ahorro"
+      ],
+      "preguntas_frecuentes": [
+        "¿Cuánto me ahorro en impuestos? Depende de tu tramo de IRPF, pero puede ser significativo.",
+        "¿Qué pasa si lo rescato antes de 5 años? Pierdes la exención fiscal pero recuperas tu dinero.",
+        "¿Es compatible con otros productos de ahorro? Sí."
+      ],
+      "ventaja_diferencial": "Único producto de ahorro con exención total de IRPF sobre rendimientos. Más ventajoso que los planes de pensiones para muchos perfiles."
+    },
+    {
+      "id": "contigo_autonomo",
+      "nombre": "Contigo Autónomo",
+      "categoria": "proteccion_autonomos",
+      "descripcion_corta": "Seguro de protección integral para autónomos: fallecimiento, ILT y servicios de asistencia",
+      "descripcion_chatbot": "Contigo Autónomo es el seguro diseñado específicamente para autónomos. Desde 5,25€/mes tienes cobertura de fallecimiento. Lo más valioso es la cobertura de Incapacidad Laboral Temporal (ILT): si te pones enfermo o tienes un accidente y no puedes trabajar, cobras entre 10€ y 200€ por día desde el primer día. Además incluye chat médico y asesoría legal 24h sin coste extra.",
+      "precio_desde": "5,25€/mes (fallecimiento básico)",
+      "coberturas": {
+        "fallecimiento": "Desde 5,25€/mes",
+        "ILT": "10€ a 200€/día por incapacidad temporal",
+        "ILT_inicio": "Desde el primer día de baja",
+        "extras_incluidos": ["Chat médico 24h", "Asesoría legal 24h", "Segunda opinión médica"]
+      },
+      "perfil_ideal": [
+        "Autónomos dados de alta",
+        "Freelancers y trabajadores por cuenta propia",
+        "Profesionales independientes",
+        "Pequeños propietarios de negocio sin empleados"
+      ],
+      "señales_matching": [
+        "Es autónomo o trabaja por su cuenta",
+        "No tiene cobertura si se pone enfermo",
+        "Preocupado por qué pasa si cae enfermo y no puede trabajar",
+        "Quiere proteger a su familia",
+        "Habla de los riesgos de ser autónomo"
+      ],
+      "preguntas_frecuentes": [
+        "¿Desde cuándo cobro si me pongo enfermo? Desde el primer día.",
+        "¿Cubre accidentes y enfermedades? Sí, ambos.",
+        "¿Puedo elegir cuánto cobrar al día? Sí, entre 10€ y 200€/día."
+      ],
+      "ventaja_diferencial": "ILT desde el día 1 (la Seguridad Social no cubre hasta el día 4 en enfermedad común y muchos autónomos no tienen cobertura suficiente). Chat médico y legal 24h incluido."
+    },
+    {
+      "id": "contigo_familia",
+      "nombre": "Contigo Familia",
+      "categoria": "seguro_vida",
+      "descripcion_corta": "Seguro de vida flexible y modular para proteger a la familia",
+      "descripcion_chatbot": "Contigo Familia es un seguro de vida diseñado para que la familia quede protegida si falta el sustentador principal. Desde 5,25€/mes tienes cobertura de fallecimiento, y puedes ir añadiendo módulos: invalidez, enfermedades graves, accidentes... hasta 1.000.000€ de capital asegurado. Es completamente personalizable según tu situación familiar y económica.",
+      "precio_desde": "5,25€/mes",
+      "capital_maximo": "1.000.000€",
+      "estructura": "Modular - se adapta a las necesidades de cada familia",
+      "coberturas_disponibles": [
+        "Fallecimiento",
+        "Invalidez permanente",
+        "Enfermedades graves",
+        "Accidentes"
+      ],
+      "perfil_ideal": [
+        "Cabezas de familia con cargas familiares",
+        "Padres con hijos menores",
+        "Personas con hipoteca",
+        "Parejas con ingresos dependientes de uno de los dos",
+        "Personas entre 25-55 años"
+      ],
+      "señales_matching": [
+        "Tiene hijos",
+        "Tiene hipoteca",
+        "Su familia depende de sus ingresos",
+        "Reciente cambio vital (matrimonio, hijo, casa)",
+        "Preocupado por qué pasaría si le faltara a su familia"
+      ],
+      "preguntas_frecuentes": [
+        "¿Cuánto capital necesito? Depende de tus cargas (hipoteca, hijos, deudas).",
+        "¿Puedo cambiar las coberturas con el tiempo? Sí, es modular.",
+        "¿Hay que hacer reconocimiento médico? Depende del capital."
+      ],
+      "ventaja_diferencial": "Modularidad total: pagas exactamente por lo que necesitas. Precio muy competitivo desde 5,25€/mes."
+    },
+    {
+      "id": "contigo_pyme",
+      "nombre": "Contigo Pyme",
+      "categoria": "seguro_empresas",
+      "descripcion_corta": "Seguro colectivo de vida y protección para empleados de pymes, sin reconocimiento médico",
+      "descripcion_chatbot": "Contigo Pyme es un seguro colectivo para empresas que quieren proteger a sus empleados. Sin cuestionario médico, sin complicaciones. La empresa lo contrata como beneficio para su equipo: cubre fallecimiento, invalidez y más. Además de proteger a los empleados, es un beneficio laboral que ayuda a retener talento y puede tener ventajas fiscales para la empresa.",
+      "precio_desde": "Variable según plantilla y coberturas",
+      "caracteristica_clave": "Sin reconocimiento médico individual",
+      "tipo": "Seguro colectivo (contratado por la empresa)",
+      "perfil_ideal": [
+        "Empresas de 1-50 empleados",
+        "Pymes que quieren mejorar beneficios sociales",
+        "Empresas con rotación alta que quieren retener empleados",
+        "Directivos que quieren proteger a sus equipos clave"
+      ],
+      "señales_matching": [
+        "Tiene empleados a su cargo",
+        "Busca mejorar condiciones laborales de su equipo",
+        "Habla de retención de talento",
+        "Propietario de empresa con más de 1 empleado",
+        "Conoce otros seguros colectivos de la competencia"
+      ],
+      "preguntas_frecuentes": [
+        "¿Hay que hacer reconocimiento médico? No, es colectivo.",
+        "¿Puede deducirlo la empresa? Consultar con asesor fiscal.",
+        "¿Qué cubre exactamente? Fallecimiento e invalidez como mínimo, ampliable."
+      ],
+      "ventaja_diferencial": "Sin reconocimiento médico individual. Se puede contratar para toda la plantilla de golpe, incluyendo empleados con historial médico."
+    },
+    {
+      "id": "contigo_senior",
+      "nombre": "Contigo Senior",
+      "categoria": "seguro_mayores",
+      "descripcion_corta": "Seguro de vida y accidentes para personas de 55 a 80 años con asistencia Sanitas",
+      "descripcion_chatbot": "Contigo Senior es el seguro diseñado para personas entre 55 y 80 años. Desde 42€/mes tienes cobertura de accidentes con asistencia hasta 65.000€ y acceso a servicios de Sanitas (teléfono médico, orientación sanitaria). Es sencillo de contratar y da tranquilidad tanto a quien lo contrata como a su familia.",
+      "precio_desde": "42€/mes",
+      "rango_edad": "55 a 80 años",
+      "cobertura_accidente": "Hasta 65.000€",
+      "incluye_sanitas": true,
+      "servicios_sanitas": ["Teléfono médico 24h", "Orientación sanitaria", "Segunda opinión médica"],
+      "perfil_ideal": [
+        "Personas entre 55 y 80 años",
+        "Jubilados que quieren mantener cobertura",
+        "Personas mayores que ya no pueden contratar otros seguros de vida",
+        "Hijos que quieren proteger a sus padres mayores"
+      ],
+      "señales_matching": [
+        "Tiene entre 55 y 80 años",
+        "Es jubilado o está próximo a jubilarse",
+        "Sus hijos le preguntan sobre su protección",
+        "Busca seguro de vida pero lo rechazan por edad",
+        "Quiere algo sencillo y económico"
+      ],
+      "preguntas_frecuentes": [
+        "¿Hasta qué edad puedo contratarlo? Hasta los 80 años.",
+        "¿Qué incluye Sanitas? Teléfono médico 24h y orientación sanitaria.",
+        "¿Es seguro de vida o de accidentes? Principalmente accidentes con servicios médicos."
+      ],
+      "ventaja_diferencial": "Prácticamente el único seguro que acepta hasta 80 años sin reconocimiento. Incluye acceso a Sanitas sin ser asegurado de salud Sanitas."
+    },
+    {
+      "id": "liderplus",
+      "nombre": "LiderPlus Accidentes",
+      "categoria": "seguro_accidentes",
+      "descripcion_corta": "Seguro de accidentes con alta cobertura a precio muy bajo",
+      "descripcion_chatbot": "LiderPlus es un seguro de accidentes de muy bajo coste. Por menos de 135€/año tienes hasta 90.000€ en caso de fallecimiento o invalidez por accidente. Hay dos opciones: Opción A (90.000€ por 134,59€/año) u Opción B (50.000€ por 74,77€/año). Es un seguro de entrada muy económico ideal para quien quiere protección básica sin gran desembolso.",
+      "precio_opcion_a": "134,59€/año (11,22€/mes)",
+      "precio_opcion_b": "74,77€/año (6,23€/mes)",
+      "cobertura_opcion_a": "90.000€ fallecimiento/invalidez por accidente",
+      "cobertura_opcion_b": "50.000€ fallecimiento/invalidez por accidente",
+      "periodicidad_pago": "Anual",
+      "perfil_ideal": [
+        "Cualquier persona activa laboralmente",
+        "Personas que hacen deporte o actividades de riesgo",
+        "Primeros compradores de seguro de vida (entrada económica)",
+        "Complemento a seguro de vida existente"
+      ],
+      "señales_matching": [
+        "Quiere una protección básica sin gastar mucho",
+        "Hace deportes o actividades de riesgo",
+        "Joven que empieza a planificar su protección",
+        "Precio es su principal objeción para un seguro de vida",
+        "Busca complementar su seguro actual"
+      ],
+      "preguntas_frecuentes": [
+        "¿Cubre enfermedades? No, solo accidentes.",
+        "¿Qué se considera accidente? Cualquier causa externa, involuntaria y violenta.",
+        "¿Puedo upgradear a Opción A después? Consultar condiciones."
+      ],
+      "ventaja_diferencial": "Precio imbatible: 74,77€/año. Ideal como primer seguro o como complemento. Sin cuestionario médico complejo."
+    },
+    {
+      "id": "hipotecas",
+      "nombre": "Hipotecas y Financiación",
+      "categoria": "financiacion",
+      "descripcion_chatbot": "Ayudo a encontrar la mejor hipoteca para comprar tu vivienda. Accedo a múltiples entidades bancarias para conseguir las mejores condiciones. Sin coste para el cliente — el banco nos paga a nosotros.",
+      "precio_desde": "Sin coste para el cliente",
+      "perfil_ideal": [
+        "Personas que van a comprar piso",
+        "Clientes de inmobiliaria",
+        "Jóvenes 25-40 años con ingresos estables"
+      ],
+      "señales_matching": [
+        "comprar piso",
+        "hipoteca",
+        "inmobiliaria",
+        "financiación",
+        "banco",
+        "primera vivienda"
+      ],
+      "preguntas_frecuentes": [
+        {
+          "pregunta": "¿Cuánto cobráis?",
+          "respuesta": "Nada. El banco nos paga a nosotros por traerles clientes."
+        },
+        {
+          "pregunta": "¿En cuánto tiempo tengo respuesta?",
+          "respuesta": "En 48-72 horas tenemos respuesta de los bancos."
+        },
+        {
+          "pregunta": "¿Qué necesito para empezar?",
+          "respuesta": "Solo tus últimas 3 nóminas o declaración de renta si eres autónomo."
+        }
+      ],
+      "ventaja_diferencial": "Acceso a múltiples bancos en una sola gestión. Sin coste para el cliente."
+    },
+    {
+      "id": "mi_hogar",
+      "nombre": "MiHogar — Seguro del Hogar",
+      "categoria": "hogar",
+      "descripcion_chatbot": "Seguro de hogar para propietarios e inquilinos. Cubre daños en la vivienda, robo, responsabilidad civil y más. Precio muy competitivo.",
+      "precio_desde": "Consultar según vivienda",
+      "perfil_ideal": [
+        "Propietarios de vivienda",
+        "Inquilinos",
+        "Clientes que acaban de comprar piso"
+      ],
+      "señales_matching": [
+        "seguro hogar",
+        "acabo de comprar piso",
+        "alquiler",
+        "propietario",
+        "inquilino",
+        "robo casa"
+      ],
+      "preguntas_frecuentes": [
+        {
+          "pregunta": "¿Lo necesito si alquilo?",
+          "respuesta": "Sí, como inquilino te cubre el contenido (muebles, ropa, electrónica) y responsabilidad civil."
+        },
+        {
+          "pregunta": "¿Y si ya tengo uno del banco?",
+          "respuesta": "El del banco suele ser más caro. Podemos comparar."
+        }
+      ],
+      "ventaja_diferencial": "Precio competitivo con coberturas completas. Ideal para recién compradores."
+    },
+    {
+      "id": "sanitas_salud",
+      "nombre": "Sanitas Salud — Seguro Médico",
+      "categoria": "salud",
+      "descripcion_chatbot": "Seguro de salud privado con acceso a la red Sanitas. Sin listas de espera, médico de cabecera propio, especialistas, hospitalización. Desde personas individuales hasta familias completas.",
+      "precio_desde": "Desde 45€/mes aprox.",
+      "perfil_ideal": [
+        "Autónomos sin seguridad social completa",
+        "Familias",
+        "Empresas para empleados",
+        "Personas con listas de espera en la pública"
+      ],
+      "señales_matching": [
+        "médico privado",
+        "lista de espera",
+        "seguro salud",
+        "sanitas",
+        "médico rápido",
+        "especialista"
+      ],
+      "preguntas_frecuentes": [
+        {
+          "pregunta": "¿Hay copago?",
+          "respuesta": "Depende de la modalidad. Hay versiones sin copago."
+        },
+        {
+          "pregunta": "¿Cubre el dentista?",
+          "respuesta": "Hay opciones con dental incluido o como complemento."
+        }
+      ],
+      "ventaja_diferencial": "Red Sanitas con miles de médicos en toda España. Sin listas de espera."
+    }
+  ],
+  "reglas_matching": {
+    "autonomo": ["contigo_autonomo", "sialp", "contigo_futuro", "liderplus"],
+    "familia_con_hijos": ["contigo_familia", "liderplus", "contigo_futuro"],
+    "empresa_pyme": ["contigo_pyme", "contigo_futuro"],
+    "mayor_55": ["contigo_senior", "liderplus"],
+    "ahorro_fiscal": ["sialp", "contigo_futuro"],
+    "empleado_nomina": ["contigo_futuro", "sialp", "contigo_familia", "liderplus"],
+    "negocio_propio": ["contigo_pyme", "contigo_autonomo", "sialp"],
+    "compra_vivienda": ["hipotecas", "mi_hogar", "contigo_familia"],
+    "particular_salud": ["sanitas_salud", "liderplus", "contigo_familia"]
+  },
+  "servicios_externos_complementarios": {
+    "sanitas_salud": {
+      "id": "sanitas_salud",
+      "nombre": "Sanitas Salud",
+      "descripcion": "Seguro de salud privado. Ver entrada completa en productos.",
+      "perfil_ideal": ["Familias con hijos", "Autónomos sin cobertura pública suficiente", "Empresas para beneficios de empleados"]
+    },
+    "mihogar": {
+      "id": "mihogar",
+      "nombre": "MiHogar / Seguros de Hogar",
+      "descripcion": "Seguro de hogar. Ver entrada completa en productos.",
+      "perfil_ideal": ["Propietarios de vivienda", "Nuevos compradores"]
+    },
+    "hipotecas": {
+      "id": "hipotecas",
+      "nombre": "Hipotecas ING/ABANCA",
+      "descripcion": "Mediación hipotecaria. Ver entrada completa en productos.",
+      "perfil_ideal": ["Personas buscando primera vivienda", "Cambio de hipoteca", "Refinanciación", "Clientes de inmobiliarias"]
+    }
+  },
+  "segmentos_particulares": {
+    "descripcion": "Estrategia para captar particulares sin depender de scraping B2B",
+    "fuentes_captacion": [
+      "Derivaciones de inmobiliarias (cliente que acaba de comprar piso → hipoteca + hogar + vida)",
+      "Formulario web en landing page de Manuel",
+      "Publicidad Facebook/Instagram segmentada (35-55 años, padres, propietarios)",
+      "Base de datos existente de Manuel",
+      "Referidos de clientes actuales"
+    ],
+    "productos_por_momento_vital": {
+      "compra_primera_vivienda": ["hipotecas", "mi_hogar", "contigo_familia"],
+      "nacimiento_hijo": ["contigo_familia", "sialp", "contigo_futuro"],
+      "jubilacion_proxima": ["contigo_senior", "sialp", "contigo_futuro"],
+      "autonomo_nuevo": ["contigo_autonomo", "sialp"],
+      "empresa_nueva": ["contigo_pyme", "sialp"]
+    }
+  }
+}

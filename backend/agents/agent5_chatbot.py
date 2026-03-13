@@ -13,7 +13,7 @@ from typing import Optional
 from anthropic import Anthropic
 
 # Carga la base de conocimiento de productos
-KB_PATH = Path(__file__).parent.parent.parent / "knowledge_base_productos.json"
+KB_PATH = Path(__file__).parent.parent / "knowledge_base_productos.json"
 with open(KB_PATH, "r", encoding="utf-8") as f:
     KNOWLEDGE_BASE = json.load(f)
 
