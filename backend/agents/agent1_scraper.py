@@ -180,7 +180,10 @@ def scrape_google_places(categoria: str, ciudad: str, max_results: int = 20) -> 
             }
 
             if details.get("website"):
+                lead["web"] = details["website"]
                 lead["fuente_detalle"] = details["website"]
+            if details.get("formatted_address"):
+                lead["direccion"] = details["formatted_address"]
 
             leads.append(lead)
             time.sleep(0.2)  # Rate limit
@@ -192,14 +195,14 @@ def scrape_google_places(categoria: str, ciudad: str, max_results: int = 20) -> 
 
 
 def _get_place_details(place_id: str) -> dict:
-    """Obtiene detalles de un lugar: teléfono, web."""
+    """Obtiene detalles de un lugar: teléfono, web, dirección."""
     if not GOOGLE_API_KEY or not place_id:
         return {}
     try:
         url = "https://maps.googleapis.com/maps/api/place/details/json"
         params = {
             "place_id": place_id,
-            "fields": "formatted_phone_number,international_phone_number,website",
+            "fields": "formatted_phone_number,international_phone_number,website,formatted_address",
             "language": "es",
             "key": GOOGLE_API_KEY,
         }

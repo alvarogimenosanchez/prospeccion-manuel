@@ -422,7 +422,9 @@ def enriquecer_lead(lead: dict) -> Optional[dict]:
     """
     nombre_empresa = lead.get("empresa", "")
     ciudad = lead.get("ciudad", "") or ""
-    url_web = lead.get("web") or lead.get("fuente_detalle") or ""
+    # Buscar web en campo dedicado primero, luego en fuente_detalle (si no es un place_id)
+    fuente = lead.get("fuente_detalle") or ""
+    url_web = lead.get("web") or (fuente if fuente.startswith("http") else "")
 
     if not nombre_empresa:
         return None
@@ -506,7 +508,7 @@ def enriquecer_leads_sin_nombre(limite: int = 50) -> dict:
     Returns: {"procesados": N, "enriquecidos": N, "sin_datos": N}
     """
     resp = sb.table("leads").select(
-        "id, nombre, apellidos, empresa, ciudad, sector, tipo_lead, notas, fuente_detalle, cargo, web"
+        "id, nombre, apellidos, empresa, ciudad, sector, tipo_lead, notas, fuente_detalle, cargo, web, telefono_whatsapp"
     ).eq("fuente", "scraping").is_("apellidos", "null").not_.is_("empresa", "null").limit(limite).execute()
 
     leads = resp.data or []
@@ -524,6 +526,7 @@ def enriquecer_leads_sin_nombre(limite: int = 50) -> dict:
         updates = enriquecer_lead(lead)
 
         if updates:
+            updates["estado"] = "enriquecido"
             sb.table("leads").update(updates).eq("id", lead["id"]).execute()
             enriquecidos += 1
             nombre_completo = f"{updates.get('nombre', lead.get('nombre', ''))} {updates.get('apellidos', '')}".strip()
