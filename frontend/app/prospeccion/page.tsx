@@ -7,7 +7,7 @@ import Link from "next/link";
 
 type LeadNuevo = Lead & { seleccionado?: boolean };
 
-const CIUDADES = ["Madrid", "Barcelona", "Valencia", "Sevilla", "Málaga", "Bilbao", "Zaragoza", "Alicante", "Murcia", "Valladolid"];
+const CIUDADES_SUGERIDAS = ["Madrid", "Barcelona", "Valencia", "Sevilla", "Málaga", "Bilbao", "Zaragoza", "Alicante", "Murcia", "Valladolid"];
 const CATEGORIAS = [
   { id: "inmobiliarias", label: "Inmobiliarias", icon: "🏠", productos: ["contigo_pyme", "hipotecas"] },
   { id: "asesorias", label: "Asesorías / Gestorías", icon: "📋", productos: ["contigo_pyme", "sialp"] },
@@ -34,12 +34,19 @@ export default function ProspeccionPage() {
 
   // Configuración de campaña
   const [ciudadesElegidas, setCiudadesElegidas] = useState<string[]>(["Madrid"]);
+  const [zonaPersonalizada, setZonaPersonalizada] = useState("");
   const [categoriasElegidas, setCategoriasElegidas] = useState<string[]>(["inmobiliarias"]);
   const [paginasPorCiudad, setPaginasPorCiudad] = useState(2);
   const [soloConTelefono, setSoloConTelefono] = useState(false);
   const [estadoCampana, setEstadoCampana] = useState<EstadoCampana>("idle");
   const [mensajeCampana, setMensajeCampana] = useState("");
   const [mostrarConfig, setMostrarConfig] = useState(false);
+  const [historialCampanas, setHistorialCampanas] = useState<{zona: string, categoria: string, leads: number, fecha: string}[]>([]);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("historial_campanas");
+    if (stored) setHistorialCampanas(JSON.parse(stored));
+  }, []);
 
   const cargarLeads = useCallback(async () => {
     setLoading(true);
@@ -138,8 +145,15 @@ export default function ProspeccionPage() {
   };
 
   const lanzarCampana = async () => {
-    if (ciudadesElegidas.length === 0 || categoriasElegidas.length === 0) {
-      alert("Selecciona al menos una ciudad y una categoría.");
+    // Combinar ciudades seleccionadas + zonas personalizadas escritas a mano
+    const zonasCustom = zonaPersonalizada
+      .split(",")
+      .map(z => z.trim())
+      .filter(Boolean);
+    const todasLasZonas = [...new Set([...ciudadesElegidas, ...zonasCustom])];
+
+    if (todasLasZonas.length === 0 || categoriasElegidas.length === 0) {
+      alert("Selecciona al menos una zona y una categoría.");
       return;
     }
     setEstadoCampana("corriendo");
@@ -150,7 +164,7 @@ export default function ProspeccionPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ciudades: ciudadesElegidas,
+          ciudades: todasLasZonas,
           categorias: categoriasElegidas,
           paginas: paginasPorCiudad,
           solo_con_telefono: soloConTelefono,
@@ -160,7 +174,21 @@ export default function ProspeccionPage() {
       if (resp.ok) {
         const data = await resp.json();
         setEstadoCampana("completada");
-        setMensajeCampana(`✅ ${data.nuevos_leads} nuevos leads encontrados`);
+        setMensajeCampana(`✅ Campaña lanzada — leads en proceso`);
+
+        // Guardar en historial local
+        const nuevasEntradas = todasLasZonas.flatMap(zona =>
+          categoriasElegidas.map(cat => ({
+            zona,
+            categoria: cat,
+            leads: Math.round(data.nuevos_leads / (todasLasZonas.length * categoriasElegidas.length)),
+            fecha: new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "2-digit" }),
+          }))
+        );
+        const historialActualizado = [...nuevasEntradas, ...historialCampanas].slice(0, 50);
+        setHistorialCampanas(historialActualizado);
+        localStorage.setItem("historial_campanas", JSON.stringify(historialActualizado));
+
         setTimeout(() => {
           setEstadoCampana("idle");
           setMostrarConfig(false);
@@ -271,13 +299,25 @@ export default function ProspeccionPage() {
         <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
           <h2 className="font-semibold text-slate-800">Configurar campaña de scraping</h2>
 
-          {/* Ciudades */}
-          <div>
-            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2 block">
-              Ciudades a prospectar
+          {/* Zonas */}
+          <div className="space-y-3">
+            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide block">
+              Zonas a prospectar
             </label>
+            {/* Campo libre — barrio, CP, municipio */}
+            <div>
+              <input
+                type="text"
+                value={zonaPersonalizada}
+                onChange={e => setZonaPersonalizada(e.target.value)}
+                placeholder="Escribe barrios, CP o municipios separados por coma — ej: Salamanca, Retiro, 28001, Pozuelo"
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-slate-400"
+              />
+              <p className="text-xs text-slate-400 mt-1">Puedes combinar barrios, códigos postales y municipios con las ciudades de abajo</p>
+            </div>
+            {/* Ciudades predefinidas */}
             <div className="flex flex-wrap gap-2">
-              {CIUDADES.map(c => (
+              {CIUDADES_SUGERIDAS.map(c => (
                 <button
                   key={c}
                   onClick={() => toggleCiudad(c)}
@@ -381,6 +421,40 @@ export default function ProspeccionPage() {
                 ) : "Lanzar campaña"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Historial de campañas */}
+      {historialCampanas.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Zonas ya prospectadas</p>
+            <button
+              onClick={() => { setHistorialCampanas([]); localStorage.removeItem("historial_campanas"); }}
+              className="text-xs text-slate-400 hover:text-slate-600"
+            >
+              Limpiar historial
+            </button>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {historialCampanas.slice(0, 10).map((h, i) => (
+              <div key={i} className="grid grid-cols-[1fr_1fr_auto_auto] gap-4 px-4 py-2.5 items-center">
+                <span className="text-sm font-medium text-slate-700">{h.zona}</span>
+                <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded w-fit">{h.categoria.replace(/_/g, " ")}</span>
+                <span className="text-xs text-slate-400">{h.fecha}</span>
+                <button
+                  onClick={() => {
+                    setZonaPersonalizada(h.zona);
+                    setCategoriasElegidas([h.categoria]);
+                    setMostrarConfig(true);
+                  }}
+                  className="text-xs text-indigo-600 hover:underline"
+                >
+                  Repetir
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       )}
