@@ -426,7 +426,7 @@ async def get_dashboard_resumen():
 # SCRAPING — Endpoint para lanzar campañas de prospección
 # ============================================================
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 
 class CampanaRequest(BaseModel):
     ciudades: List[str]
