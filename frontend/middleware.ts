@@ -7,13 +7,14 @@ const RUTAS_PUBLICAS = ["/login", "/(public)", "/captacion", "/landing"];
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Permitir rutas públicas
+  // Permitir rutas públicas y API (rewrites al backend de Railway)
   if (
     pathname.startsWith("/login") ||
     pathname.startsWith("/captacion") ||
     pathname.startsWith("/landing") ||
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
+    pathname.startsWith("/api/") ||
     pathname.includes(".")
   ) {
     return NextResponse.next();
