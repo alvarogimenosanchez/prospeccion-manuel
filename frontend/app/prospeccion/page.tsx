@@ -19,6 +19,7 @@ const CATEGORIAS = [
 
 type EstadoCampana = "idle" | "corriendo" | "completada" | "error";
 
+
 export default function ProspeccionPage() {
   const [leads, setLeads] = useState<LeadNuevo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -168,14 +169,10 @@ export default function ProspeccionPage() {
       } else {
         throw new Error("Error en el servidor");
       }
-    } catch {
-      // API no disponible aún — simulamos resultado
-      setEstadoCampana("completada");
-      setMensajeCampana("✅ Campaña completada (modo demo — conecta el backend para scraping real)");
-      setTimeout(() => {
-        setEstadoCampana("idle");
-        setMostrarConfig(false);
-      }, 4000);
+    } catch (err) {
+      setEstadoCampana("error");
+      setMensajeCampana(`❌ Error: ${err instanceof Error ? err.message : "No se pudo conectar con el backend"}`);
+      setTimeout(() => setEstadoCampana("idle"), 6000);
     }
   };
 
