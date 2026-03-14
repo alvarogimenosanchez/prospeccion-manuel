@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 // Emails autorizados — añadir más aquí cuando haya más comerciales
-const EMAILS_AUTORIZADOS = ["manulopezz2002@gmail.com"];
+const EMAILS_AUTORIZADOS = ["manulopezz2002@gmail.com", "alvarogimeno2002@gmail.com"];
 
 // Rutas públicas que no necesitan autenticación
 const RUTAS_PUBLICAS = ["/login", "/(public)", "/captacion", "/landing"];
