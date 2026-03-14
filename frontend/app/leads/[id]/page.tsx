@@ -455,6 +455,7 @@ export default function LeadDetailPage() {
               <div className="space-y-2">
                 {appointments.map((a) => {
                   const esPasada = new Date(a.fecha_hora) < new Date();
+                  const estado = a.estado as string;
                   const estadoColor =
                     a.estado === "confirmada" ? "bg-green-100 text-green-700" :
                     a.estado === "realizada" ? "bg-slate-100 text-slate-500" :
@@ -480,9 +481,9 @@ export default function LeadDetailPage() {
                         </span>
                       </div>
                       {/* Acciones rápidas */}
-                      {a.estado !== "realizada" && a.estado !== "cancelada" && (
+                      {estado !== "realizada" && estado !== "cancelada" && (
                         <div className="flex gap-1.5 mt-2 pt-2 border-t border-slate-100">
-                          {!esPasada && a.estado !== "confirmada" && (
+                          {!esPasada && estado !== "confirmada" && (
                             <button
                               onClick={() => actualizarEstadoCita(a.id, "confirmada")}
                               className="text-xs text-green-600 hover:text-green-800 font-medium"
@@ -490,7 +491,7 @@ export default function LeadDetailPage() {
                               ✓ Confirmar
                             </button>
                           )}
-                          {esPasada && a.estado !== "realizada" && (
+                          {esPasada && estado !== "realizada" && (
                             <button
                               onClick={() => actualizarEstadoCita(a.id, "realizada")}
                               className="text-xs text-slate-600 hover:text-slate-800 font-medium"
@@ -498,7 +499,7 @@ export default function LeadDetailPage() {
                               ✓ Marcar realizada
                             </button>
                           )}
-                          {esPasada && a.estado !== "no_show" && a.estado !== "realizada" && (
+                          {esPasada && estado !== "no_show" && estado !== "realizada" && (
                             <button
                               onClick={() => actualizarEstadoCita(a.id, "no_show")}
                               className="text-xs text-orange-500 hover:text-orange-700 ml-2"
