@@ -102,6 +102,39 @@ export default function ProspeccionPage() {
     cargarLeads();
   };
 
+  const [estadoSeguimiento, setEstadoSeguimiento] = useState<"idle"|"corriendo"|"completado">("idle");
+  const [estadoEnriquecimiento, setEstadoEnriquecimiento] = useState<"idle"|"corriendo"|"completado">("idle");
+
+  const lanzarSeguimiento = async () => {
+    setEstadoSeguimiento("corriendo");
+    try {
+      const resp = await fetch("/api/seguimiento/ejecutar", { method: "POST" });
+      if (resp.ok) {
+        setEstadoSeguimiento("completado");
+        setTimeout(() => setEstadoSeguimiento("idle"), 4000);
+      }
+    } catch {
+      setEstadoSeguimiento("idle");
+    }
+  };
+
+  const lanzarEnriquecimiento = async () => {
+    setEstadoEnriquecimiento("corriendo");
+    try {
+      const resp = await fetch("/api/linkedin/enriquecer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ limite: 50 }),
+      });
+      if (resp.ok) {
+        setEstadoEnriquecimiento("completado");
+        setTimeout(() => { setEstadoEnriquecimiento("idle"); cargarLeads(); }, 4000);
+      }
+    } catch {
+      setEstadoEnriquecimiento("idle");
+    }
+  };
+
   const lanzarCampana = async () => {
     if (ciudadesElegidas.length === 0 || categoriasElegidas.length === 0) {
       alert("Selecciona al menos una ciudad y una categoría.");
@@ -183,6 +216,50 @@ export default function ProspeccionPage() {
           <span>🔍</span>
           Nueva campaña
         </button>
+      </div>
+
+      {/* Barra de agentes */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Agente 1 — Prospector</p>
+            <p className="text-sm text-slate-700 mt-0.5">Buscar leads nuevos por zona y sector</p>
+          </div>
+          <button
+            onClick={() => setMostrarConfig(true)}
+            className="flex-shrink-0 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+          >
+            Lanzar
+          </button>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Agente 4 — Enriquecedor</p>
+            <p className="text-sm text-slate-700 mt-0.5">Buscar director/propietario en LinkedIn</p>
+          </div>
+          <button
+            onClick={lanzarEnriquecimiento}
+            disabled={estadoEnriquecimiento === "corriendo"}
+            className="flex-shrink-0 px-3 py-1.5 bg-violet-600 text-white text-xs font-medium rounded-lg hover:bg-violet-700 disabled:opacity-50 transition-colors"
+          >
+            {estadoEnriquecimiento === "corriendo" ? "Buscando..." : estadoEnriquecimiento === "completado" ? "✓ Hecho" : "Enriquecer"}
+          </button>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Agente 2 — Seguimiento</p>
+            <p className="text-sm text-slate-700 mt-0.5">Recordatorios automáticos y leads fríos</p>
+          </div>
+          <button
+            onClick={lanzarSeguimiento}
+            disabled={estadoSeguimiento === "corriendo"}
+            className="flex-shrink-0 px-3 py-1.5 bg-amber-600 text-white text-xs font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
+          >
+            {estadoSeguimiento === "corriendo" ? "Ejecutando..." : estadoSeguimiento === "completado" ? "✓ Hecho" : "Ejecutar"}
+          </button>
+        </div>
       </div>
 
       {/* Panel configuración campaña */}
