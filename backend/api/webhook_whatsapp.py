@@ -517,13 +517,14 @@ async def diagnostico_enriquecimiento():
     """Diagnóstico: muestra los primeros 5 leads candidatos a enriquecer y sus datos clave."""
     resp = supabase.table("leads").select(
         "id, nombre, empresa, ciudad, fuente_detalle, web, apellidos, cargo, estado"
-    ).eq("fuente", "scraping").is_("apellidos", "null").not_.is_("empresa", "null").limit(5).execute()
+    ).eq("fuente", "scraping").not_.is_("empresa", "null").in_("estado", ["nuevo", "enriquecido"]).limit(5).execute()
 
     leads = resp.data or []
     resultado = []
     for l in leads:
         fuente = l.get("fuente_detalle") or ""
         url_web = l.get("web") or (fuente if fuente.startswith("http") else "")
+        tiene_apellidos = bool(l.get("apellidos") and str(l.get("apellidos")).strip())
         resultado.append({
             "empresa": l.get("empresa"),
             "ciudad": l.get("ciudad"),
@@ -531,9 +532,10 @@ async def diagnostico_enriquecimiento():
             "tiene_web": bool(url_web),
             "url_web": url_web or "(ninguna)",
             "fuente_detalle": fuente[:80] if fuente else "(vacío)",
+            "ya_enriquecido": tiene_apellidos,
         })
 
-    total_candidatos = supabase.table("leads").select("id", count="exact", head=True).eq("fuente", "scraping").is_("apellidos", "null").execute()
+    total_candidatos = supabase.table("leads").select("id", count="exact", head=True).eq("fuente", "scraping").in_("estado", ["nuevo"]).execute()
 
     return {
         "total_candidatos_a_enriquecer": total_candidatos.count,

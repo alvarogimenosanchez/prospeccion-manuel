@@ -509,7 +509,7 @@ def enriquecer_leads_sin_nombre(limite: int = 50) -> dict:
     """
     resp = sb.table("leads").select(
         "id, nombre, apellidos, empresa, ciudad, sector, tipo_lead, notas, fuente_detalle, cargo, web, telefono_whatsapp"
-    ).eq("fuente", "scraping").is_("apellidos", "null").not_.is_("empresa", "null").limit(limite).execute()
+    ).eq("fuente", "scraping").not_.is_("empresa", "null").in_("estado", ["nuevo", "enriquecido"]).limit(limite).execute()
 
     leads = resp.data or []
     logger.info(f"Enriqueciendo lote de {len(leads)} leads sin nombre...")
@@ -520,7 +520,7 @@ def enriquecer_leads_sin_nombre(limite: int = 50) -> dict:
     for lead in leads:
         procesados += 1
 
-        if lead.get("apellidos") or lead.get("cargo"):
+        if lead.get("apellidos") and lead.get("apellidos").strip():
             continue
 
         updates = enriquecer_lead(lead)
