@@ -1,9 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Emails autorizados — añadir más aquí cuando haya más comerciales
-const EMAILS_AUTORIZADOS = ["manulopezz2002@gmail.com", "alvarogimeno2002@gmail.com"];
-
 // Rutas públicas que no necesitan autenticación
 const RUTAS_PUBLICAS = ["/login", "/(public)", "/captacion", "/landing"];
 
@@ -59,9 +56,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // Email no autorizado → redirigir a login con error
+  // Verificar que el email está en la tabla comerciales (activos)
   const email = user.email ?? "";
-  if (!EMAILS_AUTORIZADOS.includes(email)) {
+  const { data: comercial } = await supabase
+    .from("comerciales")
+    .select("id")
+    .eq("email", email)
+    .eq("activo", true)
+    .maybeSingle();
+
+  if (!comercial) {
     await supabase.auth.signOut();
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";

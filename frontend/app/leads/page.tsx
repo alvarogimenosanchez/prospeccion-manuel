@@ -24,6 +24,7 @@ function LeadsContent() {
   const [temperatura, setTemperatura] = useState(searchParams.get("temperatura") ?? "");
   const [prioridad, setPrioridad] = useState(searchParams.get("prioridad") ?? "");
   const [busqueda, setBusqueda] = useState("");
+  const [teamId, setTeamId] = useState(searchParams.get("team") ?? "");
 
   const cargarLeads = useCallback(async () => {
     setLoading(true);
@@ -35,6 +36,7 @@ function LeadsContent() {
 
     if (temperatura) query = query.eq("temperatura", temperatura);
     if (prioridad) query = query.eq("prioridad", prioridad);
+    if (teamId) query = query.eq("team_id", teamId);
 
     const { data, count } = await query;
     let resultado = (data as LeadDashboard[]) ?? [];
@@ -55,7 +57,7 @@ function LeadsContent() {
     setLeads(resultado);
     setTotal(count ?? 0);
     setLoading(false);
-  }, [temperatura, prioridad, busqueda]);
+  }, [temperatura, prioridad, busqueda, teamId]);
 
   useEffect(() => {
     cargarLeads();
@@ -105,9 +107,11 @@ function LeadsContent() {
           temperatura={temperatura}
           prioridad={prioridad}
           busqueda={busqueda}
+          teamId={teamId}
           onTemperatura={setTemperatura}
           onPrioridad={setPrioridad}
           onBusqueda={setBusqueda}
+          onTeam={setTeamId}
         />
       </div>
 

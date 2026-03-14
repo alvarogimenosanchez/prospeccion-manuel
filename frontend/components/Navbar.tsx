@@ -25,9 +25,11 @@ export function Navbar() {
     { href: "/", label: "Dashboard" },
     { href: "/leads", label: "Leads" },
     { href: "/pipeline", label: "Pipeline" },
+    { href: "/agenda", label: "Agenda" },
     { href: "/prospeccion", label: "Prospección" },
     { href: "/metricas", label: "Métricas" },
     { href: "/desempeno", label: "Desempeño" },
+    { href: "/equipos", label: "Equipos" },
   ];
 
   return (

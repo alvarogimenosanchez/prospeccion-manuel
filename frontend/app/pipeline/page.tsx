@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 
 type Estado =
   | "nuevo"
@@ -58,21 +60,39 @@ function diasDesde(fecha: string): string {
 }
 
 export default function PipelinePage() {
+  return (
+    <Suspense fallback={<div className="py-24 text-center text-sm text-slate-400">Cargando pipeline...</div>}>
+      <PipelineContent />
+    </Suspense>
+  );
+}
+
+function PipelineContent() {
+  const searchParams = useSearchParams();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [moviendo, setMoviendo] = useState<string | null>(null);
+  const [teamId, setTeamId] = useState(searchParams.get("team") ?? "");
+  const [teams, setTeams] = useState<{ id: string; nombre: string }[]>([]);
+
+  useEffect(() => {
+    supabase.from("teams").select("id, nombre").eq("activo", true).order("nombre")
+      .then(({ data }) => setTeams(data ?? []));
+  }, []);
 
   const cargarLeads = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from("leads")
       .select("id, nombre, apellidos, empresa, sector, temperatura, nivel_interes, ciudad, estado, updated_at")
       .in("estado", COLUMNAS.map(c => c.estado))
       .order("nivel_interes", { ascending: false })
       .limit(300);
+    if (teamId) query = query.eq("team_id", teamId);
+    const { data } = await query;
     setLeads((data as Lead[]) ?? []);
     setLoading(false);
-  }, []);
+  }, [teamId]);
 
   useEffect(() => { cargarLeads(); }, [cargarLeads]);
 
@@ -92,9 +112,23 @@ export default function PipelinePage() {
           <h1 className="text-2xl font-bold text-slate-900">Pipeline</h1>
           <p className="text-sm text-slate-500 mt-0.5">Vista Kanban del proceso de ventas</p>
         </div>
-        <button onClick={cargarLeads} className="text-sm text-slate-500 hover:text-slate-800 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors">
-          Actualizar
-        </button>
+        <div className="flex items-center gap-3">
+          {teams.length > 0 && (
+            <select
+              value={teamId}
+              onChange={e => setTeamId(e.target.value)}
+              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-slate-400 text-slate-600"
+            >
+              <option value="">Todos los equipos</option>
+              {teams.map(t => (
+                <option key={t.id} value={t.id}>{t.nombre}</option>
+              ))}
+            </select>
+          )}
+          <button onClick={cargarLeads} className="text-sm text-slate-500 hover:text-slate-800 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors">
+            Actualizar
+          </button>
+        </div>
       </div>
 
       {loading ? (

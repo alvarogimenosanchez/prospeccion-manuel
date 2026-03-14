@@ -1,25 +1,38 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+
 type FiltrosBarProps = {
   temperatura: string;
   prioridad: string;
   busqueda: string;
+  teamId?: string;
   onTemperatura: (v: string) => void;
   onPrioridad: (v: string) => void;
   onBusqueda: (v: string) => void;
+  onTeam?: (v: string) => void;
 };
 
 export function FiltrosBar({
   temperatura,
   prioridad,
   busqueda,
+  teamId = "",
   onTemperatura,
   onPrioridad,
   onBusqueda,
+  onTeam,
 }: FiltrosBarProps) {
+  const [teams, setTeams] = useState<{ id: string; nombre: string }[]>([]);
   const btnBase = "px-3 py-1.5 rounded-lg text-sm font-medium transition-all border";
   const active = "bg-slate-800 text-white border-slate-800";
   const inactive = "bg-white text-slate-600 border-slate-200 hover:border-slate-400";
+
+  useEffect(() => {
+    supabase.from("teams").select("id, nombre").eq("activo", true).order("nombre")
+      .then(({ data }) => setTeams(data ?? []));
+  }, []);
 
   const tempBtns = [
     { value: "", label: "Todos" },
@@ -46,7 +59,23 @@ export function FiltrosBar({
         className="flex-1 min-w-48 max-w-72 px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-200"
       />
 
-      {/* Separador */}
+      {/* Filtro equipo */}
+      {onTeam && teams.length > 0 && (
+        <>
+          <div className="hidden sm:block w-px h-6 bg-slate-200" />
+          <select
+            value={teamId}
+            onChange={e => onTeam(e.target.value)}
+            className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-slate-400 text-slate-600"
+          >
+            <option value="">Todos los equipos</option>
+            {teams.map(t => (
+              <option key={t.id} value={t.id}>{t.nombre}</option>
+            ))}
+          </select>
+        </>
+      )}
+
       <div className="hidden sm:block w-px h-6 bg-slate-200" />
 
       {/* Temperatura */}
@@ -62,7 +91,6 @@ export function FiltrosBar({
         ))}
       </div>
 
-      {/* Separador */}
       <div className="hidden sm:block w-px h-6 bg-slate-200" />
 
       {/* Prioridad */}

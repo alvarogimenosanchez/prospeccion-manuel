@@ -1,16 +1,10 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
-// Usa placeholders en build para evitar errores — en runtime lee las vars reales
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://placeholder.supabase.co";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "placeholder_key";
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  },
-});
+// Cliente SSR-aware que mantiene la sesión via cookies (compatible con RLS)
+export const supabase = createBrowserClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://placeholder.supabase.co",
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "placeholder_key"
+);
 
 // Tipos TypeScript que reflejan el esquema de Supabase
 export type Lead = {
@@ -41,12 +35,14 @@ export type Lead = {
   producto_interes_principal: string | null;
   notas: string | null;
   comercial_asignado: string | null;
+  team_id: string | null;
   created_at: string;
   updated_at: string;
 };
 
 export type LeadDashboard = Lead & {
   comercial_nombre: string | null;
+  team_nombre: string | null;
   ultima_interaccion: string | null;
   proxima_cita: string | null;
   horas_sin_atencion: number | null;
@@ -66,14 +62,52 @@ export type Interaction = {
 export type Appointment = {
   id: string;
   lead_id: string;
+  comercial_id: string | null;
   tipo: "llamada" | "reunion_presencial" | "videollamada";
-  estado: "pendiente" | "confirmada" | "realizada" | "cancelada" | "no_show";
+  estado: "solicitud_pendiente" | "pendiente" | "confirmada" | "realizada" | "cancelada" | "no_show";
   fecha_hora: string;
   duracion_minutos: number;
   producto_a_tratar: string | null;
   notas_previas: string | null;
   notas_post: string | null;
   resultado: string | null;
+  solicitado_por: "lead" | "comercial";
+  google_calendar_event_id: string | null;
+  google_meet_link: string | null;
+  notificado_comercial_at: string | null;
+  respondido_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Team = {
+  id: string;
+  nombre: string;
+  descripcion: string | null;
+  zona_geografica: string | null;
+  activo: boolean;
+  created_at: string;
+};
+
+export type TeamMember = {
+  id: string;
+  team_id: string;
+  comercial_id: string;
+  rol: "lider" | "miembro";
+  created_at: string;
+};
+
+export type Comercial = {
+  id: string;
+  nombre: string;
+  apellidos: string | null;
+  email: string | null;
+  telefono: string | null;
+  whatsapp: string | null;
+  activo: boolean;
+  rol: "director" | "comercial";
+  max_leads_activos: number;
+  google_calendar_id: string | null;
   created_at: string;
 };
 
