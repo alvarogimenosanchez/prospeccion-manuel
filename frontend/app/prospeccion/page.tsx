@@ -167,7 +167,12 @@ export default function ProspeccionPage() {
           cargarLeads();
         }, 3000);
       } else {
-        throw new Error("Error en el servidor");
+        let detail = `HTTP ${resp.status}`;
+        try {
+          const errData = await resp.json();
+          detail = errData.detail || errData.message || JSON.stringify(errData);
+        } catch {}
+        throw new Error(detail);
       }
     } catch (err) {
       setEstadoCampana("error");
