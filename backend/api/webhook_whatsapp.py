@@ -431,24 +431,29 @@ class CampanaRequest(BaseModel):
     ciudades: List[str]
     categorias: List[str]
     paginas: int = 2
+    solo_con_telefono: bool = False
+    excluir_sectores: List[str] = []
 
 @app.post("/scraping/lanzar")
 async def lanzar_campana_scraping(payload: CampanaRequest, background_tasks: BackgroundTasks):
     """
     Lanza una campaña de scraping en background.
     El dashboard recibe respuesta inmediata y el scraping corre en paralelo.
+    Anti-duplicados: compara contra toda la base existente al inicio.
     """
     background_tasks.add_task(
         ejecutar_campana,
         ciudades=payload.ciudades,
         categorias=payload.categorias,
         paginas_por_ciudad=payload.paginas,
+        solo_con_telefono=payload.solo_con_telefono,
+        excluir_sectores=payload.excluir_sectores,
     )
     estimado = len(payload.ciudades) * len(payload.categorias) * payload.paginas * 10
     return {
         "status": "iniciada",
-        "mensaje": f"Campaña en curso — ~{estimado} leads estimados",
-        "nuevos_leads": estimado,  # Estimación; el real se ve en el listado al recargar
+        "mensaje": f"Campaña en curso — ~{estimado} leads estimados (sin duplicados)",
+        "nuevos_leads": estimado,
     }
 
 

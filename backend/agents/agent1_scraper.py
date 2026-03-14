@@ -81,15 +81,33 @@ def limpiar_telefono(texto: str) -> str:
     return None
 
 
+def _cargar_existentes() -> tuple[set, set]:
+    """
+    Carga en memoria todos los teléfonos y nombres de empresa ya existentes.
+    Mucho más eficiente que hacer una query por lead.
+    """
+    r = sb.table('leads').select('telefono_whatsapp, empresa').execute()
+    telefonos = set()
+    nombres = set()
+    for row in (r.data or []):
+        if row.get('telefono_whatsapp'):
+            telefonos.add(row['telefono_whatsapp'])
+        if row.get('empresa') and len(row['empresa']) > 5:
+            nombres.add(row['empresa'].strip().lower()[:30])
+    return telefonos, nombres
+
+
+# Cache de existentes — se inicializa al arrancar cada campaña
+_telefonos_existentes: set = set()
+_nombres_existentes: set = set()
+
+
 def ya_existe(telefono: str, nombre_empresa: str) -> bool:
-    """Evita duplicados por teléfono o nombre de empresa."""
-    if telefono:
-        r = sb.table('leads').select('id').eq('telefono_whatsapp', telefono).execute()
-        if r.data:
-            return True
+    """Evita duplicados usando el cache en memoria cargado al inicio de la campaña."""
+    if telefono and telefono in _telefonos_existentes:
+        return True
     if nombre_empresa and len(nombre_empresa) > 5:
-        r = sb.table('leads').select('id').ilike('empresa', f"%{nombre_empresa[:20]}%").execute()
-        if r.data:
+        if nombre_empresa.strip().lower()[:30] in _nombres_existentes:
             return True
     return False
 
@@ -333,14 +351,24 @@ def scrape_google_search(categoria: str, ciudad: str) -> list[dict]:
 # ============================================================
 
 def guardar_leads(leads: list[dict]) -> tuple[int, int]:
-    """Guarda leads en Supabase evitando duplicados."""
+    """Guarda leads en Supabase evitando duplicados y actualiza el cache."""
+    global _telefonos_existentes, _nombres_existentes
     guardados = 0
     duplicados = 0
 
     for lead in leads:
+        # Verificar de nuevo con el cache actualizado (puede haber cambiado en esta misma ejecución)
+        if ya_existe(lead.get('telefono_whatsapp'), lead.get('empresa')):
+            duplicados += 1
+            continue
         try:
             lead_clean = {k: v for k, v in lead.items() if v is not None}
             sb.table('leads').insert(lead_clean).execute()
+            # Actualizar cache inmediatamente para evitar duplicados dentro de la misma campaña
+            if lead.get('telefono_whatsapp'):
+                _telefonos_existentes.add(lead['telefono_whatsapp'])
+            if lead.get('empresa') and len(lead['empresa']) > 5:
+                _nombres_existentes.add(lead['empresa'].strip().lower()[:30])
             guardados += 1
             print(f"    ✓ {lead.get('empresa', lead.get('nombre', '?'))} — {lead.get('ciudad')} {'📞' if lead.get('telefono_whatsapp') else '⚠ sin tel'}")
         except Exception as e:
@@ -352,7 +380,14 @@ def guardar_leads(leads: list[dict]) -> tuple[int, int]:
     return guardados, duplicados
 
 
-def ejecutar_campana(ciudades: list[str], categorias: list[str], paginas_por_ciudad: int = 2):
+def ejecutar_campana(
+    ciudades: list[str],
+    categorias: list[str],
+    paginas_por_ciudad: int = 2,
+    solo_con_telefono: bool = False,
+    radio_km: int | None = None,
+    excluir_sectores: list[str] | None = None,
+):
     """
     Ejecuta una campaña de prospección completa.
     Prioridad de fuentes: Google Places API > Google Search > Yelp
@@ -361,18 +396,36 @@ def ejecutar_campana(ciudades: list[str], categorias: list[str], paginas_por_ciu
         ciudades: Lista de ciudades a prospectar
         categorias: Lista de categorías (ver CATEGORIAS_CONFIG)
         paginas_por_ciudad: Controla profundidad (1=~10 leads, 3=~30 leads por ciudad/cat)
+        solo_con_telefono: Si True, descarta leads sin teléfono
+        radio_km: Radio en km para Google Places (None = ciudad completa)
+        excluir_sectores: Sectores a excluir de esta campaña
     """
+    global _telefonos_existentes, _nombres_existentes
+
+    # Cargar cache de existentes AL INICIO para anti-duplicados eficiente
+    print("  → Cargando base de datos existente para anti-duplicados...")
+    _telefonos_existentes, _nombres_existentes = _cargar_existentes()
+    print(f"  → {len(_telefonos_existentes)} teléfonos y {len(_nombres_existentes)} empresas ya en base de datos")
+
     total_guardados = 0
     total_duplicados = 0
     max_por_busqueda = paginas_por_ciudad * 10
 
+    excluir = [s.lower() for s in (excluir_sectores or [])]
+
     print(f"\n🔍 Campaña de prospección iniciada")
     print(f"   Ciudades: {', '.join(ciudades)}")
     print(f"   Categorías: {', '.join(categorias)}")
+    print(f"   Solo con teléfono: {solo_con_telefono}")
     print(f"   Objetivo: ~{max_por_busqueda} leads por ciudad/categoría\n")
 
     for ciudad in ciudades:
         for categoria in categorias:
+            # Saltar categorías excluidas
+            if categoria.lower() in excluir:
+                print(f"\n⏭ Saltando {categoria} (excluida)")
+                continue
+
             print(f"\n📍 {ciudad} — {categoria}")
             leads = []
 
@@ -390,6 +443,12 @@ def ejecutar_campana(ciudades: list[str], categorias: list[str], paginas_por_ciu
             if len(leads) < 3:
                 print(f"  → Usando Yelp como fallback...")
                 leads += scrape_yelp(categoria, ciudad)
+
+            # Filtro: solo leads con teléfono
+            if solo_con_telefono:
+                antes = len(leads)
+                leads = [l for l in leads if l.get('telefono_whatsapp')]
+                print(f"  → Filtro teléfono: {antes} → {len(leads)} leads")
 
             print(f"  → {len(leads)} leads encontrados, guardando...")
             g, d = guardar_leads(leads)

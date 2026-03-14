@@ -35,6 +35,7 @@ export default function ProspeccionPage() {
   const [ciudadesElegidas, setCiudadesElegidas] = useState<string[]>(["Madrid"]);
   const [categoriasElegidas, setCategoriasElegidas] = useState<string[]>(["inmobiliarias"]);
   const [paginasPorCiudad, setPaginasPorCiudad] = useState(2);
+  const [soloConTelefono, setSoloConTelefono] = useState(false);
   const [estadoCampana, setEstadoCampana] = useState<EstadoCampana>("idle");
   const [mensajeCampana, setMensajeCampana] = useState("");
   const [mostrarConfig, setMostrarConfig] = useState(false);
@@ -151,6 +152,7 @@ export default function ProspeccionPage() {
           ciudades: ciudadesElegidas,
           categorias: categoriasElegidas,
           paginas: paginasPorCiudad,
+          solo_con_telefono: soloConTelefono,
         }),
       });
 
@@ -335,6 +337,20 @@ export default function ProspeccionPage() {
             <span className="text-xs text-slate-400">
               (~{ciudadesElegidas.length * categoriasElegidas.length * paginasPorCiudad * 10} leads estimados)
             </span>
+          </div>
+
+          {/* Filtros avanzados */}
+          <div className="flex items-center gap-6 pt-2 border-t border-slate-100">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <div
+                onClick={() => setSoloConTelefono(!soloConTelefono)}
+                className={`w-9 h-5 rounded-full transition-colors relative ${soloConTelefono ? "bg-indigo-600" : "bg-slate-200"}`}
+              >
+                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${soloConTelefono ? "translate-x-4" : "translate-x-0.5"}`} />
+              </div>
+              <span className="text-sm text-slate-700">Solo leads con teléfono</span>
+              <span className="text-xs text-slate-400">(descarta los que no tienen número)</span>
+            </label>
           </div>
 
           {/* Resumen y botón */}
