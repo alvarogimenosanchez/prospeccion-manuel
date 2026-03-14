@@ -512,6 +512,14 @@ async def lanzar_enriquecimiento_linkedin(payload: EnriquecimientoRequest, backg
     }
 
 
+@app.post("/linkedin/enriquecer-sync")
+async def enriquecer_sync(payload: EnriquecimientoRequest):
+    """Enriquece de forma síncrona y devuelve el resultado directamente (para debugging)."""
+    from agents.agent4_linkedin import enriquecer_leads_sin_nombre
+    resultado = enriquecer_leads_sin_nombre(limite=payload.limite)
+    return resultado
+
+
 @app.get("/linkedin/diagnostico")
 async def diagnostico_enriquecimiento():
     """Diagnóstico: muestra los primeros 5 leads candidatos a enriquecer y sus datos clave."""
