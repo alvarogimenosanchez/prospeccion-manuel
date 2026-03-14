@@ -22,6 +22,7 @@ from agents.agent6_scoring import score_lead, Temperatura
 from agents.agent1_scraper import ejecutar_campana
 from agents.agent2_seguimiento import ejecutar_seguimiento, obtener_resumen_pendientes
 from agents.agent4_linkedin import enriquecer_leads_sin_nombre
+from agents.agent3_mensajes import generar_mensajes_lote, aprobar_mensaje, descartar_mensaje, generar_mensaje_whatsapp
 
 load_dotenv()
 
@@ -501,11 +502,106 @@ class EnriquecimientoRequest(BaseModel):
 @app.post("/linkedin/enriquecer")
 async def lanzar_enriquecimiento_linkedin(payload: EnriquecimientoRequest, background_tasks: BackgroundTasks):
     """
-    Enriquece leads de scraping sin nombre real buscando al director/propietario en LinkedIn.
-    Corre en background. Requiere PROXYCURL_API_KEY para máxima fiabilidad.
+    Enriquece leads de scraping: busca nombre propietario, móvil y email desde la web del negocio.
+    Corre en background.
     """
     background_tasks.add_task(enriquecer_leads_sin_nombre, limite=payload.limite)
     return {
         "status": "iniciado",
-        "mensaje": f"Enriqueciendo hasta {payload.limite} leads en background. Revisa los leads para ver los nombres actualizados.",
+        "mensaje": f"Enriqueciendo hasta {payload.limite} leads en background. Revisa los leads para ver los datos actualizados.",
     }
+
+
+# ============================================================
+# MENSAJES — Endpoints del Agente 3
+# ============================================================
+
+class MensajesLoteRequest(BaseModel):
+    limite: int = 30
+
+class AprobarMensajeRequest(BaseModel):
+    mensaje_editado: Optional[str] = None
+
+class MensajeUnicoRequest(BaseModel):
+    lead_id: str
+
+
+@app.post("/mensajes/generar")
+async def lanzar_generacion_mensajes(payload: MensajesLoteRequest, background_tasks: BackgroundTasks):
+    """
+    Genera mensajes de primer contacto personalizados con Claude para leads sin mensaje pendiente.
+    Corre en background. Los mensajes quedan en estado 'pendiente' para revisión del comercial.
+    """
+    background_tasks.add_task(generar_mensajes_lote, limite=payload.limite)
+    return {
+        "status": "iniciado",
+        "mensaje": f"Generando mensajes para hasta {payload.limite} leads. Revisa la bandeja de aprobación.",
+    }
+
+
+@app.post("/mensajes/generar-uno")
+async def generar_mensaje_para_lead(payload: MensajeUnicoRequest):
+    """
+    Genera (o regenera) el mensaje de WhatsApp para un lead específico.
+    Devuelve el mensaje generado para previsualización inmediata.
+    """
+    lead_resp = supabase.table("leads").select(
+        "id, nombre, apellidos, empresa, sector, ciudad, cargo, tipo_lead, "
+        "productos_recomendados, num_empleados, señales_detectadas, web, "
+        "telefono_whatsapp, comercial_asignado"
+    ).eq("id", payload.lead_id).single().execute()
+
+    if not lead_resp.data:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+
+    mensaje = generar_mensaje_whatsapp(lead_resp.data)
+
+    # Upsert en mensajes_pendientes
+    existente = supabase.table("mensajes_pendientes").select("id").eq("lead_id", payload.lead_id).eq("estado", "pendiente").execute()
+    if existente.data:
+        supabase.table("mensajes_pendientes").update({"mensaje": mensaje}).eq("id", existente.data[0]["id"]).execute()
+        mensaje_id = existente.data[0]["id"]
+    else:
+        nuevo = supabase.table("mensajes_pendientes").insert({
+            "lead_id": payload.lead_id,
+            "mensaje": mensaje,
+            "estado": "pendiente",
+            "comercial_id": lead_resp.data.get("comercial_asignado"),
+            "canal": "whatsapp",
+        }).execute()
+        mensaje_id = nuevo.data[0]["id"] if nuevo.data else None
+
+    return {"mensaje_id": mensaje_id, "mensaje": mensaje}
+
+
+@app.get("/mensajes/pendientes")
+async def get_mensajes_pendientes(limite: int = 50):
+    """
+    Devuelve los mensajes pendientes de aprobación con datos del lead.
+    """
+    resp = supabase.table("mensajes_pendientes").select(
+        "id, mensaje, estado, canal, created_at, editado_por_comercial, "
+        "leads(id, nombre, apellidos, empresa, sector, ciudad, telefono_whatsapp, cargo)"
+    ).eq("estado", "pendiente").order("created_at", desc=False).limit(limite).execute()
+
+    return resp.data or []
+
+
+@app.post("/mensajes/{mensaje_id}/aprobar")
+async def aprobar_mensaje_endpoint(mensaje_id: str, payload: AprobarMensajeRequest):
+    """
+    Aprueba un mensaje (con o sin edición). Queda listo para envío.
+    """
+    ok = aprobar_mensaje(mensaje_id, payload.mensaje_editado)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Mensaje no encontrado")
+    return {"status": "aprobado"}
+
+
+@app.post("/mensajes/{mensaje_id}/descartar")
+async def descartar_mensaje_endpoint(mensaje_id: str):
+    """Descarta un mensaje sin enviarlo."""
+    ok = descartar_mensaje(mensaje_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Mensaje no encontrado")
+    return {"status": "descartado"}

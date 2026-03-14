@@ -251,6 +251,29 @@ CREATE TABLE message_templates (
 );
 
 -- ============================================================
+-- TABLA: mensajes_pendientes
+-- Mensajes generados por Claude pendientes de aprobación del comercial
+-- ============================================================
+CREATE TABLE mensajes_pendientes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    lead_id UUID NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+    comercial_id UUID REFERENCES comerciales(id),
+
+    mensaje TEXT NOT NULL,              -- Mensaje generado por Claude
+    canal TEXT DEFAULT 'whatsapp' CHECK (canal IN ('whatsapp', 'email', 'llamada')),
+    estado TEXT DEFAULT 'pendiente' CHECK (estado IN ('pendiente', 'aprobado', 'descartado', 'enviado')),
+    editado_por_comercial BOOLEAN DEFAULT FALSE,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_mensajes_lead ON mensajes_pendientes(lead_id);
+CREATE INDEX idx_mensajes_estado ON mensajes_pendientes(estado);
+ALTER TABLE mensajes_pendientes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow authenticated access" ON mensajes_pendientes FOR ALL USING (auth.role() = 'authenticated');
+
+-- ============================================================
 -- FUNCIÓN: actualizar updated_at automáticamente
 -- ============================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()

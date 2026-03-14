@@ -25,6 +25,7 @@ export function Navbar() {
     { href: "/", label: "Dashboard" },
     { href: "/leads", label: "Leads" },
     { href: "/pipeline", label: "Pipeline" },
+    { href: "/mensajes", label: "Mensajes" },
     { href: "/agenda", label: "Agenda" },
     { href: "/prospeccion", label: "Prospección" },
     { href: "/metricas", label: "Métricas" },
