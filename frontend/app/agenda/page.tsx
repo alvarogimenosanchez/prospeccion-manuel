@@ -50,6 +50,118 @@ const TIPO_ICON: Record<string, string> = {
   reunion_presencial: "🤝",
 };
 
+const RESULTADOS_CITA = [
+  { value: "interesado", label: "✅ Interesado — quiere seguir" },
+  { value: "necesita_mas_info", label: "🤔 Necesita más información" },
+  { value: "no_interesado", label: "❌ No interesado" },
+  { value: "cerrado_ganado", label: "🏆 Cerrado — contratado" },
+  { value: "aplazado", label: "⏳ Aplazado — contactar más adelante" },
+];
+
+const PROXIMAS_ACCIONES_POST = [
+  { value: "llamar", label: "📞 Llamar" },
+  { value: "whatsapp", label: "💬 Enviar WhatsApp" },
+  { value: "enviar_info", label: "📎 Enviar información" },
+  { value: "reunion", label: "📅 Nueva reunión" },
+  { value: "ninguna", label: "— Ninguna (cerrado)" },
+];
+
+type ModalPostCitaProps = {
+  cita: CitaConLead;
+  onGuardar: (citaId: string, datos: { notas_post: string; resultado: string; proxima_accion: string; proxima_accion_nota: string }) => Promise<void>;
+  onCerrar: () => void;
+};
+
+function ModalPostCita({ cita, onGuardar, onCerrar }: ModalPostCitaProps) {
+  const nombre = [cita.lead?.nombre, cita.lead?.apellidos].filter(Boolean).join(" ") || "Lead";
+  const [resultado, setResultado] = useState("interesado");
+  const [notasPost, setNotasPost] = useState("");
+  const [proximaAccion, setProximaAccion] = useState("llamar");
+  const [proximaNota, setProximaNota] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleGuardar() {
+    if (!notasPost.trim()) { setError("Escribe al menos una nota sobre cómo fue la cita."); return; }
+    setGuardando(true);
+    await onGuardar(cita.id, { notas_post: notasPost, resultado, proxima_accion: proximaAccion, proxima_accion_nota: proximaNota });
+    setGuardando(false);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h2 className="text-base font-bold text-slate-800">Resultado de la cita</h2>
+          <p className="text-sm text-slate-500 mt-0.5">{nombre} · {format(parseISO(cita.fecha_hora), "d MMM · HH:mm", { locale: es })}</p>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">¿Cómo fue?</label>
+            <div className="space-y-1.5">
+              {RESULTADOS_CITA.map(r => (
+                <button
+                  key={r.value}
+                  onClick={() => setResultado(r.value)}
+                  className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-colors ${resultado === r.value ? "bg-indigo-50 border-indigo-300 text-indigo-700 font-medium" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">
+              Nota post-cita <span className="text-red-400">*</span>
+            </label>
+            <textarea
+              value={notasPost}
+              onChange={e => { setNotasPost(e.target.value); setError(""); }}
+              rows={3}
+              placeholder="¿Qué se habló? ¿Qué le interesó? ¿Qué objeciones hubo?..."
+              className={`w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none ${error ? "border-red-300 focus:border-red-400" : "border-slate-200 focus:border-indigo-300"}`}
+            />
+            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Próxima acción</label>
+            <select
+              value={proximaAccion}
+              onChange={e => setProximaAccion(e.target.value)}
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-indigo-300"
+            >
+              {PROXIMAS_ACCIONES_POST.map(a => (
+                <option key={a.value} value={a.value}>{a.label}</option>
+              ))}
+            </select>
+            {proximaAccion !== "ninguna" && (
+              <input
+                type="text"
+                value={proximaNota}
+                onChange={e => setProximaNota(e.target.value)}
+                placeholder="Nota para la próxima acción (opcional)"
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 mt-1.5 focus:outline-none focus:border-indigo-300"
+              />
+            )}
+          </div>
+        </div>
+        <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+          <button
+            onClick={handleGuardar}
+            disabled={guardando}
+            className="flex-1 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          >
+            {guardando ? "Guardando..." : "Guardar resultado"}
+          </button>
+          <button onClick={onCerrar} className="px-4 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50">
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AgendaPage() {
   const [citas, setCitas] = useState<CitaConLead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +169,7 @@ export default function AgendaPage() {
   const [vista, setVista] = useState<"semana" | "lista">("semana");
   const [filtroComercial, setFiltroComercial] = useState("");
   const [comerciales, setComerciales] = useState<{ id: string; nombre: string; apellidos: string | null }[]>([]);
+  const [citaParaRegistrar, setCitaParaRegistrar] = useState<CitaConLead | null>(null);
 
   useEffect(() => {
     supabase.from("comerciales").select("id, nombre, apellidos").eq("activo", true).order("nombre")
@@ -89,8 +202,45 @@ export default function AgendaPage() {
   useEffect(() => { cargarCitas(); }, [cargarCitas]);
 
   async function actualizarEstado(citaId: string, nuevoEstado: string) {
+    // Si se marca como realizada → abrir modal obligatorio
+    if (nuevoEstado === "realizada") {
+      const cita = citas.find(c => c.id === citaId);
+      if (cita) { setCitaParaRegistrar(cita); return; }
+    }
     await supabase.from("appointments").update({ estado: nuevoEstado }).eq("id", citaId);
     setCitas(prev => prev.map(c => c.id === citaId ? { ...c, estado: nuevoEstado } : c));
+  }
+
+  async function guardarResultadoCita(citaId: string, datos: { notas_post: string; resultado: string; proxima_accion: string; proxima_accion_nota: string }) {
+    const cita = citas.find(c => c.id === citaId);
+    // Guardar en appointment
+    await supabase.from("appointments").update({
+      estado: "realizada",
+      notas_post: datos.notas_post,
+      resultado: datos.resultado,
+    }).eq("id", citaId);
+    // Guardar nota en interactions
+    if (cita?.lead_id) {
+      await supabase.from("interactions").insert({
+        lead_id: cita.lead_id,
+        tipo: "nota_manual",
+        mensaje: `📋 Post-cita: ${datos.notas_post}`,
+        origen: "comercial",
+      });
+      // Actualizar estado del lead + próxima acción
+      const leadUpdates: Record<string, string | null> = {
+        proxima_accion: datos.proxima_accion !== "ninguna" ? datos.proxima_accion : null,
+        proxima_accion_nota: datos.proxima_accion_nota || null,
+        proxima_accion_fecha: null,
+        updated_at: new Date().toISOString(),
+      };
+      if (datos.resultado === "cerrado_ganado") leadUpdates.estado = "cerrado_ganado";
+      else if (datos.resultado === "no_interesado") leadUpdates.estado = "cerrado_perdido";
+      else if (datos.resultado === "interesado" || datos.resultado === "necesita_mas_info") leadUpdates.estado = "en_negociacion";
+      await supabase.from("leads").update(leadUpdates).eq("id", cita.lead_id);
+    }
+    setCitas(prev => prev.map(c => c.id === citaId ? { ...c, estado: "realizada", notas_post: datos.notas_post } : c));
+    setCitaParaRegistrar(null);
   }
 
   const dias = Array.from({ length: 7 }, (_, i) => addDays(semanaBase, i));
@@ -98,9 +248,22 @@ export default function AgendaPage() {
 
   const citasHoy = citas.filter(c => isSameDay(parseISO(c.fecha_hora), hoy));
   const citasPendientes = citas.filter(c => c.estado === "pendiente" || c.estado === "solicitud_pendiente");
+  const citasSinRegistrar = citas.filter(c => {
+    const pasada = new Date(c.fecha_hora) < new Date();
+    return pasada && c.estado !== "cancelada" && c.estado !== "no_show" && c.estado !== "realizada";
+  });
 
   return (
     <div className="space-y-6">
+      {/* Modal post-cita */}
+      {citaParaRegistrar && (
+        <ModalPostCita
+          cita={citaParaRegistrar}
+          onGuardar={guardarResultadoCita}
+          onCerrar={() => setCitaParaRegistrar(null)}
+        />
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -160,6 +323,25 @@ export default function AgendaPage() {
       </div>
 
       {/* Alertas */}
+      {citasSinRegistrar.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-3">
+          <span className="text-red-500 text-lg">🔴</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-red-800">
+              {citasSinRegistrar.length} cita{citasSinRegistrar.length > 1 ? "s" : ""} sin registrar resultado
+            </p>
+            <p className="text-xs text-red-600 mt-0.5">
+              {citasSinRegistrar.map(c => c.lead?.nombre ?? "Lead").join(", ")}
+            </p>
+          </div>
+          <button
+            onClick={() => setCitaParaRegistrar(citasSinRegistrar[0])}
+            className="text-xs font-medium text-red-700 border border-red-300 bg-white hover:bg-red-50 px-3 py-1.5 rounded-lg whitespace-nowrap"
+          >
+            Registrar ahora
+          </button>
+        </div>
+      )}
       {citasPendientes.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
           <span className="text-amber-500 text-lg">⚠️</span>

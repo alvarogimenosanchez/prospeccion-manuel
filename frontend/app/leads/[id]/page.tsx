@@ -86,6 +86,12 @@ export default function LeadDetailPage() {
   });
   const [guardandoCita, setGuardandoCita] = useState(false);
 
+  // Post-cita
+  const [citaParaRegistrar, setCitaParaRegistrar] = useState<Appointment | null>(null);
+  const [postCitaForm, setPostCitaForm] = useState({ resultado: "interesado", notas_post: "", proxima_accion: "llamar", proxima_accion_nota: "" });
+  const [errorPostCita, setErrorPostCita] = useState("");
+  const [guardandoPostCita, setGuardandoPostCita] = useState(false);
+
   // Próxima acción
   const [editandoAccion, setEditandoAccion] = useState(false);
   const [accionForm, setAccionForm] = useState<{
@@ -212,8 +218,50 @@ export default function LeadDetailPage() {
   }
 
   async function actualizarEstadoCita(citaId: string, nuevoEstado: Appointment["estado"]) {
+    if (nuevoEstado === "realizada") {
+      const cita = appointments.find(a => a.id === citaId);
+      if (cita) {
+        setCitaParaRegistrar(cita);
+        setPostCitaForm({ resultado: "interesado", notas_post: "", proxima_accion: "llamar", proxima_accion_nota: "" });
+        return;
+      }
+    }
     await supabase.from("appointments").update({ estado: nuevoEstado }).eq("id", citaId);
     setAppointments(prev => prev.map(a => a.id === citaId ? { ...a, estado: nuevoEstado } : a));
+  }
+
+  async function guardarPostCita() {
+    if (!postCitaForm.notas_post.trim()) { setErrorPostCita("Escribe al menos una nota sobre cómo fue la cita."); return; }
+    if (!lead || !citaParaRegistrar) return;
+    setGuardandoPostCita(true);
+    await supabase.from("appointments").update({
+      estado: "realizada",
+      notas_post: postCitaForm.notas_post,
+      resultado: postCitaForm.resultado,
+    }).eq("id", citaParaRegistrar.id);
+    await supabase.from("interactions").insert({
+      lead_id: lead.id,
+      tipo: "nota_manual",
+      mensaje: `📋 Post-cita: ${postCitaForm.notas_post}`,
+      origen: "comercial",
+    });
+    const leadUpdates: Record<string, string | null> = {
+      proxima_accion: postCitaForm.proxima_accion !== "ninguna" ? postCitaForm.proxima_accion : null,
+      proxima_accion_nota: postCitaForm.proxima_accion_nota || null,
+      proxima_accion_fecha: null,
+      updated_at: new Date().toISOString(),
+    };
+    if (postCitaForm.resultado === "cerrado_ganado") leadUpdates.estado = "cerrado_ganado";
+    else if (postCitaForm.resultado === "no_interesado") leadUpdates.estado = "cerrado_perdido";
+    else if (postCitaForm.resultado === "interesado" || postCitaForm.resultado === "necesita_mas_info") leadUpdates.estado = "en_negociacion";
+    await supabase.from("leads").update(leadUpdates).eq("id", lead.id);
+    setLead(prev => prev ? { ...prev, ...leadUpdates } as Lead : prev);
+    setAppointments(prev => prev.map(a => a.id === citaParaRegistrar.id ? { ...a, estado: "realizada", notas_post: postCitaForm.notas_post } : a));
+    setInteractions(prev => [...prev, { id: Date.now().toString(), lead_id: lead.id, tipo: "nota_manual", mensaje: `📋 Post-cita: ${postCitaForm.notas_post}`, origen: "comercial", sentimiento: null, señal_escalado: false, created_at: new Date().toISOString() } as Interaction]);
+    setCitaParaRegistrar(null);
+    setGuardandoPostCita(false);
+    setGuardadoOk(true);
+    setTimeout(() => setGuardadoOk(false), 2000);
   }
 
   function abrirEdicionAccion() {
@@ -314,8 +362,81 @@ export default function LeadDetailPage() {
     setTimeout(() => setCopiado(false), 2000);
   }
 
+  const RESULTADOS_CITA_LEAD = [
+    { value: "interesado", label: "✅ Interesado — quiere seguir" },
+    { value: "necesita_mas_info", label: "🤔 Necesita más información" },
+    { value: "no_interesado", label: "❌ No interesado" },
+    { value: "cerrado_ganado", label: "🏆 Cerrado — contratado" },
+    { value: "aplazado", label: "⏳ Aplazado — contactar más adelante" },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Modal post-cita */}
+      {citaParaRegistrar && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-800">Resultado de la cita</h2>
+              <p className="text-sm text-slate-500 mt-0.5">
+                {citaParaRegistrar.tipo === "llamada" ? "📞" : citaParaRegistrar.tipo === "videollamada" ? "💻" : "🤝"} {format(new Date(citaParaRegistrar.fecha_hora), "d MMM · HH:mm", { locale: es })}
+              </p>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">¿Cómo fue?</label>
+                <div className="space-y-1.5">
+                  {RESULTADOS_CITA_LEAD.map(r => (
+                    <button key={r.value} onClick={() => setPostCitaForm(p => ({ ...p, resultado: r.value }))}
+                      className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-colors ${postCitaForm.resultado === r.value ? "bg-indigo-50 border-indigo-300 text-indigo-700 font-medium" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">
+                  Nota post-cita <span className="text-red-400">*</span>
+                </label>
+                <textarea value={postCitaForm.notas_post}
+                  onChange={e => { setPostCitaForm(p => ({ ...p, notas_post: e.target.value })); setErrorPostCita(""); }}
+                  rows={3} placeholder="¿Qué se habló? ¿Qué le interesó? ¿Qué objeciones hubo?..."
+                  className={`w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none ${errorPostCita ? "border-red-300" : "border-slate-200 focus:border-indigo-300"}`} />
+                {errorPostCita && <p className="text-xs text-red-500 mt-1">{errorPostCita}</p>}
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Próxima acción</label>
+                <select value={postCitaForm.proxima_accion}
+                  onChange={e => setPostCitaForm(p => ({ ...p, proxima_accion: e.target.value }))}
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-indigo-300">
+                  <option value="llamar">📞 Llamar</option>
+                  <option value="whatsapp">💬 Enviar WhatsApp</option>
+                  <option value="enviar_info">📎 Enviar información</option>
+                  <option value="reunion">📅 Nueva reunión</option>
+                  <option value="ninguna">— Ninguna (cerrado)</option>
+                </select>
+                {postCitaForm.proxima_accion !== "ninguna" && (
+                  <input type="text" value={postCitaForm.proxima_accion_nota}
+                    onChange={e => setPostCitaForm(p => ({ ...p, proxima_accion_nota: e.target.value }))}
+                    placeholder="Nota para la próxima acción (opcional)"
+                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 mt-1.5 focus:outline-none focus:border-indigo-300" />
+                )}
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+              <button onClick={guardarPostCita} disabled={guardandoPostCita}
+                className="flex-1 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                {guardandoPostCita ? "Guardando..." : "Guardar resultado"}
+              </button>
+              <button onClick={() => setCitaParaRegistrar(null)}
+                className="px-4 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Back + feedback guardado */}
       <div className="flex items-center justify-between">
         <button onClick={() => router.back()} className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1">
