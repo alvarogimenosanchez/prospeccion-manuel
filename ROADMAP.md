@@ -44,6 +44,13 @@ Columnas en leads: `nombre`, `apellidos`, `empresa`, `ciudad`, `sector`, `estado
 - Badge Vencida/Hoy en el listado de leads
 - Sección "Acciones vencidas" en el dashboard principal
 
+#### ~~Registro post-cita obligatorio~~ [✅ 2026-03-15]
+- Modal obligatorio al marcar cita como realizada: resultado + nota (obligatoria) + próxima acción
+- Estado del lead actualizado automáticamente según resultado
+- Nota guardada en el historial de interacciones del lead
+- Alerta roja en agenda cuando hay citas pasadas sin resultado registrado
+- Funciona desde la agenda y desde la ficha del lead
+
 #### 1. Página de detalle de lead completa [ ]
 - Ficha con todos los datos del lead (nombre, empresa, web, dirección, sector, producto recomendado)
 - Historial de interacciones (mensajes WhatsApp enviados/recibidos, citas, notas)
