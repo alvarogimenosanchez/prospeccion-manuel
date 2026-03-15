@@ -11,6 +11,7 @@ import { LeadRow } from "@/components/LeadRow";
 export default function DashboardPage() {
   const [resumen, setResumen] = useState<DashboardResumen | null>(null);
   const [leadsCalientes, setLeadsCalientes] = useState<LeadDashboard[]>([]);
+  const [accionesVencidas, setAccionesVencidas] = useState<LeadDashboard[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -28,14 +29,25 @@ export default function DashboardPage() {
       }
 
       // Leads calientes directamente desde Supabase
-      const { data } = await supabase
-        .from("leads_dashboard")
-        .select("*")
-        .eq("temperatura", "caliente")
-        .order("nivel_interes", { ascending: false })
-        .limit(10);
+      const [calientes, vencidas] = await Promise.all([
+        supabase
+          .from("leads_dashboard")
+          .select("*")
+          .eq("temperatura", "caliente")
+          .order("nivel_interes", { ascending: false })
+          .limit(10),
+        supabase
+          .from("leads_dashboard")
+          .select("*")
+          .not("proxima_accion", "is", null)
+          .neq("proxima_accion", "ninguna")
+          .lt("proxima_accion_fecha", new Date().toISOString())
+          .order("proxima_accion_fecha", { ascending: true })
+          .limit(5),
+      ]);
 
-      setLeadsCalientes((data as LeadDashboard[]) ?? []);
+      setLeadsCalientes((calientes.data as LeadDashboard[]) ?? []);
+      setAccionesVencidas((vencidas.data as LeadDashboard[]) ?? []);
       setLoading(false);
     }
 
@@ -85,6 +97,27 @@ export default function DashboardPage() {
       {/* Alertas urgentes */}
       {sinAtencion.length > 0 && (
         <AlertasUrgentes leads={sinAtencion} />
+      )}
+
+      {/* Acciones vencidas */}
+      {accionesVencidas.length > 0 && (
+        <div className="bg-white rounded-xl border border-red-200">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-red-100 bg-red-50 rounded-t-xl">
+            <div className="flex items-center gap-2">
+              <span className="text-red-500">⚠</span>
+              <h2 className="text-sm font-semibold text-red-700">Acciones vencidas</h2>
+              <span className="text-xs bg-red-100 text-red-600 border border-red-200 px-1.5 py-0.5 rounded-full font-medium">
+                {accionesVencidas.length}
+              </span>
+            </div>
+            <Link href="/leads" className="text-xs text-red-600 hover:underline">Ver todos</Link>
+          </div>
+          <div>
+            {accionesVencidas.map((lead) => (
+              <LeadRow key={lead.id} lead={lead} />
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Leads calientes */}

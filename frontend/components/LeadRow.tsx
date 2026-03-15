@@ -32,6 +32,13 @@ export function LeadRow({ lead }: { lead: LeadDashboard }) {
 
   const alertaAtencion = lead.horas_sin_atencion && lead.horas_sin_atencion > 2;
 
+  const accionVencida = lead.proxima_accion && lead.proxima_accion !== "ninguna" && lead.proxima_accion_fecha
+    ? new Date(lead.proxima_accion_fecha) < new Date()
+    : false;
+  const accionHoy = !accionVencida && lead.proxima_accion && lead.proxima_accion !== "ninguna" && lead.proxima_accion_fecha
+    ? new Date(lead.proxima_accion_fecha).toDateString() === new Date().toDateString()
+    : false;
+
   return (
     <Link href={`/leads/${lead.id}`} className="block">
       <div className={`flex items-center gap-4 px-4 py-3 hover:bg-slate-50 border-b border-slate-100 transition-colors cursor-pointer ${alertaAtencion ? "bg-red-50/50" : ""}`}>
@@ -43,6 +50,16 @@ export function LeadRow({ lead }: { lead: LeadDashboard }) {
             {alertaAtencion && (
               <span className="text-xs text-red-500 font-medium">
                 ⚡ {Math.round(lead.horas_sin_atencion!)}h sin atender
+              </span>
+            )}
+            {accionVencida && (
+              <span className="text-xs text-red-600 font-medium bg-red-50 border border-red-200 px-1.5 py-0.5 rounded">
+                ⚠ Vencida
+              </span>
+            )}
+            {accionHoy && (
+              <span className="text-xs text-orange-600 font-medium bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded">
+                Hoy
               </span>
             )}
           </div>

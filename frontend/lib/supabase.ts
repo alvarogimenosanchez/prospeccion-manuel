@@ -36,6 +36,9 @@ export type Lead = {
   notas: string | null;
   comercial_asignado: string | null;
   team_id: string | null;
+  proxima_accion: "llamar" | "whatsapp" | "email" | "esperar_respuesta" | "enviar_info" | "reunion" | "ninguna" | null;
+  proxima_accion_fecha: string | null;
+  proxima_accion_nota: string | null;
   created_at: string;
   updated_at: string;
 };

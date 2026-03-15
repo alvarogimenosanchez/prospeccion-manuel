@@ -37,6 +37,27 @@ const ESTADOS = [
   { value: "descartado", label: "Descartado", class: "bg-slate-100 text-slate-400" },
 ];
 
+const ACCIONES_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
+  llamar:           { label: "Llamar",          icon: "📞", color: "text-blue-700 bg-blue-50 border-blue-200" },
+  whatsapp:         { label: "WhatsApp",         icon: "💬", color: "text-green-700 bg-green-50 border-green-200" },
+  email:            { label: "Email",            icon: "📧", color: "text-violet-700 bg-violet-50 border-violet-200" },
+  esperar_respuesta:{ label: "Esperar respuesta",icon: "⏳", color: "text-amber-700 bg-amber-50 border-amber-200" },
+  enviar_info:      { label: "Enviar info",      icon: "📎", color: "text-slate-700 bg-slate-50 border-slate-200" },
+  reunion:          { label: "Reunión",          icon: "📅", color: "text-indigo-700 bg-indigo-50 border-indigo-200" },
+};
+
+function getUrgenciaAccion(fecha: string | null): { label: string; colorClass: string } | null {
+  if (!fecha) return null;
+  const diff = new Date(fecha).getTime() - Date.now();
+  const horas = diff / (1000 * 60 * 60);
+  if (horas < 0) {
+    const dias = Math.abs(Math.ceil(horas / 24));
+    return { label: dias === 1 ? "Venció ayer" : `Venció hace ${dias} días`, colorClass: "text-red-600 bg-red-50 border-red-200" };
+  }
+  if (horas < 24) return { label: `Hoy a las ${new Date(fecha).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`, colorClass: "text-orange-600 bg-orange-50 border-orange-200" };
+  return { label: new Date(fecha).toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }), colorClass: "text-emerald-700 bg-emerald-50 border-emerald-200" };
+}
+
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -64,6 +85,15 @@ export default function LeadDetailPage() {
     comercial_id: "",
   });
   const [guardandoCita, setGuardandoCita] = useState(false);
+
+  // Próxima acción
+  const [editandoAccion, setEditandoAccion] = useState(false);
+  const [accionForm, setAccionForm] = useState<{
+    proxima_accion: string;
+    proxima_accion_fecha: string;
+    proxima_accion_nota: string;
+  }>({ proxima_accion: "llamar", proxima_accion_fecha: "", proxima_accion_nota: "" });
+  const [guardandoAccion, setGuardandoAccion] = useState(false);
 
   const cargarComerciales = useCallback(async () => {
     const { data } = await supabase.from("comerciales").select("id, nombre, apellidos").eq("activo", true).order("nombre");
@@ -186,6 +216,52 @@ export default function LeadDetailPage() {
     setAppointments(prev => prev.map(a => a.id === citaId ? { ...a, estado: nuevoEstado } : a));
   }
 
+  function abrirEdicionAccion() {
+    if (!lead) return;
+    setAccionForm({
+      proxima_accion: lead.proxima_accion ?? "llamar",
+      proxima_accion_fecha: lead.proxima_accion_fecha
+        ? new Date(lead.proxima_accion_fecha).toISOString().slice(0, 16)
+        : "",
+      proxima_accion_nota: lead.proxima_accion_nota ?? "",
+    });
+    setEditandoAccion(true);
+  }
+
+  async function guardarAccion() {
+    if (!lead) return;
+    setGuardandoAccion(true);
+    const updates = {
+      proxima_accion: accionForm.proxima_accion || null,
+      proxima_accion_fecha: accionForm.proxima_accion_fecha || null,
+      proxima_accion_nota: accionForm.proxima_accion_nota || null,
+      updated_at: new Date().toISOString(),
+    };
+    await supabase.from("leads").update(updates).eq("id", lead.id);
+    setLead(prev => prev ? { ...prev, ...updates } as Lead : prev);
+    setEditandoAccion(false);
+    setGuardandoAccion(false);
+    setGuardadoOk(true);
+    setTimeout(() => setGuardadoOk(false), 2000);
+  }
+
+  async function marcarAccionHecha() {
+    if (!lead) return;
+    const updates = {
+      proxima_accion: null as null,
+      proxima_accion_fecha: null as null,
+      proxima_accion_nota: null as null,
+      updated_at: new Date().toISOString(),
+    };
+    await supabase.from("leads").update(updates).eq("id", lead.id);
+    setLead(prev => prev ? { ...prev, ...updates } as Lead : prev);
+    setGuardadoOk(true);
+    setTimeout(() => setGuardadoOk(false), 2000);
+    // Abrir directamente el formulario para definir la siguiente acción
+    setAccionForm({ proxima_accion: "llamar", proxima_accion_fecha: "", proxima_accion_nota: "" });
+    setEditandoAccion(true);
+  }
+
   if (loading) return <div className="text-center py-20 text-slate-400 text-sm">Cargando...</div>;
   if (!lead) return <div className="text-center py-20 text-slate-400 text-sm">Lead no encontrado.</div>;
 
@@ -303,6 +379,107 @@ export default function LeadDetailPage() {
               ))}
             </div>
           </div>
+
+          {/* Próxima acción */}
+          {(() => {
+            const accion = lead.proxima_accion && lead.proxima_accion !== "ninguna" ? ACCIONES_CONFIG[lead.proxima_accion] : null;
+            const urgencia = getUrgenciaAccion(lead.proxima_accion_fecha ?? null);
+            return (
+              <div className={`bg-white rounded-xl border p-5 ${accion && urgencia && urgencia.colorClass.includes("red") ? "border-red-300" : accion && urgencia && urgencia.colorClass.includes("orange") ? "border-orange-300" : "border-slate-200"}`}>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Próxima acción</h3>
+                  {accion && !editandoAccion && (
+                    <div className="flex gap-2">
+                      <button onClick={abrirEdicionAccion} className="text-xs text-slate-400 hover:text-slate-700">Editar</button>
+                      <button onClick={marcarAccionHecha} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">✓ Hecha</button>
+                    </div>
+                  )}
+                </div>
+
+                {!editandoAccion && !accion && (
+                  <div className="flex items-center justify-between gap-3 rounded-lg bg-amber-50 border border-amber-200 px-3 py-3">
+                    <p className="text-sm text-amber-700">Sin próxima acción definida</p>
+                    <button
+                      onClick={abrirEdicionAccion}
+                      className="text-xs font-medium text-amber-700 border border-amber-300 bg-white hover:bg-amber-50 px-3 py-1.5 rounded-lg whitespace-nowrap"
+                    >
+                      Definir
+                    </button>
+                  </div>
+                )}
+
+                {!editandoAccion && accion && (
+                  <div className="space-y-2">
+                    <div className={`inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-lg border ${accion.color}`}>
+                      <span>{accion.icon}</span>
+                      <span>{accion.label}</span>
+                    </div>
+                    {urgencia && (
+                      <p className={`text-sm font-semibold px-2 py-1 rounded border ${urgencia.colorClass}`}>{urgencia.label}</p>
+                    )}
+                    {lead.proxima_accion_nota && (
+                      <p className="text-xs text-slate-500 italic">{lead.proxima_accion_nota}</p>
+                    )}
+                  </div>
+                )}
+
+                {editandoAccion && (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs text-slate-500 mb-1 block">Tipo de acción</label>
+                      <select
+                        value={accionForm.proxima_accion}
+                        onChange={e => setAccionForm(p => ({ ...p, proxima_accion: e.target.value }))}
+                        className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
+                      >
+                        <option value="llamar">📞 Llamar</option>
+                        <option value="whatsapp">💬 Enviar WhatsApp</option>
+                        <option value="email">📧 Enviar email</option>
+                        <option value="esperar_respuesta">⏳ Esperar respuesta</option>
+                        <option value="enviar_info">📎 Enviar información</option>
+                        <option value="reunion">📅 Agendar reunión</option>
+                        <option value="ninguna">— Sin acción</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-500 mb-1 block">Fecha y hora</label>
+                      <input
+                        type="datetime-local"
+                        value={accionForm.proxima_accion_fecha}
+                        onChange={e => setAccionForm(p => ({ ...p, proxima_accion_fecha: e.target.value }))}
+                        className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-500 mb-1 block">Nota (opcional)</label>
+                      <input
+                        type="text"
+                        value={accionForm.proxima_accion_nota}
+                        onChange={e => setAccionForm(p => ({ ...p, proxima_accion_nota: e.target.value }))}
+                        placeholder="ej. Llamar después de las 17h"
+                        className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={guardarAccion}
+                        disabled={guardandoAccion}
+                        className="flex-1 text-sm bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700 disabled:opacity-50"
+                      >
+                        {guardandoAccion ? "Guardando..." : "Guardar"}
+                      </button>
+                      <button
+                        onClick={() => setEditandoAccion(false)}
+                        className="text-sm border border-slate-200 text-slate-600 rounded-lg px-4 py-2 hover:bg-slate-50"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Contacto */}
           <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-2">
