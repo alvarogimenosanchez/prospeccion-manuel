@@ -27,6 +27,7 @@ type Lead = {
   ciudad: string | null;
   estado: Estado;
   updated_at: string;
+  comercial_asignado: string | null;
 };
 
 type Columna = {
@@ -95,7 +96,7 @@ function PipelineContent() {
     setLoading(true);
     let query = supabase
       .from("leads")
-      .select("id, nombre, apellidos, empresa, sector, temperatura, nivel_interes, ciudad, estado, updated_at")
+      .select("id, nombre, apellidos, empresa, sector, temperatura, nivel_interes, ciudad, estado, updated_at, comercial_asignado")
       .in("estado", COLUMNAS.map(c => c.estado))
       .order("nivel_interes", { ascending: false })
       .limit(300);
@@ -109,10 +110,12 @@ function PipelineContent() {
 
   async function moverLead(leadId: string, nuevoEstado: Estado) {
     setMoviendo(leadId);
+    const leadActual = leads.find(l => l.id === leadId);
     const temperatura = TEMPERATURA_POR_ESTADO[nuevoEstado];
     const updates: Record<string, string> = { estado: nuevoEstado, updated_at: new Date().toISOString() };
     if (temperatura) updates.temperatura = temperatura;
     await supabase.from("leads").update(updates).eq("id", leadId);
+    if (leadActual) supabase.from("lead_state_history").insert({ lead_id: leadId, estado_anterior: leadActual.estado, estado_nuevo: nuevoEstado, comercial_id: leadActual.comercial_asignado });
     setLeads(prev => prev.map(l => l.id === leadId ? { ...l, estado: nuevoEstado, ...(temperatura ? { temperatura } : {}) } : l));
     setMoviendo(null);
   }

@@ -37,11 +37,11 @@ type StatsComercial = {
   sinActividad7d: number;
   objetivoCierres: number;
   objetivoCitas: number;
-  // Nuevos
   ultimaActividad: string | null;
   cerradosPeriodoAnterior: number;
   citasPeriodoAnterior: number;
   topProducto: string | null;
+  tiempoMedioEstados: { de: string; a: string; dias: number }[];
 };
 
 type AlertaDecision = {
@@ -175,6 +175,8 @@ export default function DesempenoPage() {
         { data: ultimaInteraccion },
         // Top producto
         { data: leadsGanados },
+        // Historial de estados
+        historialRes,
       ] = await Promise.all([
         fechaDesde ? base.gte("fecha_captacion", fechaDesde) : base,
         (() => { let q = supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", comercial.id).eq("temperatura", "caliente"); if (fechaDesde) q = q.gte("fecha_captacion", fechaDesde); return q; })(),
@@ -206,6 +208,8 @@ export default function DesempenoPage() {
           .order("created_at", { ascending: false }).limit(1),
         // Leads ganados con producto para calcular top
         supabase.from("leads").select("producto_interes_principal").eq("comercial_asignado", comercial.id).eq("estado", "cerrado_ganado").not("producto_interes_principal", "is", null).limit(100),
+        // Historial de estados para tiempos medios
+        supabase.from("lead_state_history").select("estado_anterior, estado_nuevo, created_at").eq("comercial_id", comercial.id).order("created_at", { ascending: true }).limit(500),
       ]);
 
       // Calcular top producto
@@ -223,6 +227,39 @@ export default function DesempenoPage() {
       let ultimaActividad: string | null = null;
       if (ultimaInteraccion && ultimaInteraccion.length > 0) {
         ultimaActividad = (ultimaInteraccion[0] as { created_at: string }).created_at;
+      }
+
+      // Calcular tiempos medios entre estados
+      const transicionesInteres = [
+        { de: "nuevo", a: "mensaje_enviado" },
+        { de: "mensaje_enviado", a: "respondio" },
+        { de: "respondio", a: "cita_agendada" },
+        { de: "cita_agendada", a: "cerrado_ganado" },
+      ];
+      type HistRow = { estado_anterior: string; estado_nuevo: string; created_at: string };
+      const historial = (historialRes?.data ?? []) as HistRow[];
+      const tiempoMedioEstados: { de: string; a: string; dias: number }[] = [];
+      for (const trans of transicionesInteres) {
+        const pares: number[] = [];
+        // Para cada transición, buscar pares de registros consecutivos del mismo lead
+        // Agrupamos por lead implícitamente usando timestamps consecutivos
+        const salidas = historial.filter(h => h.estado_anterior === trans.de && h.estado_nuevo === trans.a);
+        // Buscamos el registro de entrada al estado "de" más cercano anterior para cada salida
+        for (const salida of salidas) {
+          const entradas = historial.filter(h =>
+            h.estado_nuevo === trans.de &&
+            new Date(h.created_at) < new Date(salida.created_at)
+          );
+          if (entradas.length > 0) {
+            const entrada = entradas[entradas.length - 1];
+            const diasEnEstado = (new Date(salida.created_at).getTime() - new Date(entrada.created_at).getTime()) / 86_400_000;
+            if (diasEnEstado >= 0 && diasEnEstado < 365) pares.push(diasEnEstado);
+          }
+        }
+        if (pares.length > 0) {
+          const media = pares.reduce((a, b) => a + b, 0) / pares.length;
+          tiempoMedioEstados.push({ de: trans.de, a: trans.a, dias: Math.round(media * 10) / 10 });
+        }
       }
 
       const t = totalLeads ?? 0;
@@ -248,6 +285,7 @@ export default function DesempenoPage() {
         cerradosPeriodoAnterior: cierresAnteriores ?? 0,
         citasPeriodoAnterior: citasAnteriores ?? 0,
         topProducto,
+        tiempoMedioEstados,
       });
     }
 
@@ -646,6 +684,30 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
           </div>
         ))}
       </div>
+
+      {/* Tiempos medios entre estados */}
+      {s.tiempoMedioEstados.length > 0 && (
+        <div className="border-t border-slate-100 pt-4">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Velocidad del pipeline</p>
+          <div className="grid grid-cols-2 gap-2">
+            {s.tiempoMedioEstados.map(t => {
+              const ETIQUETAS: Record<string, string> = {
+                nuevo: "Nuevo", mensaje_enviado: "Contactado", respondio: "Respondió",
+                cita_agendada: "Cita", cerrado_ganado: "Ganado",
+              };
+              const color = t.dias <= 3 ? "text-green-600" : t.dias <= 7 ? "text-amber-600" : "text-red-500";
+              return (
+                <div key={`${t.de}-${t.a}`} className="bg-slate-50 rounded-lg p-2.5 text-center">
+                  <p className={`text-sm font-bold ${color}`}>{t.dias}d</p>
+                  <p className="text-xs text-slate-400 leading-tight mt-0.5">
+                    {ETIQUETAS[t.de] ?? t.de} → {ETIQUETAS[t.a] ?? t.a}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Objetivos del mes */}
       <div className="border-t border-slate-100 pt-4 space-y-3">

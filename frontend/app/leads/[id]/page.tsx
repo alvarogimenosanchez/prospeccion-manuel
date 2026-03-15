@@ -206,6 +206,7 @@ export default function LeadDetailPage() {
     const updates: Partial<Lead> & { updated_at: string } = { estado: nuevoEstado as Lead["estado"], updated_at: new Date().toISOString() };
     if (temperatura) updates.temperatura = temperatura;
     await supabase.from("leads").update(updates).eq("id", lead.id);
+    supabase.from("lead_state_history").insert({ lead_id: lead.id, estado_anterior: lead.estado, estado_nuevo: nuevoEstado, comercial_id: lead.comercial_asignado });
     setLead(prev => prev ? { ...prev, ...updates } : prev);
     setGuardadoOk(true);
     setTimeout(() => setGuardadoOk(false), 2000);
@@ -220,6 +221,7 @@ export default function LeadDetailPage() {
       motivo_perdida_nota: motivoForm.nota.trim() || null,
       updated_at: new Date().toISOString(),
     }).eq("id", lead.id);
+    supabase.from("lead_state_history").insert({ lead_id: lead.id, estado_anterior: lead.estado, estado_nuevo: estadoPendiente, comercial_id: lead.comercial_asignado });
     if (motivoForm.nota.trim()) {
       await supabase.from("interactions").insert({
         lead_id: lead.id,
@@ -345,6 +347,7 @@ export default function LeadDetailPage() {
     else if (postCitaForm.resultado === "no_interesado") leadUpdates.estado = "cerrado_perdido";
     else if (postCitaForm.resultado === "interesado" || postCitaForm.resultado === "necesita_mas_info") leadUpdates.estado = "en_negociacion";
     await supabase.from("leads").update(leadUpdates).eq("id", lead.id);
+    if (leadUpdates.estado) supabase.from("lead_state_history").insert({ lead_id: lead.id, estado_anterior: lead.estado, estado_nuevo: leadUpdates.estado, comercial_id: lead.comercial_asignado });
     setLead(prev => prev ? { ...prev, ...leadUpdates } as Lead : prev);
     setAppointments(prev => prev.map(a => a.id === citaParaRegistrar.id ? { ...a, estado: "realizada", notas_post: postCitaForm.notas_post } : a));
     setInteractions(prev => [...prev, { id: Date.now().toString(), lead_id: lead.id, tipo: "nota_manual", mensaje: `📋 Post-cita: ${postCitaForm.notas_post}`, origen: "comercial", sentimiento: null, señal_escalado: false, created_at: new Date().toISOString() } as Interaction]);
