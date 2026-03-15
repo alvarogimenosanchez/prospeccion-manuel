@@ -28,6 +28,7 @@ export function Navbar() {
     { href: "/mensajes", label: "Mensajes" },
     { href: "/agenda", label: "Agenda" },
     { href: "/prospeccion", label: "Prospección" },
+    { href: "/mapa", label: "Mapa" },
     { href: "/metricas", label: "Métricas" },
     { href: "/desempeno", label: "Desempeño" },
     { href: "/clientes", label: "Clientes" },
