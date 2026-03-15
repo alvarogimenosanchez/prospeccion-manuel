@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Lead } from "@/lib/supabase";
 import Link from "next/link";
+import * as XLSX from "xlsx";
 
 type LeadNuevo = Lead & { seleccionado?: boolean };
 
@@ -18,6 +19,31 @@ const CATEGORIAS = [
 ];
 
 type EstadoCampana = "idle" | "corriendo" | "completada" | "error";
+
+type LeadImport = {
+  nombre: string;
+  apellidos: string;
+  email: string;
+  telefono: string;
+  empresa: string;
+  sector: string;
+  ciudad: string;
+  cargo: string;
+  notas: string;
+};
+
+// Campos del lead que se pueden mapear desde el Excel
+const CAMPOS_LEAD: { key: keyof LeadImport; label: string }[] = [
+  { key: "nombre", label: "Nombre" },
+  { key: "apellidos", label: "Apellidos" },
+  { key: "email", label: "Email" },
+  { key: "telefono", label: "Teléfono" },
+  { key: "empresa", label: "Empresa" },
+  { key: "sector", label: "Sector" },
+  { key: "ciudad", label: "Ciudad" },
+  { key: "cargo", label: "Cargo" },
+  { key: "notas", label: "Notas" },
+];
 
 
 export default function ProspeccionPage() {
@@ -110,6 +136,17 @@ export default function ProspeccionPage() {
     setSeleccionados(new Set());
     cargarLeads();
   };
+
+  // ── Importación Excel ──
+  const [mostrarImport, setMostrarImport] = useState(false);
+  const [filasBruto, setFilasBruto] = useState<Record<string, string>[]>([]);
+  const [columnasDetectadas, setColumnasDetectadas] = useState<string[]>([]);
+  const [mapeo, setMapeo] = useState<Record<string, string>>({});
+  const [preview, setPreview] = useState<LeadImport[]>([]);
+  const [duplicados, setDuplicados] = useState<Set<number>>(new Set());
+  const [importando, setImportando] = useState(false);
+  const [resultadoImport, setResultadoImport] = useState<{importados: number; omitidos: number} | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [estadoSeguimiento, setEstadoSeguimiento] = useState<"idle"|"corriendo"|"completado">("idle");
   const [estadoEnriquecimiento, setEstadoEnriquecimiento] = useState<"idle"|"corriendo"|"completado">("idle");
@@ -220,6 +257,124 @@ export default function ProspeccionPage() {
     );
   };
 
+  // ── Lógica de importación ──
+
+  function leerExcel(file: File) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const data = new Uint8Array(e.target?.result as ArrayBuffer);
+      const wb = XLSX.read(data, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const filas = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { defval: "" });
+      if (filas.length === 0) return;
+      const cols = Object.keys(filas[0]);
+      setFilasBruto(filas);
+      setColumnasDetectadas(cols);
+      setResultadoImport(null);
+      setPreview([]);
+      setDuplicados(new Set());
+
+      // Auto-mapeo heurístico
+      const autoMapeo: Record<string, string> = {};
+      for (const campo of CAMPOS_LEAD) {
+        const coincidencia = cols.find(c =>
+          c.toLowerCase().includes(campo.key) ||
+          (campo.key === "nombre" && /^nombre$/i.test(c)) ||
+          (campo.key === "apellidos" && /apellido/i.test(c)) ||
+          (campo.key === "email" && /e.?mail|correo/i.test(c)) ||
+          (campo.key === "telefono" && /tel[eé]f|phone|m[oó]vil|whatsapp/i.test(c)) ||
+          (campo.key === "empresa" && /empresa|compan[iy]|negocio/i.test(c)) ||
+          (campo.key === "ciudad" && /ciudad|localidad|poblaci[oó]n/i.test(c)) ||
+          (campo.key === "sector" && /sector|industria/i.test(c)) ||
+          (campo.key === "cargo" && /cargo|puesto|posici[oó]n/i.test(c))
+        );
+        if (coincidencia) autoMapeo[campo.key] = coincidencia;
+      }
+      setMapeo(autoMapeo);
+    };
+    reader.readAsArrayBuffer(file);
+  }
+
+  function aplicarMapeo() {
+    const leads: LeadImport[] = filasBruto.map(fila => {
+      const l: LeadImport = { nombre: "", apellidos: "", email: "", telefono: "", empresa: "", sector: "", ciudad: "", cargo: "", notas: "" };
+      for (const campo of CAMPOS_LEAD) {
+        const colOrigen = mapeo[campo.key];
+        if (colOrigen && fila[colOrigen] !== undefined) {
+          l[campo.key] = String(fila[colOrigen]).trim();
+        }
+      }
+      return l;
+    }).filter(l => l.nombre || l.empresa || l.telefono);
+    setPreview(leads);
+    verificarDuplicados(leads);
+  }
+
+  async function verificarDuplicados(leads: LeadImport[]) {
+    const telefonos = leads.map(l => l.telefono).filter(Boolean);
+    const emails = leads.map(l => l.email).filter(Boolean);
+
+    const [{ data: porTelef }, { data: porEmail }] = await Promise.all([
+      telefonos.length > 0
+        ? supabase.from("leads").select("telefono").in("telefono", telefonos)
+        : Promise.resolve({ data: [] }),
+      emails.length > 0
+        ? supabase.from("leads").select("email").in("email", emails)
+        : Promise.resolve({ data: [] }),
+    ]);
+
+    const telefsExistentes = new Set((porTelef ?? []).map((r: { telefono: string | null }) => r.telefono));
+    const emailsExistentes = new Set((porEmail ?? []).map((r: { email: string | null }) => r.email));
+
+    const dupIdx = new Set<number>();
+    leads.forEach((l, i) => {
+      if ((l.telefono && telefsExistentes.has(l.telefono)) ||
+          (l.email && emailsExistentes.has(l.email))) {
+        dupIdx.add(i);
+      }
+    });
+    setDuplicados(dupIdx);
+  }
+
+  async function importarLeads() {
+    const aImportar = preview.filter((_, i) => !duplicados.has(i));
+    if (aImportar.length === 0) return;
+    setImportando(true);
+
+    const inserts = aImportar.map(l => ({
+      nombre: l.nombre || "Desconocido",
+      apellidos: l.apellidos || null,
+      email: l.email || null,
+      telefono: l.telefono || null,
+      telefono_whatsapp: l.telefono || null,
+      empresa: l.empresa || null,
+      sector: l.sector || null,
+      ciudad: l.ciudad || null,
+      cargo: l.cargo || null,
+      notas: l.notas || null,
+      fuente: "base_existente" as const,
+      estado: "nuevo",
+      temperatura: "frio" as const,
+      nivel_interes: 3,
+      prioridad: "media" as const,
+      fecha_captacion: new Date().toISOString(),
+    }));
+
+    // Insertar en lotes de 100
+    let importados = 0;
+    for (let i = 0; i < inserts.length; i += 100) {
+      const lote = inserts.slice(i, i + 100);
+      const { error } = await supabase.from("leads").insert(lote);
+      if (!error) importados += lote.length;
+    }
+
+    setResultadoImport({ importados, omitidos: duplicados.size });
+    setImportando(false);
+    setPreview([]);
+    setFilasBruto([]);
+    cargarLeads();
+  }
+
   const formatFecha = (str: string) => {
     const d = new Date(str);
     const hoy = new Date();
@@ -291,6 +446,186 @@ export default function ProspeccionPage() {
             {estadoSeguimiento === "corriendo" ? "Ejecutando..." : estadoSeguimiento === "completado" ? "✓ Hecho" : "Ejecutar"}
           </button>
         </div>
+      </div>
+
+      {/* ── Importar Excel ── */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <button
+          onClick={() => setMostrarImport(!mostrarImport)}
+          className="w-full flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <span className="text-lg">📂</span>
+            <div className="text-left">
+              <p className="text-sm font-medium text-slate-800">Importar Excel / CSV</p>
+              <p className="text-xs text-slate-500">Sube tu base de contactos — deduplica y clasifica automáticamente</p>
+            </div>
+          </div>
+          <span className="text-slate-400 text-sm">{mostrarImport ? "▲" : "▼"}</span>
+        </button>
+
+        {mostrarImport && (
+          <div className="border-t border-slate-100 p-5 space-y-5">
+
+            {/* Resultado de importación */}
+            {resultadoImport && (
+              <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 flex items-center gap-3">
+                <span className="text-green-600 font-semibold text-sm">
+                  ✓ {resultadoImport.importados} leads importados
+                </span>
+                {resultadoImport.omitidos > 0 && (
+                  <span className="text-slate-500 text-xs">{resultadoImport.omitidos} duplicados omitidos</span>
+                )}
+                <button onClick={() => setResultadoImport(null)} className="ml-auto text-xs text-slate-400 hover:text-slate-600">
+                  Cerrar
+                </button>
+              </div>
+            )}
+
+            {/* Drop / selección de archivo */}
+            {filasBruto.length === 0 && (
+              <div
+                className="border-2 border-dashed border-slate-200 rounded-xl py-10 text-center cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={e => e.preventDefault()}
+                onDrop={e => {
+                  e.preventDefault();
+                  const f = e.dataTransfer.files[0];
+                  if (f) leerExcel(f);
+                }}
+              >
+                <p className="text-sm text-slate-600 font-medium">Arrastra tu Excel o CSV aquí</p>
+                <p className="text-xs text-slate-400 mt-1">o haz clic para seleccionar</p>
+                <p className="text-xs text-slate-300 mt-3">Formatos: .xlsx, .xls, .csv</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) leerExcel(f); }}
+                />
+              </div>
+            )}
+
+            {/* Mapeo de columnas */}
+            {filasBruto.length > 0 && preview.length === 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-slate-700">
+                    {filasBruto.length} filas detectadas — mapea las columnas
+                  </p>
+                  <button
+                    onClick={() => { setFilasBruto([]); setColumnasDetectadas([]); setMapeo({}); }}
+                    className="text-xs text-slate-400 hover:text-slate-600"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {CAMPOS_LEAD.map(campo => (
+                    <div key={campo.key}>
+                      <label className="text-xs font-medium text-slate-600 block mb-1">{campo.label}</label>
+                      <select
+                        value={mapeo[campo.key] ?? ""}
+                        onChange={e => setMapeo(m => ({ ...m, [campo.key]: e.target.value }))}
+                        className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      >
+                        <option value="">— no mapear —</option>
+                        {columnasDetectadas.map(c => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-3 pt-2">
+                  <p className="text-xs text-slate-400 flex-1">
+                    El sistema buscará duplicados por teléfono y email antes de importar.
+                  </p>
+                  <button
+                    onClick={aplicarMapeo}
+                    disabled={!mapeo["nombre"] && !mapeo["empresa"] && !mapeo["telefono"]}
+                    className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Previsualizar →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Preview y confirmación */}
+            {preview.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-slate-700">
+                    {preview.length} contactos listos —{" "}
+                    <span className="text-green-600">{preview.length - duplicados.size} nuevos</span>
+                    {duplicados.size > 0 && (
+                      <span className="text-amber-600 ml-1">· {duplicados.size} duplicados</span>
+                    )}
+                  </p>
+                  <button
+                    onClick={() => { setPreview([]); setFilasBruto([]); }}
+                    className="text-xs text-slate-400 hover:text-slate-600"
+                  >
+                    Volver
+                  </button>
+                </div>
+
+                <div className="max-h-64 overflow-y-auto border border-slate-100 rounded-lg">
+                  <table className="w-full text-xs">
+                    <thead className="bg-slate-50 sticky top-0">
+                      <tr className="text-slate-500 font-medium">
+                        <th className="px-3 py-2 text-left">Nombre</th>
+                        <th className="px-3 py-2 text-left">Empresa</th>
+                        <th className="px-3 py-2 text-left">Teléfono</th>
+                        <th className="px-3 py-2 text-left">Email</th>
+                        <th className="px-3 py-2 text-center">Estado</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {preview.slice(0, 50).map((l, i) => (
+                        <tr key={i} className={duplicados.has(i) ? "bg-amber-50" : ""}>
+                          <td className="px-3 py-2 text-slate-800">{l.nombre} {l.apellidos}</td>
+                          <td className="px-3 py-2 text-slate-600">{l.empresa || "—"}</td>
+                          <td className="px-3 py-2 font-mono text-slate-600">{l.telefono || "—"}</td>
+                          <td className="px-3 py-2 text-slate-600">{l.email || "—"}</td>
+                          <td className="px-3 py-2 text-center">
+                            {duplicados.has(i) ? (
+                              <span className="text-amber-600 font-medium">Duplicado</span>
+                            ) : (
+                              <span className="text-green-600 font-medium">Nuevo</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {preview.length > 50 && (
+                    <p className="text-xs text-center text-slate-400 py-2">
+                      Mostrando 50 de {preview.length} — todos se importarán
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-xs text-slate-400">
+                    Los duplicados se omitirán. Los nuevos entrarán como leads en estado "Nuevo".
+                  </p>
+                  <button
+                    onClick={importarLeads}
+                    disabled={importando || preview.length - duplicados.size === 0}
+                    className="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {importando ? "Importando..." : `Importar ${preview.length - duplicados.size} leads`}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Panel configuración campaña */}

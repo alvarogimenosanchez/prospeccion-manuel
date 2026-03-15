@@ -18,7 +18,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 
 from agents.agent5_chatbot import handle_incoming_whatsapp
-from agents.agent6_scoring import score_lead, Temperatura
+from agents.agent6_scoring import score_lead
 from agents.agent1_scraper import ejecutar_campana
 from agents.agent2_seguimiento import ejecutar_seguimiento, obtener_resumen_pendientes
 from agents.agent4_linkedin import enriquecer_leads_sin_nombre
@@ -304,7 +304,7 @@ async def send_whatsapp_message(to_number: str, message: str):
         await client.post(url, json=payload, headers=headers)
 
 
-async def notify_comercial_escalado(lead_id: str, lead: dict, ultimo_mensaje: str, motivo: str | None):
+async def notify_comercial_escalado(_lead_id: str, lead: dict, ultimo_mensaje: str, motivo: str | None):
     """
     Notifica al comercial asignado que un lead necesita atención humana.
     Lo hace enviando un mensaje de WhatsApp al comercial.
@@ -466,17 +466,26 @@ async def lanzar_campana_scraping(payload: CampanaRequest, background_tasks: Bac
 async def lanzar_seguimiento(background_tasks: BackgroundTasks):
     """
     Ejecuta el ciclo de seguimiento automático del Agente 2 en background.
-    - Envía recordatorio 1 a leads sin respuesta en 3 días.
-    - Envía recordatorio 2 a leads sin respuesta en 7 días.
-    - Marca como frío a leads sin respuesta en 14 días.
-    - Crea alertas urgentes para leads que respondieron y llevan >24h sin atención comercial.
-    Responde inmediatamente; el procesamiento ocurre en background.
+    Cadencia: día 1 / 3 / 7 / 14 sin respuesta.
+    También notifica acciones vencidas (proxima_accion_fecha < now).
+    Llamado automáticamente cada hora por el cron en Railway.
     """
     background_tasks.add_task(ejecutar_seguimiento)
     return {
         "status": "iniciado",
         "mensaje": "Ciclo de seguimiento en curso — revisa interactions y scoring_history para ver resultados.",
     }
+
+
+@app.post("/seguimiento/renovaciones")
+async def verificar_renovaciones(background_tasks: BackgroundTasks):
+    """
+    Verifica renovaciones de clientes próximas (≤7 días) y genera alertas.
+    Llamado automáticamente a las 9h por el cron en Railway.
+    """
+    from agents.agent2_seguimiento import _verificar_renovaciones_clientes
+    background_tasks.add_task(_verificar_renovaciones_clientes)
+    return {"status": "iniciado", "mensaje": "Verificando renovaciones de clientes en background."}
 
 
 @app.get("/seguimiento/pendientes")
@@ -510,14 +519,6 @@ async def lanzar_enriquecimiento_linkedin(payload: EnriquecimientoRequest, backg
         "status": "iniciado",
         "mensaje": f"Enriqueciendo hasta {payload.limite} leads en background. Revisa los leads para ver los datos actualizados.",
     }
-
-
-@app.post("/linkedin/enriquecer-sync")
-async def enriquecer_sync(payload: EnriquecimientoRequest):
-    """Enriquece de forma síncrona y devuelve el resultado directamente (para debugging)."""
-    from agents.agent4_linkedin import enriquecer_leads_sin_nombre
-    resultado = enriquecer_leads_sin_nombre(limite=payload.limite)
-    return resultado
 
 
 @app.get("/linkedin/diagnostico")

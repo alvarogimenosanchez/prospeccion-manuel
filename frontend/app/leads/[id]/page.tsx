@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
@@ -36,6 +37,22 @@ const ESTADOS = [
   { value: "cerrado_perdido", label: "Cerrado Perdido", class: "bg-red-100 text-red-600" },
   { value: "descartado", label: "Descartado", class: "bg-slate-100 text-slate-400" },
 ];
+
+const TEMPERATURA_POR_ESTADO: Record<string, string> = {
+  nuevo:           "frio",
+  enriquecido:     "frio",
+  segmentado:      "frio",
+  mensaje_enviado: "frio",
+  respondio:       "templado",
+  cita_agendada:   "caliente",
+  en_negociacion:  "caliente",
+};
+
+function prioridadDeNivel(nivel: number): "alta" | "media" | "baja" {
+  if (nivel >= 8) return "alta";
+  if (nivel >= 5) return "media";
+  return "baja";
+}
 
 const ACCIONES_CONFIG: Record<string, { label: string; icon: string; color: string }> = {
   llamar:           { label: "Llamar",          icon: "📞", color: "text-blue-700 bg-blue-50 border-blue-200" },
@@ -106,6 +123,10 @@ export default function LeadDetailPage() {
   const [motivoForm, setMotivoForm] = useState({ motivo: "precio", nota: "" });
   const [guardandoMotivo, setGuardandoMotivo] = useState(false);
 
+  // Cliente
+  const [clienteExistente, setClienteExistente] = useState<{ id: string } | null | undefined>(undefined);
+  const [creandoCliente, setCreandoCliente] = useState(false);
+
   // Próxima acción
   const [editandoAccion, setEditandoAccion] = useState(false);
   const [accionForm, setAccionForm] = useState<{
@@ -122,14 +143,16 @@ export default function LeadDetailPage() {
 
   useEffect(() => {
     async function cargar() {
-      const [leadRes, interRes, apptRes] = await Promise.all([
+      const [leadRes, interRes, apptRes, clienteRes] = await Promise.all([
         supabase.from("leads").select("*").eq("id", id).single(),
         supabase.from("interactions").select("*").eq("lead_id", id).order("created_at"),
         supabase.from("appointments").select("*").eq("lead_id", id).order("fecha_hora"),
+        supabase.from("clientes").select("id").eq("lead_id", id).maybeSingle(),
       ]);
       setLead(leadRes.data as Lead);
       setInteractions((interRes.data as Interaction[]) ?? []);
       setAppointments((apptRes.data as Appointment[]) ?? []);
+      setClienteExistente(clienteRes.data as { id: string } | null);
       setLoading(false);
     }
     cargar();
@@ -179,8 +202,11 @@ export default function LeadDetailPage() {
       setMotivoForm({ motivo: "precio", nota: "" });
       return;
     }
-    await supabase.from("leads").update({ estado: nuevoEstado, updated_at: new Date().toISOString() }).eq("id", lead.id);
-    setLead(prev => prev ? { ...prev, estado: nuevoEstado as Lead["estado"] } : prev);
+    const temperatura = TEMPERATURA_POR_ESTADO[nuevoEstado] as Lead["temperatura"] | undefined;
+    const updates: Partial<Lead> & { updated_at: string } = { estado: nuevoEstado as Lead["estado"], updated_at: new Date().toISOString() };
+    if (temperatura) updates.temperatura = temperatura;
+    await supabase.from("leads").update(updates).eq("id", lead.id);
+    setLead(prev => prev ? { ...prev, ...updates } : prev);
     setGuardadoOk(true);
     setTimeout(() => setGuardadoOk(false), 2000);
   }
@@ -210,6 +236,24 @@ export default function LeadDetailPage() {
     setGuardandoMotivo(false);
     setGuardadoOk(true);
     setTimeout(() => setGuardadoOk(false), 2000);
+  }
+
+  async function crearClienteDesdeGanado() {
+    if (!lead) return;
+    setCreandoCliente(true);
+    const { data } = await supabase.from("clientes").insert({
+      lead_id: lead.id,
+      nombre: lead.nombre,
+      apellidos: lead.apellidos,
+      email: lead.email,
+      telefono: lead.telefono ?? lead.telefono_whatsapp,
+      empresa: lead.empresa,
+      comercial_asignado: lead.comercial_asignado,
+      producto: lead.producto_interes_principal ?? (lead.productos_recomendados?.[0] ?? null),
+      fecha_inicio: new Date().toISOString().split("T")[0],
+    }).select("id").single();
+    if (data) setClienteExistente(data as { id: string });
+    setCreandoCliente(false);
   }
 
   async function guardarNota() {
@@ -575,8 +619,8 @@ export default function LeadDetailPage() {
             </div>
 
             <div className="flex flex-wrap gap-2 mb-4">
-              <TemperaturaBadge temperatura={lead.temperatura} />
-              <PrioridadBadge prioridad={lead.prioridad} />
+              <TemperaturaBadge temperatura={(TEMPERATURA_POR_ESTADO[lead.estado] ?? lead.temperatura) as "caliente" | "templado" | "frio"} />
+              <PrioridadBadge prioridad={prioridadDeNivel(lead.nivel_interes)} />
               <FuenteBadge fuente={lead.fuente ?? null} />
             </div>
 
@@ -626,6 +670,32 @@ export default function LeadDetailPage() {
                     className="text-xs text-red-600 hover:text-red-800 font-medium underline"
                   >
                     Añadir motivo
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Panel cliente (solo si cerrado_ganado) */}
+          {lead.estado === "cerrado_ganado" && (
+            <div className={`rounded-xl border p-5 ${clienteExistente ? "bg-green-50 border-green-200" : "bg-white border-slate-200"}`}>
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Cliente</h3>
+              {clienteExistente ? (
+                <div className="flex items-center justify-between">
+                  <p className="text-sm text-green-700 font-medium">Registrado como cliente</p>
+                  <Link href="/clientes" className="text-xs text-green-700 underline hover:text-green-900">
+                    Ver ficha de cliente →
+                  </Link>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm text-slate-600">Este lead ganado aún no está en la cartera</p>
+                  <button
+                    onClick={crearClienteDesdeGanado}
+                    disabled={creandoCliente}
+                    className="text-xs font-medium px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 whitespace-nowrap transition-colors"
+                  >
+                    {creandoCliente ? "Creando..." : "Crear cliente"}
                   </button>
                 </div>
               )}
@@ -1108,15 +1178,6 @@ export default function LeadDetailPage() {
                       <option value="caliente">Caliente</option>
                       <option value="templado">Templado</option>
                       <option value="frio">Frío</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-slate-500 mb-1">Prioridad</label>
-                    <select value={editForm.prioridad ?? "baja"} onChange={e => setEditForm(p => ({ ...p, prioridad: e.target.value as Lead["prioridad"] }))}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300 bg-white">
-                      <option value="alta">Alta</option>
-                      <option value="media">Media</option>
-                      <option value="baja">Baja</option>
                     </select>
                   </div>
                   <div>

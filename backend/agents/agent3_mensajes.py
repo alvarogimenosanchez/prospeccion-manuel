@@ -60,18 +60,25 @@ INMOBILIARIAS son el lead más valioso: en un solo contacto se puede hablar de h
 y Contigo Pyme para la propia agencia.
 """
 
-INSTRUCCIONES_MENSAJE = """
+URL_CUESTIONARIO = os.environ.get("CUESTIONARIO_URL", "https://manuelasesora.es/captacion")
+
+INSTRUCCIONES_MENSAJE = f"""
 Reglas del mensaje:
-- Máximo 3 líneas. No más.
-- Tono: cercano y directo, como hablaría un conocido, no un vendedor.
-- Primera línea: presentación natural de Manuel (sin "estimado", sin "me dirijo a usted").
-- Segunda línea: el valor específico para ESE negocio/persona, mencionando algo concreto de su sector o situación.
-- Tercera línea: una sola pregunta o CTA muy simple (¿hablamos 10 minutos? / ¿te cuento cómo funciona?).
+- Máximo 3-4 líneas. Ni más ni menos.
+- Tono: completamente humano, como si fuera un amigo conocido del sector, sin sonar a vendedor ni a bot.
+- Primera línea: saludo natural usando el nombre si se tiene. Sin "estimado", sin formalismos.
+- Segunda línea: referencia concreta y específica a su negocio/sector/situación — que parezca que Manuel los conoce.
+- Tercera línea: propuesta de valor muy concreta, sin jerga de seguros, en lenguaje de calle.
+- Última línea: invitación al cuestionario para que el lead pueda ver qué necesita sin compromiso.
+  Usa exactamente esta URL: {URL_CUESTIONARIO}
+  Ejemplo: "Si te apetece, aquí puedes ver en 2 minutos qué opciones encajan con tu situación: {URL_CUESTIONARIO}"
+  O bien: "Rellena esto en 2 minutos y te digo exactamente qué te conviene: {URL_CUESTIONARIO}"
+- Si el lead es una inmobiliaria, el CTA puede ser también una pregunta directa sobre derivación.
 - NO mencionar precio en el primer mensaje.
 - NO usar emojis.
-- NO usar lenguaje corporativo ni jerga de seguros.
-- Si se conoce el nombre del propietario, usarlo. Si no, usar el nombre del negocio.
-- El mensaje debe sonar como escrito por una persona real, no por una IA.
+- NO usar lenguaje corporativo ni jerga de seguros (no decir "póliza", "cobertura", "prima").
+- El mensaje debe sonar ESCRITO A MANO por Manuel, no generado por IA.
+- Variedad: no uses siempre la misma estructura. Cambia el orden, el tono, la longitud según el perfil.
 """
 
 
@@ -159,6 +166,7 @@ def _mensaje_fallback(lead: dict) -> str:
     empresa = lead.get("empresa") or ""
     ciudad = lead.get("ciudad") or ""
     destinatario = nombre if nombre else empresa if empresa else "hola"
+    url = URL_CUESTIONARIO
 
     sector = (lead.get("sector") or "").lower()
     if "inmob" in sector:
@@ -166,12 +174,12 @@ def _mensaje_fallback(lead: dict) -> str:
             f"Hola {destinatario}, soy Manuel, asesor financiero en {ciudad}. "
             f"Trabajo con inmobiliarias de la zona en acuerdos de derivación hipotecaria — "
             f"cuando un cliente tuyo necesita hipoteca, generáis una comisión sin trabajo extra. "
-            f"¿Hablamos 15 minutos?"
+            f"¿Hablamos 15 minutos? O si prefieres ver primero de qué va: {url}"
         )
     return (
         f"Hola {destinatario}, soy Manuel, asesor financiero en {ciudad}. "
         f"Tengo algo que puede ser útil para {empresa or 'tu negocio'}. "
-        f"¿Tienes 10 minutos esta semana?"
+        f"Si quieres ver qué opciones te encajan antes de hablar, aquí en 2 minutos: {url}"
     )
 
 

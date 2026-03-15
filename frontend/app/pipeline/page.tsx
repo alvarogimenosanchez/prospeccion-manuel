@@ -52,6 +52,17 @@ const TEMP_COLOR: Record<string, string> = {
   frio:     "bg-blue-100 text-blue-700",
 };
 
+const TEMPERATURA_POR_ESTADO: Record<Estado, string> = {
+  nuevo:           "frio",
+  segmentado:      "frio",
+  mensaje_enviado: "frio",
+  respondio:       "templado",
+  cita_agendada:   "caliente",
+  en_negociacion:  "caliente",
+  cerrado_ganado:  "caliente",
+  cerrado_perdido: "frio",
+};
+
 function diasDesde(fecha: string): string {
   const dias = Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
   if (dias === 0) return "hoy";
@@ -98,8 +109,11 @@ function PipelineContent() {
 
   async function moverLead(leadId: string, nuevoEstado: Estado) {
     setMoviendo(leadId);
-    await supabase.from("leads").update({ estado: nuevoEstado, updated_at: new Date().toISOString() }).eq("id", leadId);
-    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, estado: nuevoEstado } : l));
+    const temperatura = TEMPERATURA_POR_ESTADO[nuevoEstado];
+    const updates: Record<string, string> = { estado: nuevoEstado, updated_at: new Date().toISOString() };
+    if (temperatura) updates.temperatura = temperatura;
+    await supabase.from("leads").update(updates).eq("id", leadId);
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, estado: nuevoEstado, ...(temperatura ? { temperatura } : {}) } : l));
     setMoviendo(null);
   }
 
@@ -202,11 +216,11 @@ function TarjetaLead({
 
       {/* Badges */}
       <div className="flex flex-wrap gap-1.5 mt-2">
-        {lead.temperatura && (
-          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TEMP_COLOR[lead.temperatura] ?? "bg-slate-100 text-slate-600"}`}>
-            {lead.temperatura}
+        {(() => { const temp = TEMPERATURA_POR_ESTADO[lead.estado]; return temp ? (
+          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${TEMP_COLOR[temp] ?? "bg-slate-100 text-slate-600"}`}>
+            {temp}
           </span>
-        )}
+        ) : null; })()}
         {lead.ciudad && (
           <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
             {lead.ciudad}

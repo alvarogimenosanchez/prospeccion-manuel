@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type { Team, TeamMember, Comercial } from "@/lib/supabase";
 
@@ -26,6 +27,8 @@ export default function EquiposPage() {
   const [mostrarAnadirMiembro, setMostrarAnadirMiembro] = useState(false);
   const [comercialParaAnadir, setComercialParaAnadir] = useState("");
   const [rolParaAnadir, setRolParaAnadir] = useState<"lider" | "miembro">("miembro");
+  const [miembroParaMover, setMiembroParaMover] = useState<(TeamMember & { comercial: Comercial }) | null>(null);
+  const [equipoDestinoId, setEquipoDestinoId] = useState("");
 
   const cargarDatos = useCallback(async () => {
     setLoading(true);
@@ -110,6 +113,22 @@ export default function EquiposPage() {
   async function quitarMiembro(memberId: string) {
     await supabase.from("team_members").delete().eq("id", memberId);
     cargarDatos();
+  }
+
+  async function moverMiembro() {
+    if (!miembroParaMover || !equipoDestinoId) return;
+    // Quitar del equipo actual
+    await supabase.from("team_members").delete().eq("id", miembroParaMover.id);
+    // Añadir al nuevo equipo (mismo rol)
+    await supabase.from("team_members").insert({
+      team_id: equipoDestinoId,
+      comercial_id: miembroParaMover.comercial_id,
+      rol: miembroParaMover.rol,
+    });
+    setMiembroParaMover(null);
+    setEquipoDestinoId("");
+    await cargarDatos();
+    setEquipoSeleccionado(prev => prev ? equipos.find(e => e.id === prev.id) ?? null : null);
   }
 
   async function toggleEquipo(equipo: TeamConMiembros) {
@@ -277,9 +296,9 @@ export default function EquiposPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <p className="text-sm font-medium text-slate-800 truncate">
+                              <Link href={`/desempeno/${m.comercial_id}`} className="text-sm font-medium text-slate-800 truncate hover:text-indigo-600 hover:underline">
                                 {m.comercial.nombre} {m.comercial.apellidos ?? ""}
-                              </p>
+                              </Link>
                               <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
                                 m.rol === "lider" ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
                               }`}>
@@ -308,13 +327,22 @@ export default function EquiposPage() {
                               </div>
                             )}
                           </div>
-                          <button
-                            onClick={() => quitarMiembro(m.id)}
-                            className="text-xs text-slate-300 hover:text-red-500 transition-colors px-1 flex-shrink-0"
-                            title="Quitar del equipo"
-                          >
-                            ×
-                          </button>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            <button
+                              onClick={() => { setMiembroParaMover(m); setEquipoDestinoId(""); }}
+                              className="text-xs text-slate-400 hover:text-indigo-600 border border-slate-200 hover:border-indigo-300 px-2 py-1 rounded transition-colors"
+                              title="Mover a otro equipo"
+                            >
+                              Mover
+                            </button>
+                            <button
+                              onClick={() => quitarMiembro(m.id)}
+                              className="text-xs text-slate-300 hover:text-red-500 transition-colors px-1 flex-shrink-0"
+                              title="Quitar del equipo"
+                            >
+                              ×
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -417,9 +445,9 @@ export default function EquiposPage() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-slate-800 text-sm truncate">
+                        <Link href={`/desempeno/${c.id}`} className="font-semibold text-slate-800 text-sm truncate hover:text-indigo-600 hover:underline">
                           {c.nombre} {c.apellidos ?? ""}
-                        </p>
+                        </Link>
                         {c.rol === "director" && (
                           <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium flex-shrink-0">Director</span>
                         )}
@@ -473,6 +501,45 @@ export default function EquiposPage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Modal mover miembro a otro equipo */}
+      {miembroParaMover && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-800">Mover a otro equipo</h2>
+              <button onClick={() => setMiembroParaMover(null)} className="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-slate-600">
+                Mover a <strong>{miembroParaMover.comercial.nombre} {miembroParaMover.comercial.apellidos ?? ""}</strong> a:
+              </p>
+              <select
+                value={equipoDestinoId}
+                onChange={e => setEquipoDestinoId(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300 bg-white"
+              >
+                <option value="">Seleccionar equipo destino...</option>
+                {equipos.filter(e => e.id !== equipoSeleccionado?.id).map(e => (
+                  <option key={e.id} value={e.id}>{e.nombre}</option>
+                ))}
+              </select>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={moverMiembro}
+                disabled={!equipoDestinoId}
+                className="flex-1 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                Mover
+              </button>
+              <button onClick={() => setMiembroParaMover(null)} className="px-5 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50">
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       )}

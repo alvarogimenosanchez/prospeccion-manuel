@@ -116,6 +116,25 @@ export type Comercial = {
   created_at: string;
 };
 
+export type Cliente = {
+  id: string;
+  lead_id: string | null;
+  nombre: string;
+  apellidos: string | null;
+  email: string | null;
+  telefono: string | null;
+  empresa: string | null;
+  comercial_asignado: string | null;
+  producto: string | null;
+  fecha_inicio: string;
+  fecha_renovacion: string | null;
+  valor_contrato: number | null;
+  notas: string | null;
+  estado: "activo" | "pausado" | "cancelado" | "renovado";
+  created_at: string;
+  updated_at: string;
+};
+
 export type DashboardResumen = {
   fecha: string;
   leads_nuevos_hoy: number;

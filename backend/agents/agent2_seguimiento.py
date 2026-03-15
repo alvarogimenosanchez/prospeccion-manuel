@@ -49,6 +49,32 @@ supabase: Client = create_client(
 # Plantillas de seguimiento por segmento
 # ============================================================
 
+def _plantillas_recordatorio_dia1() -> Dict[str, str]:
+    """Plantillas para el recordatorio del día 1 (24h sin respuesta)."""
+    return {
+        "inmobiliaria": (
+            "Hola {nombre}, soy Manuel. Te escribí ayer sobre cómo generar ingresos adicionales "
+            "para {empresa} derivando clientes hipotecarios. ¿Has tenido oportunidad de verlo?"
+        ),
+        "autonomo": (
+            "Hola {nombre}, soy Manuel. Te comenté ayer sobre el seguro para autónomos que cubre "
+            "desde el primer día de baja. ¿Lo pudiste ver?"
+        ),
+        "pyme": (
+            "Hola {nombre}, soy Manuel. Te escribí ayer sobre el seguro colectivo para tu equipo "
+            "en {empresa}. ¿Tienes un momento para verlo?"
+        ),
+        "particular": (
+            "Hola {nombre}, soy Manuel. Te escribí ayer sobre protección para tu familia. "
+            "¿Llegaste a verlo?"
+        ),
+        "generico": (
+            "Hola {nombre}, soy Manuel. Te escribí ayer con una propuesta. ¿Has tenido ocasión "
+            "de verla?"
+        ),
+    }
+
+
 def _plantillas_recordatorio_1() -> Dict[str, str]:
     """Plantillas para el primer recordatorio (3 días sin respuesta)."""
     return {
@@ -149,7 +175,9 @@ def _rellenar_plantilla(plantilla: str, lead: Dict[str, Any]) -> str:
 def _generar_mensaje_recordatorio(lead: Dict[str, Any], numero_recordatorio: int) -> str:
     """Genera el mensaje de recordatorio adecuado para el lead."""
     segmento = _detectar_segmento(lead)
-    if numero_recordatorio == 1:
+    if numero_recordatorio == 0:
+        plantilla = _plantillas_recordatorio_dia1().get(segmento, _plantillas_recordatorio_dia1()["generico"])
+    elif numero_recordatorio == 1:
         plantilla = _plantillas_recordatorio_1().get(segmento, _plantillas_recordatorio_1()["generico"])
     else:
         plantilla = _plantillas_recordatorio_2().get(segmento, _plantillas_recordatorio_2()["generico"])
@@ -173,6 +201,24 @@ def _obtener_leads_mensaje_enviado() -> List[Dict[str, Any]]:
         "id, nombre, apellidos, tipo_lead, sector, empresa, ciudad, "
         "estado, temperatura, prioridad, updated_at, comercial_asignado"
     ).eq("estado", "mensaje_enviado").execute()
+    return resp.data or []
+
+
+def _obtener_leads_accion_vencida() -> List[Dict[str, Any]]:
+    """
+    Devuelve leads con proxima_accion_fecha vencida que no estén cerrados.
+    Excluye leads donde ya se notificó en las últimas 12h.
+    """
+    ahora = _ahora_utc()
+    resp = supabase.table("leads").select(
+        "id, nombre, apellidos, empresa, proxima_accion, proxima_accion_fecha, comercial_asignado"
+    ).not_.is_("proxima_accion", "null").neq(
+        "proxima_accion", "ninguna"
+    ).lt(
+        "proxima_accion_fecha", ahora.isoformat()
+    ).not_.in_(
+        "estado", ["cerrado_ganado", "cerrado_perdido", "descartado"]
+    ).execute()
     return resp.data or []
 
 
@@ -246,6 +292,30 @@ def _actualizar_lead(lead_id: str, campos: Dict[str, Any]) -> None:
 # ============================================================
 # Procesamiento por tipo de situación
 # ============================================================
+
+def _procesar_recordatorio_dia1(lead: Dict[str, Any]) -> None:
+    """Lead lleva 1 día sin responder → recordatorio suave de seguimiento."""
+    lead_id = lead["id"]
+    nombre = lead.get("nombre", "sin nombre")
+    mensaje = _generar_mensaje_recordatorio(lead, 0)
+
+    logger.info("Recordatorio día 1 → lead %s (%s)", lead_id, nombre)
+
+    _registrar_interaccion(
+        lead_id=lead_id,
+        mensaje=mensaje,
+        notas_extra="Recordatorio automático día 1 — 24h sin respuesta",
+    )
+    _registrar_scoring_history(
+        lead_id=lead_id,
+        temperatura=lead.get("temperatura", "templado"),
+        nivel_interes=lead.get("nivel_interes", 5),
+        prioridad=lead.get("prioridad", "media"),
+        motivo="Recordatorio día 1 enviado — 24h sin respuesta al primer mensaje",
+        evento_tipo="sin_respuesta_1_dia",
+    )
+    _actualizar_lead(lead_id, {})
+
 
 def _procesar_recordatorio_1(lead: Dict[str, Any]) -> None:
     """Lead lleva 3 días sin responder → enviar recordatorio 1."""
@@ -331,6 +401,61 @@ def _procesar_lead_frio(lead: Dict[str, Any]) -> None:
     })
 
 
+ACCIONES_LABEL: Dict[str, str] = {
+    "llamar": "Llamar",
+    "whatsapp": "WhatsApp",
+    "email": "Email",
+    "esperar_respuesta": "Esperar respuesta",
+    "enviar_info": "Enviar información",
+    "reunion": "Reunión",
+}
+
+
+def _notificar_accion_vencida(lead: Dict[str, Any]) -> None:
+    """
+    Registra una nota en interactions cuando la próxima acción comprometida ha vencido.
+    """
+    lead_id = lead["id"]
+    nombre = lead.get("nombre", "sin nombre")
+    empresa = lead.get("empresa") or ""
+    accion = ACCIONES_LABEL.get(lead.get("proxima_accion", ""), lead.get("proxima_accion", "acción"))
+    fecha = lead.get("proxima_accion_fecha", "")
+    try:
+        dt_fecha = datetime.fromisoformat(fecha.replace("Z", "+00:00"))
+        horas_retraso = int((_ahora_utc() - dt_fecha).total_seconds() / 3600)
+    except (ValueError, TypeError):
+        horas_retraso = 0
+
+    logger.warning(
+        "Acción vencida — lead %s (%s%s): %s — %dh de retraso",
+        lead_id, nombre, f" ({empresa})" if empresa else "", accion, horas_retraso,
+    )
+
+    alerta = (
+        f"[ACCIÓN VENCIDA] Tenías pendiente: {accion} a {nombre}"
+        + (f" ({empresa})" if empresa else "")
+        + f". Lleva {horas_retraso}h de retraso. Revisa y reprograma."
+    )
+
+    supabase.table("interactions").insert({
+        "lead_id": lead_id,
+        "tipo": "nota_manual",
+        "mensaje": alerta,
+        "origen": "bot",
+        "sentimiento": "neutro",
+        "señal_escalado": horas_retraso >= 24,
+    }).execute()
+
+    _registrar_scoring_history(
+        lead_id=lead_id,
+        temperatura=lead.get("temperatura", "templado"),
+        nivel_interes=lead.get("nivel_interes", 5),
+        prioridad=lead.get("prioridad", "media"),
+        motivo=f"Acción '{accion}' vencida — {horas_retraso}h de retraso.",
+        evento_tipo="accion_vencida_notificada",
+    )
+
+
 def _procesar_alerta_urgente(lead: Dict[str, Any]) -> None:
     """
     Lead respondió pero ningún comercial contestó en 24 horas.
@@ -390,14 +515,16 @@ def ejecutar_seguimiento() -> Dict[str, Any]:
 
     resultado: Dict[str, Any] = {
         "ejecutado_en": ahora.isoformat(),
+        "recordatorios_dia1_enviados": 0,
         "recordatorios_1_enviados": 0,
         "recordatorios_2_enviados": 0,
         "leads_marcados_frios": 0,
         "alertas_urgentes_creadas": 0,
+        "acciones_vencidas_notificadas": 0,
         "errores": [],
     }
 
-    # ---- 1. Leads en "mensaje_enviado" ----
+    # ---- 1. Leads en "mensaje_enviado" (cadencia 1/3/7/14 días) ----
     leads_enviados = _obtener_leads_mensaje_enviado()
     logger.info("Leads en estado 'mensaje_enviado': %d", len(leads_enviados))
 
@@ -409,24 +536,27 @@ def ejecutar_seguimiento() -> Dict[str, Any]:
                 _procesar_lead_frio(lead)
                 resultado["leads_marcados_frios"] += 1
             elif dias >= 7:
-                # Comprobamos si ya se envió el recordatorio 2 para no duplicar
                 ya_enviado = _tiene_interaccion_reciente(lead["id"], "sin_respuesta_7_dias")
                 if not ya_enviado:
                     _procesar_recordatorio_2(lead)
                     resultado["recordatorios_2_enviados"] += 1
             elif dias >= 3:
-                # Comprobamos si ya se envió el recordatorio 1
                 ya_enviado = _tiene_interaccion_reciente(lead["id"], "sin_respuesta_3_dias")
                 if not ya_enviado:
                     _procesar_recordatorio_1(lead)
                     resultado["recordatorios_1_enviados"] += 1
+            elif dias >= 1:
+                ya_enviado = _tiene_interaccion_reciente(lead["id"], "sin_respuesta_1_dia")
+                if not ya_enviado:
+                    _procesar_recordatorio_dia1(lead)
+                    resultado["recordatorios_dia1_enviados"] += 1
 
         except Exception as exc:  # pylint: disable=broad-except
             msg = f"Error procesando lead {lead.get('id')}: {exc}"
             logger.error(msg)
             resultado["errores"].append(msg)
 
-    # ---- 2. Leads en "respondio" sin atención ----
+    # ---- 2. Leads en "respondio" sin atención del comercial ----
     leads_sin_atencion = _obtener_leads_respondio_sin_atencion()
     logger.info("Leads en 'respondio' sin atención >24h: %d", len(leads_sin_atencion))
 
@@ -441,12 +571,29 @@ def ejecutar_seguimiento() -> Dict[str, Any]:
             logger.error(msg)
             resultado["errores"].append(msg)
 
+    # ---- 3. Acciones comprometidas vencidas ----
+    leads_accion_vencida = _obtener_leads_accion_vencida()
+    logger.info("Leads con acción vencida: %d", len(leads_accion_vencida))
+
+    for lead in leads_accion_vencida:
+        try:
+            ya_notificado = _tiene_interaccion_reciente(lead["id"], "accion_vencida_notificada")
+            if not ya_notificado:
+                _notificar_accion_vencida(lead)
+                resultado["acciones_vencidas_notificadas"] += 1
+        except Exception as exc:  # pylint: disable=broad-except
+            msg = f"Error notificando acción vencida para lead {lead.get('id')}: {exc}"
+            logger.error(msg)
+            resultado["errores"].append(msg)
+
     logger.info(
-        "=== Ciclo completado: R1=%d R2=%d frías=%d alertas=%d errores=%d ===",
+        "=== Ciclo completado: R0=%d R1=%d R2=%d frías=%d alertas=%d accVenc=%d errores=%d ===",
+        resultado["recordatorios_dia1_enviados"],
         resultado["recordatorios_1_enviados"],
         resultado["recordatorios_2_enviados"],
         resultado["leads_marcados_frios"],
         resultado["alertas_urgentes_creadas"],
+        resultado["acciones_vencidas_notificadas"],
         len(resultado["errores"]),
     )
     return resultado
@@ -465,6 +612,89 @@ def _tiene_interaccion_reciente(lead_id: str, evento_tipo: str) -> bool:
         "evento_tipo", evento_tipo
     ).gte("created_at", limite).execute()
     return bool(resp.data)
+
+
+# ============================================================
+# Renovaciones de clientes
+# ============================================================
+
+def _verificar_renovaciones_clientes() -> int:
+    """
+    Revisa la tabla clientes buscando fechas de renovación próximas (7 días o menos)
+    y genera una nota en interactions del lead vinculado si la hay.
+    Devuelve el número de alertas generadas.
+    """
+    from datetime import timedelta
+
+    ahora = _ahora_utc()
+    en_7_dias = (ahora + timedelta(days=7)).isoformat()
+
+    resp = supabase.table("clientes").select(
+        "id, nombre, apellidos, empresa, producto, fecha_renovacion, lead_id, comercial_asignado"
+    ).eq(
+        "estado", "activo"
+    ).not_.is_(
+        "fecha_renovacion", "null"
+    ).lte(
+        "fecha_renovacion", en_7_dias
+    ).gte(
+        "fecha_renovacion", ahora.date().isoformat()
+    ).execute()
+
+    clientes = resp.data or []
+    alertas = 0
+
+    for cliente in clientes:
+        try:
+            fecha_ren = cliente.get("fecha_renovacion", "")
+            try:
+                dt_ren = datetime.fromisoformat(fecha_ren)
+                if dt_ren.tzinfo is None:
+                    dt_ren = dt_ren.replace(tzinfo=timezone.utc)
+                dias_restantes = (dt_ren.date() - ahora.date()).days
+            except (ValueError, TypeError):
+                continue
+
+            nombre_cliente = f"{cliente.get('nombre', '')} {cliente.get('apellidos', '') or ''}".strip()
+            empresa = cliente.get("empresa") or ""
+            producto = cliente.get("producto") or "servicio"
+            lead_id = cliente.get("lead_id")
+
+            alerta = (
+                f"[RENOVACIÓN] {nombre_cliente}"
+                + (f" ({empresa})" if empresa else "")
+                + f" — {producto} vence en {dias_restantes} {'día' if dias_restantes == 1 else 'días'} "
+                f"({fecha_ren[:10]}). Contactar para renovar."
+            )
+
+            if lead_id:
+                # Comprobamos si ya generamos esta alerta hoy
+                ya_alertado = supabase.table("interactions").select("id").eq(
+                    "lead_id", lead_id
+                ).like("mensaje", "%[RENOVACIÓN]%").gte(
+                    "created_at", ahora.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+                ).execute()
+
+                if not ya_alertado.data:
+                    supabase.table("interactions").insert({
+                        "lead_id": lead_id,
+                        "tipo": "nota_manual",
+                        "mensaje": alerta,
+                        "origen": "bot",
+                        "sentimiento": "neutro",
+                        "señal_escalado": dias_restantes <= 3,
+                    }).execute()
+                    alertas += 1
+                    logger.info("Alerta renovación → cliente %s (%d días)", nombre_cliente, dias_restantes)
+            else:
+                # Sin lead vinculado — solo logueamos
+                logger.warning("Renovación próxima (sin lead): %s — %d días", nombre_cliente, dias_restantes)
+                alertas += 1
+
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.error("Error verificando renovación cliente %s: %s", cliente.get("id"), exc)
+
+    return alertas
 
 
 # ============================================================

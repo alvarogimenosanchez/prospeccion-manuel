@@ -30,6 +30,7 @@ export function Navbar() {
     { href: "/prospeccion", label: "Prospección" },
     { href: "/metricas", label: "Métricas" },
     { href: "/desempeno", label: "Desempeño" },
+    { href: "/clientes", label: "Clientes" },
     { href: "/equipos", label: "Equipos" },
   ];
 

@@ -166,38 +166,53 @@ export default function AgendaPage() {
   const [citas, setCitas] = useState<CitaConLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [semanaBase, setSemanaBase] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
-  const [vista, setVista] = useState<"semana" | "lista">("semana");
+  const [vista, setVista] = useState<"hoy" | "semana" | "lista">("semana");
   const [filtroComercial, setFiltroComercial] = useState("");
-  const [comerciales, setComerciales] = useState<{ id: string; nombre: string; apellidos: string | null }[]>([]);
+  const [filtroEquipo, setFiltroEquipo] = useState("");
+  const [comerciales, setComerciales] = useState<{ id: string; nombre: string; apellidos: string | null; team_id?: string | null }[]>([]);
+  const [equipos, setEquipos] = useState<{ id: string; nombre: string }[]>([]);
   const [citaParaRegistrar, setCitaParaRegistrar] = useState<CitaConLead | null>(null);
 
   useEffect(() => {
-    supabase.from("comerciales").select("id, nombre, apellidos").eq("activo", true).order("nombre")
-      .then(({ data }) => setComerciales(data ?? []));
+    Promise.all([
+      supabase.from("comerciales").select("id, nombre, apellidos").eq("activo", true).order("nombre"),
+      supabase.from("teams").select("id, nombre").eq("activo", true).order("nombre"),
+    ]).then(([comRes, teamRes]) => {
+      setComerciales(comRes.data ?? []);
+      setEquipos(teamRes.data ?? []);
+    });
   }, []);
 
   const cargarCitas = useCallback(async () => {
     setLoading(true);
-    const desde = startOfDay(semanaBase).toISOString();
-    const hasta = endOfDay(addDays(semanaBase, 6)).toISOString();
+    const esHoy = vista === "hoy";
+    const base = esHoy ? startOfDay(new Date()) : startOfDay(semanaBase);
+    const fin = esHoy ? endOfDay(new Date()) : endOfDay(addDays(semanaBase, 6));
 
     let query = supabase
       .from("appointments")
       .select(`
         *,
-        lead:leads(nombre, apellidos, empresa, telefono_whatsapp, temperatura),
+        lead:leads(nombre, apellidos, empresa, telefono_whatsapp, temperatura, team_id),
         comercial:comerciales(nombre, apellidos)
       `)
-      .gte("fecha_hora", desde)
-      .lte("fecha_hora", hasta)
+      .gte("fecha_hora", base.toISOString())
+      .lte("fecha_hora", fin.toISOString())
       .order("fecha_hora");
 
     if (filtroComercial) query = query.eq("comercial_id", filtroComercial);
 
     const { data } = await query;
-    setCitas((data as CitaConLead[]) ?? []);
+    let resultado = (data as CitaConLead[]) ?? [];
+
+    // Filtro equipo: filtrar por team_id del lead
+    if (filtroEquipo) {
+      resultado = resultado.filter(c => (c.lead as unknown as { team_id?: string | null })?.team_id === filtroEquipo);
+    }
+
+    setCitas(resultado);
     setLoading(false);
-  }, [semanaBase, filtroComercial]);
+  }, [semanaBase, filtroComercial, filtroEquipo, vista]);
 
   useEffect(() => { cargarCitas(); }, [cargarCitas]);
 
@@ -265,22 +280,37 @@ export default function AgendaPage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Agenda</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {format(semanaBase, "d MMM", { locale: es })} – {format(addDays(semanaBase, 6), "d MMM yyyy", { locale: es })}
+            {vista === "hoy"
+              ? format(new Date(), "EEEE d MMMM yyyy", { locale: es })
+              : `${format(semanaBase, "d MMM", { locale: es })} – ${format(addDays(semanaBase, 6), "d MMM yyyy", { locale: es })}`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Filtro equipo */}
+          {equipos.length > 0 && (
+            <select
+              value={filtroEquipo}
+              onChange={e => { setFiltroEquipo(e.target.value); setFiltroComercial(""); }}
+              className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-slate-400 text-slate-600"
+            >
+              <option value="">Todos los equipos</option>
+              {equipos.map(t => (
+                <option key={t.id} value={t.id}>{t.nombre}</option>
+              ))}
+            </select>
+          )}
           {/* Filtro comercial */}
           {comerciales.length > 1 && (
             <select
               value={filtroComercial}
-              onChange={e => setFiltroComercial(e.target.value)}
+              onChange={e => { setFiltroComercial(e.target.value); setFiltroEquipo(""); }}
               className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-slate-400 text-slate-600"
             >
-              <option value="">Todos</option>
+              <option value="">Todos los comerciales</option>
               {comerciales.map(c => (
                 <option key={c.id} value={c.id}>{c.nombre} {c.apellidos ?? ""}</option>
               ))}
@@ -288,37 +318,39 @@ export default function AgendaPage() {
           )}
           {/* Vista toggle */}
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-            {(["semana", "lista"] as const).map(v => (
+            {(["hoy", "semana", "lista"] as const).map(v => (
               <button
                 key={v}
                 onClick={() => setVista(v)}
                 className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${vista === v ? "bg-white text-slate-800 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
               >
-                {v === "semana" ? "Semana" : "Lista"}
+                {v === "hoy" ? "Hoy" : v === "semana" ? "Semana" : "Lista"}
               </button>
             ))}
           </div>
-          {/* Navegación semana */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setSemanaBase(d => addDays(d, -7))}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors text-sm"
-            >
-              ←
-            </button>
-            <button
-              onClick={() => setSemanaBase(startOfWeek(new Date(), { weekStartsOn: 1 }))}
-              className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-            >
-              Hoy
-            </button>
-            <button
-              onClick={() => setSemanaBase(d => addDays(d, 7))}
-              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors text-sm"
-            >
-              →
-            </button>
-          </div>
+          {/* Navegación semana (solo en vista semana/lista) */}
+          {vista !== "hoy" && (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setSemanaBase(d => addDays(d, -7))}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors text-sm"
+              >
+                ←
+              </button>
+              <button
+                onClick={() => setSemanaBase(startOfWeek(new Date(), { weekStartsOn: 1 }))}
+                className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-800 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              >
+                Hoy
+              </button>
+              <button
+                onClick={() => setSemanaBase(d => addDays(d, 7))}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors text-sm"
+              >
+                →
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -358,6 +390,23 @@ export default function AgendaPage() {
 
       {loading ? (
         <div className="py-20 text-center text-sm text-slate-400">Cargando agenda...</div>
+      ) : vista === "hoy" ? (
+        /* Vista hoy */
+        <div className="space-y-3">
+          {citas.length === 0 ? (
+            <div className="bg-white rounded-xl border border-slate-200 py-16 text-center">
+              <p className="text-2xl mb-2">📅</p>
+              <p className="text-slate-500 text-sm font-medium">Sin citas hoy</p>
+              <p className="text-xs text-slate-300 mt-1">Puedes agendar desde el detalle de cada lead</p>
+            </div>
+          ) : (
+            citas
+              .sort((a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime())
+              .map(cita => (
+                <TarjetaCitaCompleta key={cita.id} cita={cita} onActualizar={actualizarEstado} />
+              ))
+          )}
+        </div>
       ) : vista === "semana" ? (
         /* Vista semanal */
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
@@ -448,20 +497,40 @@ export default function AgendaPage() {
         </div>
       )}
 
-      {/* Resumen rápido */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Total semana", value: citas.length, color: "text-slate-700" },
-          { label: "Confirmadas", value: citas.filter(c => c.estado === "confirmada").length, color: "text-green-600" },
-          { label: "Pendientes", value: citas.filter(c => c.estado === "pendiente").length, color: "text-amber-600" },
-          { label: "Realizadas", value: citas.filter(c => c.estado === "realizada").length, color: "text-slate-400" },
-        ].map(stat => (
-          <div key={stat.label} className="bg-white rounded-xl border border-slate-200 p-4 text-center">
-            <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{stat.label}</p>
+      {/* Métricas técnicas */}
+      {(() => {
+        const realizadas = citas.filter(c => c.estado === "realizada").length;
+        const noShow = citas.filter(c => c.estado === "no_show").length;
+        const canceladas = citas.filter(c => c.estado === "cancelada").length;
+        const total = citas.length;
+        const tasaNoShow = total > 0 ? Math.round((noShow / total) * 100) : 0;
+        const tasaRealizacion = total > 0 ? Math.round((realizadas / total) * 100) : 0;
+        const cerradas = citas.filter(c => c.notas_post?.includes("cerrado") || c.resultado === "cerrado_ganado").length;
+        const tasaConversion = realizadas > 0 ? Math.round((cerradas / realizadas) * 100) : 0;
+        return (
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100">
+              <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                {vista === "hoy" ? "Métricas de hoy" : "Métricas de la semana"}
+              </h2>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 divide-x divide-slate-100">
+              {[
+                { label: "Total citas", value: total, color: "text-slate-800", sub: `${citas.filter(c => c.tipo === "llamada").length} llamadas · ${citas.filter(c => c.tipo === "videollamada").length} video · ${citas.filter(c => c.tipo === "reunion_presencial").length} presencial` },
+                { label: "Tasa realización", value: `${tasaRealizacion}%`, color: tasaRealizacion >= 70 ? "text-emerald-600" : tasaRealizacion >= 50 ? "text-amber-600" : "text-red-600", sub: `${realizadas} realizadas de ${total}` },
+                { label: "No-show", value: `${tasaNoShow}%`, color: tasaNoShow === 0 ? "text-emerald-600" : tasaNoShow <= 15 ? "text-amber-600" : "text-red-600", sub: `${noShow} no asistieron · ${canceladas} canceladas` },
+                { label: "Conversión", value: `${tasaConversion}%`, color: tasaConversion >= 30 ? "text-emerald-600" : "text-slate-500", sub: `${cerradas} cierres sobre ${realizadas} realizadas` },
+              ].map(stat => (
+                <div key={stat.label} className="p-4 text-center">
+                  <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                  <p className="text-xs font-semibold text-slate-600 mt-0.5">{stat.label}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{stat.sub}</p>
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
+        );
+      })()}
     </div>
   );
 }
