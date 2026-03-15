@@ -90,6 +90,7 @@ export default function DesempenoPage() {
 
   async function cargarDatos() {
     setLoading(true);
+    try {
 
     const ahora = new Date();
     let fechaDesde: string | null = null;
@@ -200,12 +201,8 @@ export default function DesempenoPage() {
           if (fechaAnteriorHasta) q = q.lt("fecha_captacion", fechaAnteriorHasta);
           return q;
         })(),
-        // Última interacción de este comercial
-        supabase.from("interactions").select("created_at").eq("origen", "comercial")
-          .in("lead_id",
-            supabase.from("leads").select("id").eq("comercial_asignado", comercial.id) as unknown as string[]
-          )
-          .order("created_at", { ascending: false }).limit(1),
+        // Última actividad: lead más recientemente actualizado
+        supabase.from("leads").select("updated_at").eq("comercial_asignado", comercial.id).order("updated_at", { ascending: false }).limit(1),
         // Leads ganados con producto para calcular top
         supabase.from("leads").select("producto_interes_principal").eq("comercial_asignado", comercial.id).eq("estado", "cerrado_ganado").not("producto_interes_principal", "is", null).limit(100),
         // Historial de estados para tiempos medios
@@ -223,10 +220,10 @@ export default function DesempenoPage() {
         topProducto = Object.entries(conteo).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
       }
 
-      // Última actividad — fallback a updated_at del lead más reciente
+      // Última actividad — updated_at del lead más reciente
       let ultimaActividad: string | null = null;
       if (ultimaInteraccion && ultimaInteraccion.length > 0) {
-        ultimaActividad = (ultimaInteraccion[0] as { created_at: string }).created_at;
+        ultimaActividad = (ultimaInteraccion[0] as { updated_at: string }).updated_at;
       }
 
       // Calcular tiempos medios entre estados
@@ -290,7 +287,11 @@ export default function DesempenoPage() {
     }
 
     setStats(resultado.sort((a, b) => b.cerradosGanados - a.cerradosGanados || b.totalLeads - a.totalLeads));
-    setLoading(false);
+    } catch (err) {
+      console.error("Error cargando desempeño:", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   const alertasSinAtencion = alertas.filter(a => a.tipo === "sin_atencion");
