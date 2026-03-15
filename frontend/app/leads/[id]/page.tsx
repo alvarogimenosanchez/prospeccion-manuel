@@ -136,6 +136,10 @@ export default function LeadDetailPage() {
   }>({ proxima_accion: "llamar", proxima_accion_fecha: "", proxima_accion_nota: "" });
   const [guardandoAccion, setGuardandoAccion] = useState(false);
 
+  // Estado history + IA
+  const [stateHistory, setStateHistory] = useState<{ id: string; estado_anterior: string; estado_nuevo: string; created_at: string }[]>([]);
+  const [generandoMensajeIA, setGenerandoMensajeIA] = useState(false);
+
   const cargarComerciales = useCallback(async () => {
     const { data } = await supabase.from("comerciales").select("id, nombre, apellidos").eq("activo", true).order("nombre");
     setComerciales((data as { id: string; nombre: string; apellidos: string | null }[]) ?? []);
@@ -143,16 +147,18 @@ export default function LeadDetailPage() {
 
   useEffect(() => {
     async function cargar() {
-      const [leadRes, interRes, apptRes, clienteRes] = await Promise.all([
+      const [leadRes, interRes, apptRes, clienteRes, historyRes] = await Promise.all([
         supabase.from("leads").select("*").eq("id", id).single(),
         supabase.from("interactions").select("*").eq("lead_id", id).order("created_at"),
         supabase.from("appointments").select("*").eq("lead_id", id).order("fecha_hora"),
         supabase.from("clientes").select("id").eq("lead_id", id).maybeSingle(),
+        supabase.from("lead_state_history").select("id, estado_anterior, estado_nuevo, created_at").eq("lead_id", id).order("created_at"),
       ]);
       setLead(leadRes.data as Lead);
       setInteractions((interRes.data as Interaction[]) ?? []);
       setAppointments((apptRes.data as Appointment[]) ?? []);
       setClienteExistente(clienteRes.data as { id: string } | null);
+      setStateHistory((historyRes.data as { id: string; estado_anterior: string; estado_nuevo: string; created_at: string }[]) ?? []);
       setLoading(false);
     }
     cargar();
@@ -403,11 +409,68 @@ export default function LeadDetailPage() {
     setEditandoAccion(true);
   }
 
+  async function actualizarNivel(delta: number) {
+    if (!lead) return;
+    const nuevo = Math.min(10, Math.max(1, lead.nivel_interes + delta));
+    if (nuevo === lead.nivel_interes) return;
+    await supabase.from("leads").update({ nivel_interes: nuevo, updated_at: new Date().toISOString() }).eq("id", lead.id);
+    setLead(prev => prev ? { ...prev, nivel_interes: nuevo } : prev);
+    setGuardadoOk(true);
+    setTimeout(() => setGuardadoOk(false), 1500);
+  }
+
+  async function generarMensajeIA() {
+    if (!lead) return;
+    setGenerandoMensajeIA(true);
+    setMostrarEnvio(true);
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://prospeccion-manuel-production.up.railway.app";
+      const res = await fetch(`${API_URL}/mensajes/generar-uno`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lead_id: lead.id }),
+      });
+      const data = await res.json();
+      setMensajeWhatsapp(data.mensaje ?? "");
+    } catch {
+      setMensajeWhatsapp(generarMensaje("primer_contacto"));
+    } finally {
+      setGenerandoMensajeIA(false);
+    }
+  }
+
+  async function accionRapida(tipo: string, mensaje: string, nuevoEstado?: string) {
+    if (!lead) return;
+    await supabase.from("interactions").insert({
+      lead_id: lead.id,
+      tipo: "nota_manual",
+      mensaje,
+      origen: "comercial",
+    });
+    const nuevaInteraccion = { id: Date.now().toString(), lead_id: lead.id, tipo: "nota_manual", mensaje, origen: "comercial" as const, sentimiento: null, señal_escalado: false, created_at: new Date().toISOString() } as Interaction;
+    setInteractions(prev => [...prev, nuevaInteraccion]);
+    if (nuevoEstado) {
+      await supabase.from("leads").update({ estado: nuevoEstado, updated_at: new Date().toISOString() }).eq("id", lead.id);
+      supabase.from("lead_state_history").insert({ lead_id: lead.id, estado_anterior: lead.estado, estado_nuevo: nuevoEstado, comercial_id: lead.comercial_asignado });
+      setStateHistory(prev => [...prev, { id: Date.now().toString(), estado_anterior: lead.estado, estado_nuevo: nuevoEstado, created_at: new Date().toISOString() }]);
+      setLead(prev => prev ? { ...prev, estado: nuevoEstado as Lead["estado"] } : prev);
+    }
+    setGuardadoOk(true);
+    setTimeout(() => setGuardadoOk(false), 1500);
+  }
+
   if (loading) return <div className="text-center py-20 text-slate-400 text-sm">Cargando...</div>;
   if (!lead) return <div className="text-center py-20 text-slate-400 text-sm">Lead no encontrado.</div>;
 
   const nombreCompleto = [lead.nombre, lead.apellidos].filter(Boolean).join(" ");
   const estadoActual = ESTADOS.find(e => e.value === lead.estado) ?? { label: lead.estado, class: "bg-slate-100 text-slate-500" };
+
+  const ultimaInteraccionFecha = interactions.length > 0
+    ? new Date(interactions[interactions.length - 1].created_at)
+    : null;
+  const diasSinContacto = ultimaInteraccionFecha
+    ? Math.floor((Date.now() - ultimaInteraccionFecha.getTime()) / (1000 * 60 * 60 * 24))
+    : null;
 
   function generarMensaje(tipo: "primer_contacto" | "recordatorio_1" | "recordatorio_2") {
     const nombre = lead!.nombre || "Hola";
@@ -612,6 +675,18 @@ export default function LeadDetailPage() {
                     {[lead.cargo, lead.empresa].filter(Boolean).join(" · ")}
                   </p>
                 )}
+                {/* Contexto del negocio inline */}
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+                  {lead.sector && (
+                    <span className="text-xs text-slate-400">{lead.sector}</span>
+                  )}
+                  {lead.num_empleados && (
+                    <span className="text-xs text-slate-400">{lead.num_empleados} empleados</span>
+                  )}
+                  {lead.tipo_lead && (
+                    <span className="text-xs text-slate-400 capitalize">{lead.tipo_lead}</span>
+                  )}
+                </div>
               </div>
               <button
                 onClick={abrirEdicion}
@@ -625,9 +700,35 @@ export default function LeadDetailPage() {
               <TemperaturaBadge temperatura={(TEMPERATURA_POR_ESTADO[lead.estado] ?? lead.temperatura) as "caliente" | "templado" | "frio"} />
               <PrioridadBadge prioridad={prioridadDeNivel(lead.nivel_interes)} />
               <FuenteBadge fuente={lead.fuente ?? null} />
+              {diasSinContacto !== null && (
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
+                  diasSinContacto === 0 ? "bg-green-50 text-green-700 border-green-200" :
+                  diasSinContacto <= 3 ? "bg-blue-50 text-blue-600 border-blue-200" :
+                  diasSinContacto <= 7 ? "bg-amber-50 text-amber-600 border-amber-200" :
+                  "bg-red-50 text-red-600 border-red-200"
+                }`}>
+                  {diasSinContacto === 0 ? "Hoy" : `${diasSinContacto}d sin contacto`}
+                </span>
+              )}
             </div>
 
-            <NivelInteresBar nivel={lead.nivel_interes} />
+            {/* Nivel de interés editable */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <NivelInteresBar nivel={lead.nivel_interes} />
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={() => actualizarNivel(-1)}
+                  className="w-6 h-6 rounded-md border border-slate-200 text-slate-500 hover:border-red-300 hover:text-red-600 text-sm font-bold flex items-center justify-center transition-colors"
+                >−</button>
+                <span className="text-sm font-semibold text-slate-700 w-5 text-center">{lead.nivel_interes}</span>
+                <button
+                  onClick={() => actualizarNivel(1)}
+                  className="w-6 h-6 rounded-md border border-slate-200 text-slate-500 hover:border-green-300 hover:text-green-600 text-sm font-bold flex items-center justify-center transition-colors"
+                >+</button>
+              </div>
+            </div>
           </div>
 
           {/* Cambiar estado rápido */}
@@ -835,21 +936,43 @@ export default function LeadDetailPage() {
                 <span className="text-sm text-slate-700">{lead.ciudad}</span>
               </div>
             )}
+            {lead.fuente_detalle && lead.fuente_detalle.startsWith("http") && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400 w-20 flex-shrink-0">Web</span>
+                <a href={lead.fuente_detalle} target="_blank" rel="noopener noreferrer"
+                  className="text-sm text-indigo-600 hover:underline truncate">
+                  {lead.fuente_detalle.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+                </a>
+              </div>
+            )}
           </div>
 
           {/* Productos */}
           {lead.productos_recomendados && lead.productos_recomendados.length > 0 && (
             <div className="bg-white rounded-xl border border-slate-200 p-5">
               <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Productos recomendados</h3>
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {lead.productos_recomendados.map((p) => (
-                  <div key={p} className="flex items-center gap-2">
-                    <span className={`text-sm ${p === lead.producto_interes_principal ? "font-semibold text-indigo-700" : "text-slate-600"}`}>
-                      {PRODUCTOS_NOMBRE[p] ?? p}
-                    </span>
-                    {p === lead.producto_interes_principal && (
-                      <span className="text-xs bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded">Principal</span>
-                    )}
+                  <div key={p} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`text-sm truncate ${p === lead.producto_interes_principal ? "font-semibold text-indigo-700" : "text-slate-600"}`}>
+                        {PRODUCTOS_NOMBRE[p] ?? p}
+                      </span>
+                      {p === lead.producto_interes_principal && (
+                        <span className="text-xs bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded flex-shrink-0">Principal</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => {
+                        const msg = `Hola ${lead.nombre}, te escribo sobre ${PRODUCTOS_NOMBRE[p] ?? p}. `;
+                        setMensajeWhatsapp(msg);
+                        setMostrarEnvio(true);
+                        document.querySelector("[data-mensaje-panel]")?.scrollIntoView({ behavior: "smooth" });
+                      }}
+                      className="text-xs text-indigo-500 hover:text-indigo-700 border border-indigo-200 hover:border-indigo-400 px-2 py-0.5 rounded-lg flex-shrink-0 transition-colors"
+                    >
+                      → Msg
+                    </button>
                   </div>
                 ))}
               </div>
@@ -1038,17 +1161,26 @@ export default function LeadDetailPage() {
 
           {/* Panel de envío de mensaje */}
           {lead.telefono_whatsapp && (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div data-mensaje-panel className="bg-white rounded-xl border border-slate-200 overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-slate-800">Enviar mensaje</h2>
                 {!mostrarEnvio && (
-                  <button
-                    onClick={() => { setMensajeWhatsapp(generarMensaje("primer_contacto")); setMostrarEnvio(true); }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors"
-                  >
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={generarMensajeIA}
+                      disabled={generandoMensajeIA}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                    >
+                      {generandoMensajeIA ? "Generando..." : "✨ IA"}
+                    </button>
+                    <button
+                      onClick={() => { setMensajeWhatsapp(generarMensaje("primer_contacto")); setMostrarEnvio(true); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors"
+                    >
                     <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                    Escribir a {lead.nombre}
-                  </button>
+                      Escribir a {lead.nombre}
+                    </button>
+                  </div>
                 )}
               </div>
 
@@ -1090,17 +1222,51 @@ export default function LeadDetailPage() {
 
           {/* Historial de interacciones */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100">
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-800">Historial de contacto</h2>
+              <span className="text-xs text-slate-400">{interactions.length + stateHistory.length} eventos</span>
             </div>
             <div className="overflow-y-auto max-h-[480px] p-4 space-y-3">
-              {interactions.length === 0 ? (
+              {interactions.length === 0 && stateHistory.length === 0 ? (
                 <p className="text-center text-sm text-slate-400 py-8">Sin interacciones todavía.</p>
               ) : (
-                interactions.map((i) => <ChatBubble key={i.id} interaction={i} />)
+                [...interactions.map(i => ({ type: "interaction" as const, ts: i.created_at, data: i })),
+                 ...stateHistory.map(h => ({ type: "state" as const, ts: h.created_at, data: h }))]
+                  .sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime())
+                  .map(item =>
+                    item.type === "interaction"
+                      ? <ChatBubble key={`i-${item.data.id}`} interaction={item.data} />
+                      : <StateChangeBubble key={`s-${item.data.id}`} change={item.data} />
+                  )
               )}
             </div>
-            <div className="border-t border-slate-100 p-3 flex gap-2">
+            {/* Acciones rápidas */}
+            <div className="border-t border-slate-100 px-3 pt-3 pb-1">
+              <p className="text-xs text-slate-400 mb-2">Acción rápida</p>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                <button onClick={() => accionRapida("llamada", "📞 Llamé, no cogió")}
+                  className="text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg hover:border-slate-400 transition-colors">
+                  📞 No cogió
+                </button>
+                <button onClick={() => accionRapida("mensaje_voz", "🎙 Dejé mensaje de voz")}
+                  className="text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg hover:border-slate-400 transition-colors">
+                  🎙 Dejé voz
+                </button>
+                <button onClick={() => accionRapida("respondio", "✅ Respondió", "respondio")}
+                  className="text-xs px-2.5 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded-lg hover:border-green-400 transition-colors">
+                  ✅ Respondió
+                </button>
+                <button onClick={() => accionRapida("no_responde", "❌ No contesta (3+ intentos)")}
+                  className="text-xs px-2.5 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg hover:border-red-400 transition-colors">
+                  ❌ No contesta
+                </button>
+                <button onClick={() => accionRapida("reunion", "🤝 Reunión realizada")}
+                  className="text-xs px-2.5 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg hover:border-indigo-400 transition-colors">
+                  🤝 Reunión hecha
+                </button>
+              </div>
+            </div>
+            <div className="px-3 pb-3 flex gap-2">
               <input type="text" value={nota} onChange={(e) => setNota(e.target.value)} onKeyDown={(e) => e.key === "Enter" && guardarNota()}
                 placeholder="Añadir nota del comercial..."
                 className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300" />
@@ -1232,6 +1398,23 @@ export default function LeadDetailPage() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function StateChangeBubble({ change }: { change: { estado_anterior: string; estado_nuevo: string; created_at: string } }) {
+  const labelDe = ESTADOS.find(e => e.value === change.estado_anterior)?.label ?? change.estado_anterior;
+  const labelA = ESTADOS.find(e => e.value === change.estado_nuevo)?.label ?? change.estado_nuevo;
+  return (
+    <div className="flex justify-center">
+      <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 max-w-xs text-center">
+        <p className="text-xs text-slate-500">
+          <span className="text-slate-400">{labelDe}</span>
+          {" → "}
+          <span className="font-medium text-slate-700">{labelA}</span>
+        </p>
+        <p className="text-xs text-slate-400 mt-0.5">{format(new Date(change.created_at), "HH:mm · d MMM", { locale: es })}</p>
+      </div>
     </div>
   );
 }
