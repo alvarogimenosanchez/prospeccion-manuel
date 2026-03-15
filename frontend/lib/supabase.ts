@@ -39,6 +39,8 @@ export type Lead = {
   proxima_accion: "llamar" | "whatsapp" | "email" | "esperar_respuesta" | "enviar_info" | "reunion" | "ninguna" | null;
   proxima_accion_fecha: string | null;
   proxima_accion_nota: string | null;
+  motivo_perdida: "precio" | "competencia" | "no_interesado" | "timing" | "sin_contacto" | "otro" | null;
+  motivo_perdida_nota: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -46,6 +46,15 @@ const ACCIONES_CONFIG: Record<string, { label: string; icon: string; color: stri
   reunion:          { label: "Reunión",          icon: "📅", color: "text-indigo-700 bg-indigo-50 border-indigo-200" },
 };
 
+const MOTIVOS_PERDIDA = [
+  { value: "precio", label: "Precio — no encaja con su presupuesto" },
+  { value: "competencia", label: "Competencia — contrató con otro" },
+  { value: "no_interesado", label: "No interesado — no necesita el producto" },
+  { value: "timing", label: "Timing — no es el momento" },
+  { value: "sin_contacto", label: "Sin contacto — no ha respondido" },
+  { value: "otro", label: "Otro" },
+];
+
 function getUrgenciaAccion(fecha: string | null): { label: string; colorClass: string } | null {
   if (!fecha) return null;
   const diff = new Date(fecha).getTime() - Date.now();
@@ -91,6 +100,11 @@ export default function LeadDetailPage() {
   const [postCitaForm, setPostCitaForm] = useState({ resultado: "interesado", notas_post: "", proxima_accion: "llamar", proxima_accion_nota: "" });
   const [errorPostCita, setErrorPostCita] = useState("");
   const [guardandoPostCita, setGuardandoPostCita] = useState(false);
+
+  // Motivo de pérdida
+  const [estadoPendiente, setEstadoPendiente] = useState<string | null>(null);
+  const [motivoForm, setMotivoForm] = useState({ motivo: "precio", nota: "" });
+  const [guardandoMotivo, setGuardandoMotivo] = useState(false);
 
   // Próxima acción
   const [editandoAccion, setEditandoAccion] = useState(false);
@@ -160,8 +174,40 @@ export default function LeadDetailPage() {
 
   async function cambiarEstado(nuevoEstado: string) {
     if (!lead) return;
+    if (nuevoEstado === "cerrado_perdido" || nuevoEstado === "descartado") {
+      setEstadoPendiente(nuevoEstado);
+      setMotivoForm({ motivo: "precio", nota: "" });
+      return;
+    }
     await supabase.from("leads").update({ estado: nuevoEstado, updated_at: new Date().toISOString() }).eq("id", lead.id);
     setLead(prev => prev ? { ...prev, estado: nuevoEstado as Lead["estado"] } : prev);
+    setGuardadoOk(true);
+    setTimeout(() => setGuardadoOk(false), 2000);
+  }
+
+  async function confirmarMotivoPerdida() {
+    if (!lead || !estadoPendiente) return;
+    setGuardandoMotivo(true);
+    await supabase.from("leads").update({
+      estado: estadoPendiente,
+      motivo_perdida: motivoForm.motivo as Lead["motivo_perdida"],
+      motivo_perdida_nota: motivoForm.nota.trim() || null,
+      updated_at: new Date().toISOString(),
+    }).eq("id", lead.id);
+    if (motivoForm.nota.trim()) {
+      await supabase.from("interactions").insert({
+        lead_id: lead.id,
+        tipo: "nota_manual",
+        mensaje: `❌ Motivo de ${estadoPendiente === "descartado" ? "descarte" : "pérdida"}: ${MOTIVOS_PERDIDA.find(m => m.value === motivoForm.motivo)?.label}${motivoForm.nota.trim() ? ` — ${motivoForm.nota.trim()}` : ""}`,
+        origen: "comercial",
+        sentimiento: "negativo",
+        señal_escalado: false,
+        created_at: new Date().toISOString(),
+      });
+    }
+    setLead(prev => prev ? { ...prev, estado: estadoPendiente as Lead["estado"], motivo_perdida: motivoForm.motivo as Lead["motivo_perdida"], motivo_perdida_nota: motivoForm.nota.trim() || null } : prev);
+    setEstadoPendiente(null);
+    setGuardandoMotivo(false);
     setGuardadoOk(true);
     setTimeout(() => setGuardadoOk(false), 2000);
   }
@@ -437,6 +483,62 @@ export default function LeadDetailPage() {
         </div>
       )}
 
+      {/* Modal motivo de pérdida */}
+      {estadoPendiente && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="px-6 py-5 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-800">
+                {estadoPendiente === "descartado" ? "¿Por qué se descarta este lead?" : "¿Por qué se pierde esta venta?"}
+              </h2>
+              <p className="text-sm text-slate-500 mt-0.5">
+                Registrar el motivo ayuda a mejorar el proceso comercial.
+              </p>
+            </div>
+            <div className="px-6 py-4 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Motivo principal *</label>
+                <div className="space-y-2">
+                  {MOTIVOS_PERDIDA.map(m => (
+                    <label key={m.value} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${motivoForm.motivo === m.value ? "border-red-400 bg-red-50" : "border-slate-200 hover:border-slate-300"}`}>
+                      <input
+                        type="radio"
+                        name="motivo_perdida"
+                        value={m.value}
+                        checked={motivoForm.motivo === m.value}
+                        onChange={() => setMotivoForm(p => ({ ...p, motivo: m.value }))}
+                        className="text-red-500"
+                      />
+                      <span className="text-sm text-slate-700">{m.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Nota adicional (opcional)</label>
+                <textarea
+                  value={motivoForm.nota}
+                  onChange={e => setMotivoForm(p => ({ ...p, nota: e.target.value }))}
+                  rows={2}
+                  placeholder="Contexto específico del cierre..."
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-red-300 resize-none"
+                />
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+              <button onClick={confirmarMotivoPerdida} disabled={guardandoMotivo}
+                className="flex-1 py-2.5 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 disabled:opacity-50 transition-colors">
+                {guardandoMotivo ? "Guardando..." : estadoPendiente === "descartado" ? "Descartar lead" : "Marcar como perdido"}
+              </button>
+              <button onClick={() => setEstadoPendiente(null)}
+                className="px-4 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Back + feedback guardado */}
       <div className="flex items-center justify-between">
         <button onClick={() => router.back()} className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1">
@@ -500,6 +602,35 @@ export default function LeadDetailPage() {
               ))}
             </div>
           </div>
+
+          {/* Motivo de pérdida (solo si está cerrado/descartado) */}
+          {(lead.estado === "cerrado_perdido" || lead.estado === "descartado") && (
+            <div className="bg-red-50 rounded-xl border border-red-200 p-5">
+              <h3 className="text-xs font-semibold text-red-500 uppercase tracking-wide mb-2">
+                {lead.estado === "descartado" ? "Motivo de descarte" : "Motivo de pérdida"}
+              </h3>
+              {lead.motivo_perdida ? (
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-red-700">
+                    {MOTIVOS_PERDIDA.find(m => m.value === lead.motivo_perdida)?.label ?? lead.motivo_perdida}
+                  </p>
+                  {lead.motivo_perdida_nota && (
+                    <p className="text-xs text-red-500">{lead.motivo_perdida_nota}</p>
+                  )}
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-red-400">Sin motivo registrado</p>
+                  <button
+                    onClick={() => { setEstadoPendiente(lead.estado); setMotivoForm({ motivo: "precio", nota: "" }); }}
+                    className="text-xs text-red-600 hover:text-red-800 font-medium underline"
+                  >
+                    Añadir motivo
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Próxima acción */}
           {(() => {
