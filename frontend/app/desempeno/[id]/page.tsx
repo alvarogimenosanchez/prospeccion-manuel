@@ -79,7 +79,7 @@ export default function FichaComercialPage() {
     setComercial(comRes.data as Comercial);
     setLeadsActivos((leadsRes.data as LeadDashboard[]) ?? []);
 
-    const citasRaw = (citasRes.data ?? []) as { id: string; tipo: string; estado: string; fecha_hora: string; lead: { nombre: string; apellidos: string | null } | null }[];
+    const citasRaw = ((citasRes.data ?? []) as unknown[]) as { id: string; tipo: string; estado: string; fecha_hora: string; lead: { nombre: string; apellidos: string | null } | null }[];
     setCitas(citasRaw.map(c => ({
       id: c.id,
       tipo: c.tipo,

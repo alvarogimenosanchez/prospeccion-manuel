@@ -505,7 +505,7 @@ export default function AgendaPage() {
         const total = citas.length;
         const tasaNoShow = total > 0 ? Math.round((noShow / total) * 100) : 0;
         const tasaRealizacion = total > 0 ? Math.round((realizadas / total) * 100) : 0;
-        const cerradas = citas.filter(c => c.notas_post?.includes("cerrado") || c.resultado === "cerrado_ganado").length;
+        const cerradas = citas.filter(c => c.notas_post?.includes("cerrado")).length;
         const tasaConversion = realizadas > 0 ? Math.round((cerradas / realizadas) * 100) : 0;
         return (
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
