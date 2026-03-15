@@ -18,6 +18,8 @@ type StatsFilaFuente = {
   respondieron: number;
   tasaRespuesta: number;
   calientes: number;
+  cerrados: number;
+  tasaConversion: number;
 };
 
 type StatsFilaSector = {
@@ -26,6 +28,16 @@ type StatsFilaSector = {
   respondieron: number;
   tasaRespuesta: number;
   calientes: number;
+  cerrados: number;
+  tasaConversion: number;
+};
+
+type StatsFilaCiudad = {
+  ciudad: string;
+  total: number;
+  respondieron: number;
+  cerrados: number;
+  tasaConversion: number;
 };
 
 type SeguimientoCounts = {
@@ -86,6 +98,7 @@ export default function MetricasPage() {
     abandonados: 0,
   });
   const [tiempos, setTiempos] = useState<TiempoEtapa[]>([]);
+  const [statsCiudad, setStatsCiudad] = useState<StatsFilaCiudad[]>([]);
   const [loading, setLoading] = useState(true);
   const [ejecutandoSeguimiento, setEjecutandoSeguimiento] = useState<string | null>(null);
   const [mensajeSeguimiento, setMensajeSeguimiento] = useState<string | null>(null);
@@ -99,6 +112,7 @@ export default function MetricasPage() {
         cargarStatsSector(),
         cargarSeguimiento(),
         cargarTiempos(),
+        cargarStatsCiudad(),
       ]);
       setLoading(false);
     }
@@ -134,32 +148,16 @@ export default function MetricasPage() {
     const rows: StatsFilaFuente[] = [];
 
     for (const fuente of FUENTES) {
-      const { count: total } = await supabase
-        .from("leads")
-        .select("*", { count: "exact", head: true })
-        .eq("fuente", fuente);
-
-      const { count: respondieron } = await supabase
-        .from("leads")
-        .select("*", { count: "exact", head: true })
-        .eq("fuente", fuente)
-        .in("estado", ["respondio", "cita_agendada", "cerrado_ganado"]);
-
-      const { count: calientes } = await supabase
-        .from("leads")
-        .select("*", { count: "exact", head: true })
-        .eq("fuente", fuente)
-        .eq("temperatura", "caliente");
-
+      const [{ count: total }, { count: respondieron }, { count: calientes }, { count: cerrados }] = await Promise.all([
+        supabase.from("leads").select("*", { count: "exact", head: true }).eq("fuente", fuente),
+        supabase.from("leads").select("*", { count: "exact", head: true }).eq("fuente", fuente).in("estado", ["respondio", "cita_agendada", "en_negociacion", "cerrado_ganado"]),
+        supabase.from("leads").select("*", { count: "exact", head: true }).eq("fuente", fuente).eq("temperatura", "caliente"),
+        supabase.from("leads").select("*", { count: "exact", head: true }).eq("fuente", fuente).eq("estado", "cerrado_ganado"),
+      ]);
       const t = total ?? 0;
       const r = respondieron ?? 0;
-      rows.push({
-        fuente,
-        total: t,
-        respondieron: r,
-        tasaRespuesta: t > 0 ? Math.round((r / t) * 100) : 0,
-        calientes: calientes ?? 0,
-      });
+      const c = cerrados ?? 0;
+      rows.push({ fuente, total: t, respondieron: r, tasaRespuesta: t > 0 ? Math.round((r / t) * 100) : 0, calientes: calientes ?? 0, cerrados: c, tasaConversion: t > 0 ? Math.round((c / t) * 100) : 0 });
     }
 
     setStatsFuente(rows);
@@ -171,34 +169,50 @@ export default function MetricasPage() {
     const rows: StatsFilaSector[] = [];
 
     for (const sector of SECTORES) {
-      const filtro = sector === "Otro"
+      const base = sector === "Otro"
+        ? (col: string, val?: string) => supabase.from("leads").select("*", { count: "exact", head: true }).is("sector", null)
+        : (col: string, val?: string) => supabase.from("leads").select("*", { count: "exact", head: true }).ilike("sector", `%${sector}%`);
+      void base; // unused param trick
+      const q = () => sector === "Otro"
         ? supabase.from("leads").select("*", { count: "exact", head: true }).is("sector", null)
         : supabase.from("leads").select("*", { count: "exact", head: true }).ilike("sector", `%${sector}%`);
 
-      const { count: total } = await filtro;
-
-      const filtroR = sector === "Otro"
-        ? supabase.from("leads").select("*", { count: "exact", head: true }).is("sector", null).in("estado", ["respondio", "cita_agendada", "cerrado_ganado"])
-        : supabase.from("leads").select("*", { count: "exact", head: true }).ilike("sector", `%${sector}%`).in("estado", ["respondio", "cita_agendada", "cerrado_ganado"]);
-      const { count: respondieron } = await filtroR;
-
-      const filtroC = sector === "Otro"
-        ? supabase.from("leads").select("*", { count: "exact", head: true }).is("sector", null).eq("temperatura", "caliente")
-        : supabase.from("leads").select("*", { count: "exact", head: true }).ilike("sector", `%${sector}%`).eq("temperatura", "caliente");
-      const { count: calientes } = await filtroC;
-
+      const [{ count: total }, { count: respondieron }, { count: calientes }, { count: cerrados }] = await Promise.all([
+        q(),
+        sector === "Otro" ? q().in("estado", ["respondio", "cita_agendada", "en_negociacion", "cerrado_ganado"]) : q().in("estado", ["respondio", "cita_agendada", "en_negociacion", "cerrado_ganado"]),
+        q().eq("temperatura", "caliente"),
+        q().eq("estado", "cerrado_ganado"),
+      ]);
       const t = total ?? 0;
       const r = respondieron ?? 0;
-      rows.push({
-        sector,
-        total: t,
-        respondieron: r,
-        tasaRespuesta: t > 0 ? Math.round((r / t) * 100) : 0,
-        calientes: calientes ?? 0,
-      });
+      const c = cerrados ?? 0;
+      rows.push({ sector, total: t, respondieron: r, tasaRespuesta: t > 0 ? Math.round((r / t) * 100) : 0, calientes: calientes ?? 0, cerrados: c, tasaConversion: t > 0 ? Math.round((c / t) * 100) : 0 });
     }
 
     setStatsSector(rows.filter((r) => r.total > 0));
+  }
+
+  async function cargarStatsCiudad() {
+    const { data } = await supabase.from("leads")
+      .select("ciudad, estado")
+      .not("ciudad", "is", null)
+      .limit(2000);
+    if (!data) return;
+    const mapa: Record<string, { total: number; respondieron: number; cerrados: number }> = {};
+    for (const l of data) {
+      const c = (l.ciudad as string).trim();
+      if (!c) continue;
+      if (!mapa[c]) mapa[c] = { total: 0, respondieron: 0, cerrados: 0 };
+      mapa[c].total++;
+      if (["respondio", "cita_agendada", "en_negociacion", "cerrado_ganado"].includes(l.estado)) mapa[c].respondieron++;
+      if (l.estado === "cerrado_ganado") mapa[c].cerrados++;
+    }
+    const rows: StatsFilaCiudad[] = Object.entries(mapa)
+      .map(([ciudad, s]) => ({ ciudad, ...s, tasaConversion: s.total > 0 ? Math.round((s.cerrados / s.total) * 100) : 0 }))
+      .filter(r => r.total >= 3)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 20);
+    setStatsCiudad(rows);
   }
 
   // ── Seguimiento pendiente ────────────────────────────────────────────────────
@@ -379,53 +393,32 @@ export default function MetricasPage() {
 
           {/* ── Sección 2: Stats por fuente ─────────────────────────────────────── */}
           <section>
-            <h2 className="text-base font-semibold text-slate-800 mb-4">Rendimiento por fuente</h2>
+            <h2 className="text-base font-semibold text-slate-800 mb-4">ROI por fuente</h2>
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wide">
                     <th className="px-4 py-3 text-left">Fuente</th>
-                    <th className="px-4 py-3 text-right">Total leads</th>
+                    <th className="px-4 py-3 text-right">Total</th>
                     <th className="px-4 py-3 text-right">Respondieron</th>
-                    <th className="px-4 py-3 text-right">Tasa respuesta</th>
-                    <th className="px-4 py-3 text-right">Temperatura caliente</th>
+                    <th className="px-4 py-3 text-right">T. respuesta</th>
+                    <th className="px-4 py-3 text-right">Cierres</th>
+                    <th className="px-4 py-3 text-right">T. conversión</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {statsFuente
-                    .sort((a, b) => b.total - a.total)
-                    .map((row) => (
-                      <tr key={row.fuente} className="hover:bg-slate-50 transition-colors">
-                        <td className="px-4 py-3 font-medium text-slate-700 capitalize">
-                          {row.fuente.replace(/_/g, " ")}
-                        </td>
-                        <td className="px-4 py-3 text-right text-slate-600">
-                          {row.total.toLocaleString("es-ES")}
-                        </td>
-                        <td className="px-4 py-3 text-right text-slate-600">
-                          {row.respondieron.toLocaleString("es-ES")}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <TasaBadge valor={row.tasaRespuesta} />
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          {row.calientes > 0 ? (
-                            <span className="inline-flex items-center gap-1 text-orange-600 font-medium">
-                              <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
-                              {row.calientes}
-                            </span>
-                          ) : (
-                            <span className="text-slate-300">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  {statsFuente.every((r) => r.total === 0) && (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-sm">
-                        Sin datos todavía
-                      </td>
+                  {statsFuente.filter(r => r.total > 0).sort((a, b) => b.cerrados - a.cerrados || b.total - a.total).map((row) => (
+                    <tr key={row.fuente} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-4 py-3 font-medium text-slate-700 capitalize">{row.fuente.replace(/_/g, " ")}</td>
+                      <td className="px-4 py-3 text-right text-slate-600">{row.total.toLocaleString("es-ES")}</td>
+                      <td className="px-4 py-3 text-right text-slate-600">{row.respondieron}</td>
+                      <td className="px-4 py-3 text-right"><TasaBadge valor={row.tasaRespuesta} /></td>
+                      <td className="px-4 py-3 text-right font-semibold text-emerald-700">{row.cerrados > 0 ? row.cerrados : <span className="text-slate-300">—</span>}</td>
+                      <td className="px-4 py-3 text-right"><TasaBadge valor={row.tasaConversion} /></td>
                     </tr>
+                  ))}
+                  {statsFuente.every((r) => r.total === 0) && (
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">Sin datos todavía</td></tr>
                   )}
                 </tbody>
               </table>
@@ -434,57 +427,75 @@ export default function MetricasPage() {
 
           {/* ── Sección 3: Stats por sector ─────────────────────────────────────── */}
           <section>
-            <h2 className="text-base font-semibold text-slate-800 mb-4">Rendimiento por sector</h2>
+            <h2 className="text-base font-semibold text-slate-800 mb-1">Conversión por sector</h2>
+            <p className="text-xs text-slate-400 mb-4">Qué sectores convierten mejor — úsalo para decidir dónde prospectar</p>
             <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wide">
                     <th className="px-4 py-3 text-left">Sector</th>
-                    <th className="px-4 py-3 text-right">Total leads</th>
+                    <th className="px-4 py-3 text-right">Total</th>
                     <th className="px-4 py-3 text-right">Respondieron</th>
-                    <th className="px-4 py-3 text-right">Tasa respuesta</th>
-                    <th className="px-4 py-3 text-right">Temperatura caliente</th>
+                    <th className="px-4 py-3 text-right">Calientes</th>
+                    <th className="px-4 py-3 text-right">Cierres</th>
+                    <th className="px-4 py-3 text-right">T. conversión</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {statsSector.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="px-4 py-8 text-center text-slate-400 text-sm">
-                        Sin datos todavía
-                      </td>
-                    </tr>
+                    <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400 text-sm">Sin datos todavía</td></tr>
                   ) : (
-                    statsSector
-                      .sort((a, b) => b.total - a.total)
-                      .map((row) => (
-                        <tr key={row.sector} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-4 py-3 font-medium text-slate-700">{row.sector}</td>
-                          <td className="px-4 py-3 text-right text-slate-600">
-                            {row.total.toLocaleString("es-ES")}
-                          </td>
-                          <td className="px-4 py-3 text-right text-slate-600">
-                            {row.respondieron.toLocaleString("es-ES")}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <TasaBadge valor={row.tasaRespuesta} />
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            {row.calientes > 0 ? (
-                              <span className="inline-flex items-center gap-1 text-orange-600 font-medium">
-                                <span className="w-2 h-2 rounded-full bg-orange-400 inline-block" />
-                                {row.calientes}
-                              </span>
-                            ) : (
-                              <span className="text-slate-300">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      ))
+                    statsSector.sort((a, b) => b.tasaConversion - a.tasaConversion || b.total - a.total).map((row) => (
+                      <tr key={row.sector} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 font-medium text-slate-700">{row.sector}</td>
+                        <td className="px-4 py-3 text-right text-slate-600">{row.total.toLocaleString("es-ES")}</td>
+                        <td className="px-4 py-3 text-right text-slate-600">{row.respondieron}</td>
+                        <td className="px-4 py-3 text-right">
+                          {row.calientes > 0 ? <span className="text-orange-600 font-medium">{row.calientes}</span> : <span className="text-slate-300">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right font-semibold text-emerald-700">{row.cerrados > 0 ? row.cerrados : <span className="text-slate-300 font-normal">—</span>}</td>
+                        <td className="px-4 py-3 text-right"><TasaBadge valor={row.tasaConversion} /></td>
+                      </tr>
+                    ))
                   )}
                 </tbody>
               </table>
             </div>
           </section>
+
+          {/* ── Sección 3b: Stats por ciudad ─────────────────────────────────────── */}
+          {statsCiudad.length > 0 && (
+            <section>
+              <h2 className="text-base font-semibold text-slate-800 mb-1">Conversión por ciudad</h2>
+              <p className="text-xs text-slate-400 mb-4">Ciudades con ≥3 leads — ordenadas por tasa de conversión</p>
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                      <th className="px-4 py-3 text-left">#</th>
+                      <th className="px-4 py-3 text-left">Ciudad</th>
+                      <th className="px-4 py-3 text-right">Total</th>
+                      <th className="px-4 py-3 text-right">Respondieron</th>
+                      <th className="px-4 py-3 text-right">Cierres</th>
+                      <th className="px-4 py-3 text-right">T. conversión</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {statsCiudad.sort((a, b) => b.tasaConversion - a.tasaConversion || b.total - a.total).map((row, i) => (
+                      <tr key={row.ciudad} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 text-slate-400 text-xs">{i + 1}</td>
+                        <td className="px-4 py-3 font-medium text-slate-700">{row.ciudad}</td>
+                        <td className="px-4 py-3 text-right text-slate-600">{row.total}</td>
+                        <td className="px-4 py-3 text-right text-slate-600">{row.respondieron}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-emerald-700">{row.cerrados > 0 ? row.cerrados : <span className="text-slate-300 font-normal">—</span>}</td>
+                        <td className="px-4 py-3 text-right"><TasaBadge valor={row.tasaConversion} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
 
           {/* ── Sección 4: Seguimiento pendiente ────────────────────────────────── */}
           <section>

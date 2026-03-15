@@ -64,6 +64,9 @@ export default function ProspeccionPage() {
   const [categoriasElegidas, setCategoriasElegidas] = useState<string[]>(["inmobiliarias"]);
   const [paginasPorCiudad, setPaginasPorCiudad] = useState(2);
   const [soloConTelefono, setSoloConTelefono] = useState(false);
+  const [soloConWeb, setSoloConWeb] = useState(false);
+  const [minRating, setMinRating] = useState(0);
+  const [maxAnosAbierto, setMaxAnosAbierto] = useState(0);
   const [estadoCampana, setEstadoCampana] = useState<EstadoCampana>("idle");
   const [mensajeCampana, setMensajeCampana] = useState("");
   const [mostrarConfig, setMostrarConfig] = useState(false);
@@ -205,6 +208,9 @@ export default function ProspeccionPage() {
           categorias: categoriasElegidas,
           paginas: paginasPorCiudad,
           solo_con_telefono: soloConTelefono,
+          solo_con_web: soloConWeb,
+          min_rating: minRating > 0 ? minRating : undefined,
+          max_anos_abierto: maxAnosAbierto > 0 ? maxAnosAbierto : undefined,
         }),
       });
 
@@ -716,17 +722,68 @@ export default function ProspeccionPage() {
           </div>
 
           {/* Filtros avanzados */}
-          <div className="flex items-center gap-6 pt-2 border-t border-slate-100">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <div
-                onClick={() => setSoloConTelefono(!soloConTelefono)}
-                className={`w-9 h-5 rounded-full transition-colors relative ${soloConTelefono ? "bg-indigo-600" : "bg-slate-200"}`}
-              >
-                <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${soloConTelefono ? "translate-x-4" : "translate-x-0.5"}`} />
+          <div className="space-y-3 pt-2 border-t border-slate-100">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Filtros de calidad</p>
+            <div className="flex flex-wrap items-center gap-6">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <div
+                  onClick={() => setSoloConTelefono(!soloConTelefono)}
+                  className={`w-9 h-5 rounded-full transition-colors relative ${soloConTelefono ? "bg-indigo-600" : "bg-slate-200"}`}
+                >
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${soloConTelefono ? "translate-x-4" : "translate-x-0.5"}`} />
+                </div>
+                <span className="text-sm text-slate-700">Solo con teléfono</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <div
+                  onClick={() => setSoloConWeb(!soloConWeb)}
+                  className={`w-9 h-5 rounded-full transition-colors relative ${soloConWeb ? "bg-indigo-600" : "bg-slate-200"}`}
+                >
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${soloConWeb ? "translate-x-4" : "translate-x-0.5"}`} />
+                </div>
+                <span className="text-sm text-slate-700">Solo con web</span>
+                <span className="text-xs text-slate-400">(tienen más presencia digital)</span>
+              </label>
+            </div>
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-slate-700">Valoración mínima</span>
+                <div className="flex gap-1">
+                  {[0, 3.5, 4, 4.5].map(r => (
+                    <button
+                      key={r}
+                      onClick={() => setMinRating(r)}
+                      className={`px-2.5 py-1 rounded text-xs font-medium border transition-colors ${
+                        minRating === r
+                          ? "bg-amber-500 text-white border-amber-500"
+                          : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      {r === 0 ? "Sin filtro" : `≥${r}★`}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <span className="text-sm text-slate-700">Solo leads con teléfono</span>
-              <span className="text-xs text-slate-400">(descarta los que no tienen número)</span>
-            </label>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-slate-700">Antigüedad máx.</span>
+                <div className="flex gap-1">
+                  {[0, 2, 5, 10].map(y => (
+                    <button
+                      key={y}
+                      onClick={() => setMaxAnosAbierto(y)}
+                      className={`px-2.5 py-1 rounded text-xs font-medium border transition-colors ${
+                        maxAnosAbierto === y
+                          ? "bg-indigo-600 text-white border-indigo-600"
+                          : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
+                      }`}
+                    >
+                      {y === 0 ? "Sin filtro" : `≤${y}a`}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-xs text-slate-400">(negocios más nuevos, más receptivos)</span>
+              </div>
+            </div>
           </div>
 
           {/* Resumen y botón */}

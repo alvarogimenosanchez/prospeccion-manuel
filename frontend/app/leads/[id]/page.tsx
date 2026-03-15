@@ -63,6 +63,109 @@ const ACCIONES_CONFIG: Record<string, { label: string; icon: string; color: stri
   reunion:          { label: "Reunión",          icon: "📅", color: "text-indigo-700 bg-indigo-50 border-indigo-200" },
 };
 
+// ── Inteligencia de sector ──────────────────────────────────────────────────
+type SectorIntel = {
+  horario: string;
+  ticketMin: number;
+  ticketMax: number;
+  scriptApertura: string;
+  objeciones: { obj: string; respuesta: string }[];
+  templatesMensaje: { label: string; texto: (nombre: string, empresa: string, ciudad: string) => string }[];
+};
+
+const INTEL_POR_SECTOR: Record<string, SectorIntel> = {
+  hosteleria: {
+    horario: "10:00–12:00 (antes del servicio de comidas)",
+    ticketMin: 180, ticketMax: 420,
+    scriptApertura: "Hola [nombre], soy Manuel, trabajo con autónomos de hostelería en [ciudad]. Muchos no saben que existe un seguro desde 5€/mes que te cubre el día que no puedes trabajar — porque si tú no trabajas, el negocio para. ¿Tienes 5 minutos?",
+    objeciones: [
+      { obj: "No tengo tiempo ahora", respuesta: "Entiendo, ¿cuándo te va mejor? No me lleva más de 10 minutos explicarte cómo funciona." },
+      { obj: "Ya tengo seguro / no me interesa", respuesta: "¿Es un seguro de baja laboral desde el primer día? Muchos autónomos tienen seguro de local pero no de su propia baja — que es el riesgo más real." },
+    ],
+    templatesMensaje: [
+      { label: "Baja autónomo", texto: (n, e, c) => `Hola ${n}, soy Manuel, asesor en ${c}. Trabajas en hostelería y seguramente no tienes cubierto el día que te pongas enfermo. Contigo Autónomo cubre desde el primer día de baja desde ~5€/mes. ¿Te cuento en 5 minutos cómo funciona?` },
+      { label: "SIALP ahorro", texto: (n, e, c) => `Hola ${n}! Soy Manuel, asesor financiero en ${c}. Para autónomos de hostelería hay un plan de ahorro con ventaja fiscal que te permite deducirte hasta 24.250€/año. ¿Lo conoces? Vale la pena que lo veamos.` },
+    ],
+  },
+  inmobiliaria: {
+    horario: "10:00–13:00 (mañanas entre visitas)",
+    ticketMin: 600, ticketMax: 2000,
+    scriptApertura: "Hola [nombre], soy Manuel, asesor financiero en [ciudad]. Trabajo con inmobiliarias en acuerdos de derivación hipotecaria — cuando tu cliente necesita hipoteca, vosotros generáis una comisión sin hacer nada extra. El mes pasado la media fue 900€ por operación. ¿15 minutos esta semana?",
+    objeciones: [
+      { obj: "Ya tenemos acuerdo con otra entidad", respuesta: "Perfecto, esto no interfiere con ningún banco. Es un acuerdo independiente de derivación — cuantos más canales, más comisiones. ¿Lo comparamos?" },
+      { obj: "No me interesa / no tenemos tiempo", respuesta: "Entiendo. Solo te pido 15 minutos para explicarte las condiciones. Si no encaja, no hay ningún problema. ¿La semana que viene?" },
+    ],
+    templatesMensaje: [
+      { label: "Derivación hipotecaria", texto: (n, e, c) => `Hola ${n}, soy Manuel, asesor financiero en ${c}. Vi que ${e || "vuestra inmobiliaria"} trabaja en la zona y quería comentarte algo sobre generar ingresos adicionales derivando clientes hipotecarios. Sin trabajo extra para vosotros. ¿Tiene sentido que hablemos 15 min?` },
+      { label: "Seguimiento", texto: (n, e, c) => `Hola ${n}, soy Manuel de nuevo. Te escribí sobre comisiones por derivación hipotecaria para ${e || "tu inmobiliaria"}. Entiendo que estáis ocupados — ¿me dices si no es el momento y lo cerramos?` },
+    ],
+  },
+  asesoria: {
+    horario: "09:00–11:00 o 16:00–18:00",
+    ticketMin: 300, ticketMax: 1500,
+    scriptApertura: "Hola [nombre], soy Manuel. Trabajo con asesorías para ofrecer a sus clientes autónomos una cobertura de baja desde el primer día — algo que muchos autónomos necesitan y que la mayoría de asesorías no ofrecen. ¿Podríamos explorar si encaja en vuestra cartera de servicios?",
+    objeciones: [
+      { obj: "Ya ofrecemos seguros", respuesta: "¿Tenéis específicamente el seguro de baja laboral para autónomos desde el primer día? Es diferente al RETA — cubre desde la primera hora de baja. Muchos autónomos no lo tienen." },
+      { obj: "No tenemos tiempo para esto", respuesta: "Entiendo. Una reunión de 20 minutos para ver si encaja — si no, no te molesto más. ¿Cuándo tienes un hueco?" },
+    ],
+    templatesMensaje: [
+      { label: "Servicio para clientes", texto: (n, e, c) => `Hola ${n}, soy Manuel. Trabajo con asesorías como ${e || "la vuestra"} para añadir a su cartera un seguro de baja para autónomos desde el 1er día. Es algo que la mayoría de vuestros clientes autónomos necesitan y no tienen. ¿Podemos hablar 20 minutos?` },
+    ],
+  },
+  clinica: {
+    horario: "08:30–10:00 o 14:00–16:00 (antes/después de consultas)",
+    ticketMin: 400, ticketMax: 2500,
+    scriptApertura: "Hola [nombre], soy Manuel. Para profesionales sanitarios autónomos hay coberturas específicas de incapacidad temporal desde el primer día — especialmente relevante si sois dueños de la clínica. ¿Tenéis eso cubierto?",
+    objeciones: [
+      { obj: "Ya tenemos seguro del colegio", respuesta: "El del colegio cubre responsabilidad civil, no tu baja laboral personal. Si mañana te pones enfermo y no puedes trabajar, ¿quién cubre los gastos fijos de la clínica?" },
+    ],
+    templatesMensaje: [
+      { label: "Protección propietario", texto: (n, e, c) => `Hola ${n}, soy Manuel, asesor financiero. Para propietarios de clínicas hay una cobertura específica que protege los ingresos de la clínica si tú no puedes trabajar. ¿Lo tenéis cubierto en ${e || "vuestra clínica"}?` },
+    ],
+  },
+  taller: {
+    horario: "08:00–10:00 (antes de abrir o a primera hora)",
+    ticketMin: 150, ticketMax: 400,
+    scriptApertura: "Hola [nombre], soy Manuel. Para autónomos de talleres hay un seguro desde 4€/mes que cubre la baja desde el primer día. Si tú paras, el taller para — ¿tienes eso cubierto?",
+    objeciones: [
+      { obj: "Es muy caro / no puedo permitírmelo", respuesta: "Desde 4€ al mes. Si un día de baja te cuesta 200€ en ingresos perdidos + gastos fijos, ¿no merece la pena asegurarlo por 4€?" },
+    ],
+    templatesMensaje: [
+      { label: "Baja desde 4€/mes", texto: (n, e, c) => `Hola ${n}! Soy Manuel, asesor en ${c}. Para mecánicos autónomos hay un seguro desde 4€/mes que cubre la baja desde el primer día. Si no trabajas, no cobras — ¿lo tienes cubierto? Te cuento en 5 minutos.` },
+    ],
+  },
+  peluqueria: {
+    horario: "09:00–10:30 (antes de las primeras citas)",
+    ticketMin: 120, ticketMax: 350,
+    scriptApertura: "Hola [nombre], soy Manuel. Para autónomos del sector belleza hay un seguro muy económico que cubre si un día no puedes trabajar — porque si estás de baja y no cortas el pelo, no cobras. ¿Tienes eso cubierto?",
+    objeciones: [
+      { obj: "Ahora no puedo / estoy con clientes", respuesta: "Ningún problema, ¿a qué hora te viene bien? Solo son 10 minutos." },
+    ],
+    templatesMensaje: [
+      { label: "Cobertura baja", texto: (n, e, c) => `Hola ${n}, soy Manuel. Trabajo con autónomos de peluquería y estética en ${c}. Muchos no tienen cubierto qué pasa si se ponen enfermos — hay una opción desde 4€/mes. ¿Te lo cuento?` },
+    ],
+  },
+};
+
+function getSectorIntel(sector: string | null, tipoLead: string | null): SectorIntel | null {
+  if (!sector) return null;
+  const s = sector.toLowerCase();
+  if (s.includes("hostel") || s.includes("restaur") || s.includes("bar") || s.includes("café") || s.includes("cafe")) return INTEL_POR_SECTOR.hosteleria;
+  if (s.includes("inmobil")) return INTEL_POR_SECTOR.inmobiliaria;
+  if (s.includes("asesor") || s.includes("gestor") || s.includes("contab")) return INTEL_POR_SECTOR.asesoria;
+  if (s.includes("clínica") || s.includes("clinica") || s.includes("médic") || s.includes("medic") || s.includes("salud") || s.includes("dental")) return INTEL_POR_SECTOR.clinica;
+  if (s.includes("taller") || s.includes("mecán") || s.includes("mecan")) return INTEL_POR_SECTOR.taller;
+  if (s.includes("peluq") || s.includes("estétic") || s.includes("estetic") || s.includes("belleza")) return INTEL_POR_SECTOR.peluqueria;
+  return null;
+}
+
+function getTicketEstimado(tipoLead: string | null, numEmpleados: number | null, intel: SectorIntel): { min: number; max: number } {
+  let mul = 1;
+  if (tipoLead === "pyme" || (numEmpleados && numEmpleados > 5)) mul = 2.5;
+  else if (tipoLead === "empresa" || (numEmpleados && numEmpleados > 20)) mul = 5;
+  return { min: Math.round(intel.ticketMin * mul), max: Math.round(intel.ticketMax * mul) };
+}
+
 const MOTIVOS_PERDIDA = [
   { value: "precio", label: "Precio — no encaja con su presupuesto" },
   { value: "competencia", label: "Competencia — contrató con otro" },
@@ -979,6 +1082,55 @@ export default function LeadDetailPage() {
             </div>
           )}
 
+          {/* Panel de inteligencia de sector */}
+          {(() => {
+            const intel = getSectorIntel(lead.sector, lead.tipo_lead);
+            if (!intel) return null;
+            const ticket = getTicketEstimado(lead.tipo_lead, lead.num_empleados, intel);
+            return (
+              <div className="bg-indigo-50 rounded-xl border border-indigo-200 p-5 space-y-4">
+                <h3 className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Inteligencia de sector</h3>
+
+                {/* Ticket y horario */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-white rounded-lg p-3 border border-indigo-100">
+                    <p className="text-xs text-slate-400 mb-0.5">Ticket estimado</p>
+                    <p className="text-sm font-bold text-indigo-700">€{ticket.min}–{ticket.max}</p>
+                  </div>
+                  <div className="bg-white rounded-lg p-3 border border-indigo-100">
+                    <p className="text-xs text-slate-400 mb-0.5">Mejor hora</p>
+                    <p className="text-xs font-semibold text-indigo-700">{intel.horario}</p>
+                  </div>
+                </div>
+
+                {/* Script de apertura */}
+                <div>
+                  <p className="text-xs font-semibold text-indigo-600 mb-1.5">Script de llamada</p>
+                  <div className="bg-white rounded-lg p-3 border border-indigo-100">
+                    <p className="text-xs text-slate-600 leading-relaxed italic">
+                      {intel.scriptApertura
+                        .replace("[nombre]", lead.nombre || "...")
+                        .replace("[ciudad]", lead.ciudad || "tu zona")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Objeciones */}
+                <div>
+                  <p className="text-xs font-semibold text-indigo-600 mb-1.5">Objeciones frecuentes</p>
+                  <div className="space-y-2">
+                    {intel.objeciones.map((o, i) => (
+                      <div key={i} className="bg-white rounded-lg p-2.5 border border-indigo-100">
+                        <p className="text-xs font-medium text-slate-700 mb-1">"{o.obj}"</p>
+                        <p className="text-xs text-slate-500 leading-relaxed">→ {o.respuesta}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Citas */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
@@ -1195,6 +1347,14 @@ export default function LeadDetailPage() {
                       <button key={key} onClick={() => setMensajeWhatsapp(generarMensaje(key as "primer_contacto" | "recordatorio_1" | "recordatorio_2"))}
                         className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
                         {label}
+                      </button>
+                    ))}
+                    {/* Templates específicos de sector */}
+                    {getSectorIntel(lead.sector, lead.tipo_lead)?.templatesMensaje.map((t) => (
+                      <button key={t.label}
+                        onClick={() => setMensajeWhatsapp(t.texto(lead.nombre || "", lead.empresa || "", lead.ciudad || "tu zona"))}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-indigo-200 text-indigo-600 bg-indigo-50 hover:border-indigo-400 transition-colors">
+                        ✦ {t.label}
                       </button>
                     ))}
                   </div>

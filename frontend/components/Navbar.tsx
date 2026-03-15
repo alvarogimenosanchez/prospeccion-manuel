@@ -23,6 +23,7 @@ export function Navbar() {
 
   const links = [
     { href: "/", label: "Dashboard" },
+    { href: "/hoy", label: "🎯 Hoy" },
     { href: "/leads", label: "Leads" },
     { href: "/pipeline", label: "Pipeline" },
     { href: "/mensajes", label: "Mensajes" },
