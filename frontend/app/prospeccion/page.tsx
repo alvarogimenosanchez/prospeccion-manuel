@@ -185,7 +185,7 @@ export default function ProspeccionPage() {
             fecha: new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "2-digit" }),
           }))
         );
-        const historialActualizado = [...nuevasEntradas, ...historialCampanas].slice(0, 50);
+        const historialActualizado = [...nuevasEntradas, ...historialCampanas].slice(0, 10);
         setHistorialCampanas(historialActualizado);
         localStorage.setItem("historial_campanas", JSON.stringify(historialActualizado));
 

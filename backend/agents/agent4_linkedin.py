@@ -508,7 +508,7 @@ def enriquecer_leads_sin_nombre(limite: int = 50) -> dict:
     Returns: {"procesados": N, "enriquecidos": N, "sin_datos": N}
     """
     resp = sb.table("leads").select(
-        "id, nombre, apellidos, empresa, ciudad, sector, tipo_lead, notas, fuente_detalle, cargo, web, telefono_whatsapp"
+        "id, nombre, apellidos, empresa, ciudad, sector, tipo_lead, notas, fuente_detalle, cargo, web"
     ).eq("fuente", "scraping").not_.is_("empresa", "null").in_("estado", ["nuevo", "enriquecido"]).limit(limite).execute()
 
     leads = resp.data or []
