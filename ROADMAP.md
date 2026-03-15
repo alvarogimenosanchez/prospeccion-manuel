@@ -38,6 +38,12 @@ Columnas en leads: `nombre`, `apellidos`, `empresa`, `ciudad`, `sector`, `estado
 
 ### FASE 2 — Completar el ciclo de contacto
 
+#### ~~Próxima acción comprometida~~ [✅ 2026-03-15]
+- Panel en ficha del lead: tipo de acción + fecha + nota, urgencia en color (rojo=vencida, naranja=hoy, verde=futura)
+- Botón "Marcar como hecha" → abre selector de siguiente acción
+- Badge Vencida/Hoy en el listado de leads
+- Sección "Acciones vencidas" en el dashboard principal
+
 #### 1. Página de detalle de lead completa [ ]
 - Ficha con todos los datos del lead (nombre, empresa, web, dirección, sector, producto recomendado)
 - Historial de interacciones (mensajes WhatsApp enviados/recibidos, citas, notas)
