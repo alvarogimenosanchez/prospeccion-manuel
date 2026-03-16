@@ -15,6 +15,7 @@ interface FormData {
   ciudad: string;
   tiene_hijos: boolean | null;
   tiene_hipoteca: boolean | null;
+  mayor_55: boolean | null;
   urgencia: Urgencia | null;
 }
 
@@ -25,12 +26,13 @@ const CIUDADES = [
 ];
 
 const PREOCUPACIONES = [
-  { id: "no_trabajar",  emoji: "💊", texto: "Qué pasa si no puedo trabajar por enfermedad" },
-  { id: "familia",      emoji: "👨‍👩‍👧", texto: "Proteger económicamente a mi familia" },
-  { id: "ahorro",       emoji: "💰", texto: "Ahorrar de forma segura para el futuro" },
-  { id: "medico",       emoji: "🏥", texto: "Tener acceso a médico privado rápido" },
-  { id: "hipoteca",     emoji: "🏠", texto: "Comprar una vivienda / conseguir hipoteca" },
-  { id: "irpf",         emoji: "📉", texto: "Reducir lo que pago en impuestos (IRPF)" },
+  { id: "no_trabajar",  emoji: "🤒", texto: "Qué pasa si me pongo enfermo y no puedo trabajar" },
+  { id: "familia",      emoji: "👨‍👩‍👧", texto: "Dejar protegida económicamente a mi familia" },
+  { id: "accidente",    emoji: "🦺", texto: "Protegerme ante un accidente grave" },
+  { id: "ahorro",       emoji: "💰", texto: "Ahorrar o invertir de forma segura" },
+  { id: "medico",       emoji: "🏥", texto: "Tener médico privado sin esperas" },
+  { id: "hipoteca",     emoji: "🏠", texto: "Comprar una vivienda o conseguir hipoteca" },
+  { id: "irpf",         emoji: "📉", texto: "Pagar menos impuestos (IRPF)" },
 ];
 
 const NOMBRES_PRODUCTOS: Record<string, string> = {
@@ -61,43 +63,52 @@ const ICONOS_PRODUCTOS: Record<string, string> = {
 
 // ── Lógica de recomendación ────────────────────────────────────────────────────
 function calcularProductos(data: FormData): string[] {
-  const { tipo_lead, preocupaciones, tiene_hijos, tiene_hipoteca } = data;
+  const { tipo_lead, preocupaciones, tiene_hijos, tiene_hipoteca, mayor_55 } = data;
   const productos: string[] = [];
 
-  if (preocupaciones.includes("hipoteca")) {
-    productos.push("hipotecas", "mi_hogar");
-  }
-  if (preocupaciones.includes("medico")) {
-    productos.push("sanitas_salud");
+  // Mayor de 55 → protección senior primero
+  if (mayor_55) {
+    productos.push("contigo_senior");
   }
 
+  // Autónomo
   if (tipo_lead === "autonomo") {
-    if (preocupaciones.includes("no_trabajar")) {
-      productos.unshift("contigo_autonomo");
-    } else {
-      productos.push("contigo_autonomo");
+    productos.push("contigo_autonomo"); // siempre para autónomos
+    if (preocupaciones.includes("ahorro") || preocupaciones.includes("irpf")) {
+      productos.push("sialp");
     }
+    if (preocupaciones.includes("accidente")) {
+      productos.push("liderplus");
+    }
+  }
+
+  // Pyme/empresa
+  if (tipo_lead === "pyme") {
+    productos.push("contigo_pyme");
     if (preocupaciones.includes("ahorro") || preocupaciones.includes("irpf")) {
       productos.push("sialp");
     }
   }
 
-  if (tipo_lead === "pyme") {
-    productos.push("contigo_pyme");
-  }
-
+  // Particular/empleado
   if (tipo_lead === "particular") {
-    if (tiene_hijos && tiene_hipoteca) {
-      productos.push("contigo_familia", "mi_hogar");
-    } else if (tiene_hijos) {
+    if (preocupaciones.includes("familia") || tiene_hijos) {
       productos.push("contigo_familia");
+    }
+    if (preocupaciones.includes("no_trabajar") || preocupaciones.includes("accidente")) {
+      productos.push("liderplus");
     }
     if (preocupaciones.includes("ahorro") || preocupaciones.includes("irpf")) {
       productos.push("sialp", "contigo_futuro");
     }
-    if (preocupaciones.includes("no_trabajar")) {
-      productos.push("liderplus");
-    }
+  }
+
+  // Transversales (aplican a todos)
+  if (preocupaciones.includes("hipoteca") || tiene_hipoteca) {
+    productos.push("hipotecas", "mi_hogar");
+  }
+  if (preocupaciones.includes("medico")) {
+    productos.push("sanitas_salud");
   }
 
   // Dedup manteniendo orden
@@ -119,6 +130,7 @@ export default function CaptacionPage() {
     ciudad: "",
     tiene_hijos: null,
     tiene_hipoteca: null,
+    mayor_55: null,
     urgencia: null,
   });
 
@@ -161,7 +173,7 @@ export default function CaptacionPage() {
         nivel_interes: 6,
         prioridad: "media",
         productos_recomendados: productos,
-        notas: `Urgencia: ${urgencia}. Preocupaciones: ${datosFinales.preocupaciones.join(", ")}`,
+        notas: `Urgencia: ${urgencia}. Preocupaciones: ${datosFinales.preocupaciones.join(", ")}. Hijos: ${datosFinales.tiene_hijos ?? "no indicado"}. Mayor 55: ${datosFinales.mayor_55 ?? "no indicado"}.`,
       });
     } catch {
       // Silencioso — el lead puede no guardarse si Supabase no está disponible
@@ -379,15 +391,13 @@ export default function CaptacionPage() {
                   </select>
                 </div>
 
-                {/* Hijos / Hipoteca */}
-                <div className="grid grid-cols-2 gap-3">
+                {/* Preguntas contextuales */}
+                <div className="grid grid-cols-1 gap-3">
+                  {/* Hijos — siempre relevante */}
                   <div>
-                    <p className="text-sm font-medium text-slate-700 mb-2">¿Tienes hijos?</p>
+                    <p className="text-sm font-medium text-slate-700 mb-2">¿Tienes hijos o personas a tu cargo?</p>
                     <div className="flex gap-2">
-                      {[
-                        { label: "Sí", val: true },
-                        { label: "No", val: false },
-                      ].map(op => (
+                      {[{ label: "Sí", val: true }, { label: "No", val: false }].map(op => (
                         <button
                           key={op.label}
                           onClick={() => setForm(prev => ({ ...prev, tiene_hijos: op.val }))}
@@ -402,18 +412,39 @@ export default function CaptacionPage() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Hipoteca — solo si NO eligieron "hipoteca" ya en preocupaciones */}
+                  {!form.preocupaciones.includes("hipoteca") && (
+                    <div>
+                      <p className="text-sm font-medium text-slate-700 mb-2">¿Tienes hipoteca o vivienda en propiedad?</p>
+                      <div className="flex gap-2">
+                        {[{ label: "Sí", val: true }, { label: "No", val: false }].map(op => (
+                          <button
+                            key={op.label}
+                            onClick={() => setForm(prev => ({ ...prev, tiene_hipoteca: op.val }))}
+                            className={`flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${
+                              form.tiene_hipoteca === op.val
+                                ? "bg-indigo-600 border-indigo-600 text-white"
+                                : "border-slate-200 text-slate-600 hover:border-indigo-300"
+                            }`}
+                          >
+                            {op.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Edad — relevante para contigo_senior */}
                   <div>
-                    <p className="text-sm font-medium text-slate-700 mb-2">¿Tienes hipoteca?</p>
+                    <p className="text-sm font-medium text-slate-700 mb-2">¿Tienes más de 55 años?</p>
                     <div className="flex gap-2">
-                      {[
-                        { label: "Sí", val: true },
-                        { label: "No", val: false },
-                      ].map(op => (
+                      {[{ label: "Sí", val: true }, { label: "No", val: false }].map(op => (
                         <button
                           key={op.label}
-                          onClick={() => setForm(prev => ({ ...prev, tiene_hipoteca: op.val }))}
+                          onClick={() => setForm(prev => ({ ...prev, mayor_55: op.val }))}
                           className={`flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${
-                            form.tiene_hipoteca === op.val
+                            form.mayor_55 === op.val
                               ? "bg-indigo-600 border-indigo-600 text-white"
                               : "border-slate-200 text-slate-600 hover:border-indigo-300"
                           }`}
