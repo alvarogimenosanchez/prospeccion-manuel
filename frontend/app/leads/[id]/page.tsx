@@ -1583,6 +1583,7 @@ function ChatBubble({ interaction }: { interaction: Interaction }) {
   const isLead = interaction.origen === "lead";
   const isBot = interaction.origen === "bot";
   const isNota = interaction.tipo === "nota_manual";
+  const isWhatsApp = interaction.tipo === "whatsapp_recibido" || interaction.tipo === "whatsapp_enviado";
 
   if (isNota) {
     return (
@@ -1592,6 +1593,35 @@ function ChatBubble({ interaction }: { interaction: Interaction }) {
           <p className="text-sm text-amber-800">{interaction.mensaje}</p>
           <p className="text-xs text-amber-400 mt-1">{format(new Date(interaction.created_at), "HH:mm · d MMM", { locale: es })}</p>
         </div>
+      </div>
+    );
+  }
+
+  // Burbujas estilo WhatsApp para mensajes de WhatsApp
+  if (isWhatsApp) {
+    return (
+      <div className={`flex flex-col gap-0.5 ${isLead ? "items-start" : "items-end"}`}>
+        <p className="text-xs text-slate-400 px-1">
+          {isLead ? "Lead" : isBot ? "🤖 Bot" : "👤 Comercial"}
+        </p>
+        <div className={`max-w-sm rounded-2xl px-3.5 py-2.5 shadow-sm ${
+          isLead
+            ? "bg-white border border-slate-200 text-slate-800 rounded-tl-sm"
+            : isBot
+            ? "bg-[#dcf8c6] text-slate-800 rounded-tr-sm"
+            : "bg-[#128C7E] text-white rounded-tr-sm"
+        }`}>
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{interaction.mensaje}</p>
+          <p className={`text-xs mt-1 text-right ${isLead ? "text-slate-400" : isBot ? "text-slate-500" : "text-green-100"}`}>
+            {format(new Date(interaction.created_at), "HH:mm · d MMM", { locale: es })}
+            {!isLead && <span className="ml-1">✓✓</span>}
+          </p>
+        </div>
+        {interaction.señal_escalado && (
+          <div className="flex items-center gap-1 text-xs text-amber-600 font-medium px-1">
+            <span>🔔</span><span>Escalado a Manuel</span>
+          </div>
+        )}
       </div>
     );
   }

@@ -8,9 +8,19 @@ Gestiona la conversación con el lead en WhatsApp.
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Optional
 from anthropic import Anthropic
+from supabase import create_client, Client
+from dotenv import load_dotenv
+
+load_dotenv()
+
+_supabase: Client = create_client(
+    os.environ["SUPABASE_URL"],
+    os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+)
 
 # Carga la base de conocimiento de productos
 KB_PATH = Path(__file__).parent.parent / "knowledge_base_productos.json"
@@ -215,15 +225,53 @@ class ChatbotAgent:
 # Función de conveniencia para uso desde el webhook de FastAPI
 # ============================================================
 
-# Cache simple en memoria de conversaciones activas
-# En producción usar Redis o cargar historial desde Supabase
+# Cache en memoria para la sesión activa del servidor
 _active_conversations: dict[str, ChatbotAgent] = {}
 
 
+def _load_conversation_history(lead_id: str) -> list[dict]:
+    """
+    Carga las últimas 20 interacciones WhatsApp del lead desde Supabase.
+    Permite reconstruir el contexto de conversación tras un reinicio del servidor.
+    """
+    try:
+        resp = _supabase.table("interactions").select("tipo, mensaje, origen") \
+            .eq("lead_id", lead_id) \
+            .in_("tipo", ["whatsapp_recibido", "whatsapp_enviado"]) \
+            .order("created_at", desc=False) \
+            .limit(20).execute()
+
+        messages = []
+        for interaction in (resp.data or []):
+            role = "user" if interaction["origen"] == "lead" else "assistant"
+            content = interaction["mensaje"]
+            # Si el mensaje del assistant es JSON (respuesta del bot), extraer solo el texto
+            if role == "assistant":
+                try:
+                    parsed = json.loads(content)
+                    if isinstance(parsed, dict) and "mensaje" in parsed:
+                        content = parsed["mensaje"] if isinstance(parsed["mensaje"], str) else json.dumps(parsed["mensaje"])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+            messages.append({"role": role, "content": content})
+        return messages
+    except Exception as e:
+        print(f"[Agent5] No se pudo cargar historial para {lead_id}: {e}")
+        return []
+
+
 def get_or_create_chatbot(lead_id: str, lead_nombre: str, lead_perfil: Optional[dict] = None) -> ChatbotAgent:
-    """Obtiene o crea un ChatbotAgent para un lead específico."""
+    """
+    Obtiene o crea un ChatbotAgent para un lead.
+    Si el agente no está en memoria (ej. tras reinicio), reconstruye el historial desde Supabase.
+    """
     if lead_id not in _active_conversations:
-        _active_conversations[lead_id] = ChatbotAgent(lead_id, lead_nombre, lead_perfil)
+        agente = ChatbotAgent(lead_id, lead_nombre, lead_perfil)
+        # Cargar historial previo desde BD para no perder contexto
+        historial = _load_conversation_history(lead_id)
+        if historial:
+            agente.conversation_history = historial
+        _active_conversations[lead_id] = agente
     return _active_conversations[lead_id]
 
 

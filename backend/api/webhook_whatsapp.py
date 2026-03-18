@@ -44,8 +44,9 @@ supabase: Client = create_client(
     os.environ["SUPABASE_SERVICE_ROLE_KEY"]  # Service role para operaciones del servidor
 )
 
-DIALOG360_API_KEY = os.environ.get("DIALOG360_API_KEY", "")
-DIALOG360_WEBHOOK_SECRET = os.environ.get("DIALOG360_WEBHOOK_SECRET", "")
+WHATSAPP_ACCESS_TOKEN = os.environ.get("WHATSAPP_ACCESS_TOKEN", "")
+WHATSAPP_PHONE_NUMBER_ID = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
+WHATSAPP_APP_SECRET = os.environ.get("WHATSAPP_APP_SECRET", "")
 
 
 # ============================================================
@@ -71,12 +72,12 @@ async def receive_whatsapp_message(request: Request, background_tasks: Backgroun
     Recibe mensajes de WhatsApp vía 360dialog webhook.
     Responde inmediatamente con 200 OK y procesa en background.
     """
-    # Verificar firma del webhook (seguridad)
-    if DIALOG360_WEBHOOK_SECRET:
+    # Verificar firma del webhook (Meta App Secret)
+    if WHATSAPP_APP_SECRET:
         signature = request.headers.get("X-Hub-Signature-256", "")
         body = await request.body()
         expected = "sha256=" + hmac.new(
-            DIALOG360_WEBHOOK_SECRET.encode(),
+            WHATSAPP_APP_SECRET.encode(),
             body,
             hashlib.sha256
         ).hexdigest()
@@ -288,20 +289,27 @@ async def recalcular_y_guardar_scoring(
 
 
 async def send_whatsapp_message(to_number: str, message: str):
-    """Envía un mensaje de WhatsApp vía 360dialog API."""
-    url = "https://waba.360dialog.io/v1/messages"
+    """Envía un mensaje de WhatsApp vía Meta Cloud API (Graph API v19)."""
+    if not WHATSAPP_ACCESS_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
+        print(f"[WhatsApp] Sin credenciales configuradas — mensaje NO enviado a {to_number}")
+        return
+
+    url = f"https://graph.facebook.com/v19.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
     headers = {
-        "D360-API-KEY": DIALOG360_API_KEY,
-        "Content-Type": "application/json"
+        "Authorization": f"Bearer {WHATSAPP_ACCESS_TOKEN}",
+        "Content-Type": "application/json",
     }
     payload = {
+        "messaging_product": "whatsapp",
         "recipient_type": "individual",
         "to": to_number,
         "type": "text",
-        "text": {"body": message}
+        "text": {"preview_url": False, "body": message},
     }
     async with httpx.AsyncClient() as client:
-        await client.post(url, json=payload, headers=headers)
+        resp = await client.post(url, json=payload, headers=headers, timeout=10)
+        if resp.status_code not in (200, 201):
+            print(f"[WhatsApp] Error al enviar: {resp.status_code} {resp.text}")
 
 
 async def notify_comercial_escalado(_lead_id: str, lead: dict, ultimo_mensaje: str, motivo: str | None):
@@ -433,6 +441,9 @@ class CampanaRequest(BaseModel):
     categorias: List[str]
     paginas: int = 2
     solo_con_telefono: bool = False
+    solo_con_web: bool = False
+    min_rating: Optional[float] = None
+    max_anos_abierto: Optional[int] = None
     excluir_sectores: List[str] = []
 
 @app.post("/scraping/lanzar")
@@ -448,6 +459,9 @@ async def lanzar_campana_scraping(payload: CampanaRequest, background_tasks: Bac
         categorias=payload.categorias,
         paginas_por_ciudad=payload.paginas,
         solo_con_telefono=payload.solo_con_telefono,
+        solo_con_web=payload.solo_con_web,
+        min_rating=payload.min_rating,
+        max_anos_abierto=payload.max_anos_abierto,
         excluir_sectores=payload.excluir_sectores,
     )
     estimado = len(payload.ciudades) * len(payload.categorias) * payload.paginas * 10
@@ -630,12 +644,43 @@ async def get_mensajes_pendientes(limite: int = 50):
 @app.post("/mensajes/{mensaje_id}/aprobar")
 async def aprobar_mensaje_endpoint(mensaje_id: str, payload: AprobarMensajeRequest):
     """
-    Aprueba un mensaje (con o sin edición). Queda listo para envío.
+    Aprueba un mensaje (con o sin edición) y lo envía por WhatsApp al lead.
     """
     ok = aprobar_mensaje(mensaje_id, payload.mensaje_editado)
     if not ok:
         raise HTTPException(status_code=404, detail="Mensaje no encontrado")
-    return {"status": "aprobado"}
+
+    # Obtener número del lead y enviar por WhatsApp
+    try:
+        msg_resp = supabase.table("mensajes_pendientes").select(
+            "mensaje, leads(telefono_whatsapp, id, nombre)"
+        ).eq("id", mensaje_id).single().execute()
+
+        if msg_resp.data:
+            lead_data = msg_resp.data.get("leads") or {}
+            telefono = lead_data.get("telefono_whatsapp")
+            mensaje_final = payload.mensaje_editado or msg_resp.data["mensaje"]
+
+            if telefono:
+                await send_whatsapp_message(telefono, mensaje_final)
+                # Registrar en interactions
+                lead_id = lead_data.get("id")
+                if lead_id:
+                    supabase.table("interactions").insert({
+                        "lead_id": lead_id,
+                        "tipo": "whatsapp_enviado",
+                        "mensaje": mensaje_final,
+                        "origen": "comercial",
+                    }).execute()
+                    # Actualizar estado del lead
+                    supabase.table("leads").update({
+                        "estado": "mensaje_enviado",
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }).eq("id", lead_id).execute()
+    except Exception as e:
+        print(f"[aprobar] Error al enviar WhatsApp: {e}")
+
+    return {"status": "aprobado_y_enviado"}
 
 
 @app.post("/mensajes/{mensaje_id}/descartar")
