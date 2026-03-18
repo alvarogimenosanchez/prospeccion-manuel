@@ -1,13 +1,11 @@
 """
-Webhook de WhatsApp (360dialog / Meta API)
+Webhook de WhatsApp (Wassenger API)
 Recibe mensajes entrantes y los procesa con el Agente 5 (Chatbot)
 Actualiza Supabase con interacciones y scoring (Agente 6)
 """
 
 from __future__ import annotations
 import os
-import hmac
-import hashlib
 import json
 from datetime import datetime, timezone
 
@@ -44,23 +42,17 @@ supabase: Client = create_client(
     os.environ["SUPABASE_SERVICE_ROLE_KEY"]  # Service role para operaciones del servidor
 )
 
-WHATSAPP_ACCESS_TOKEN = os.environ.get("WHATSAPP_ACCESS_TOKEN", "")
-WHATSAPP_PHONE_NUMBER_ID = os.environ.get("WHATSAPP_PHONE_NUMBER_ID", "")
-WHATSAPP_APP_SECRET = os.environ.get("WHATSAPP_APP_SECRET", "")
+WASSENGER_API_KEY = os.environ.get("WASSENGER_API_KEY", "")
+WASSENGER_DEVICE_ID = os.environ.get("WASSENGER_DEVICE_ID", "")  # ID del número en Wassenger
 
 
 # ============================================================
 # Verificación de webhook (Meta requiere esto para activarlo)
 # ============================================================
 @app.get("/webhook/whatsapp")
-async def verify_webhook(request: Request):
-    params = dict(request.query_params)
-    verify_token = os.environ.get("WHATSAPP_VERIFY_TOKEN", "manuel_prospeccion_2024")
-
-    if params.get("hub.verify_token") == verify_token:
-        return int(params.get("hub.challenge", 0))
-
-    raise HTTPException(status_code=403, detail="Token de verificación incorrecto")
+async def verify_webhook():
+    """Wassenger no requiere verificación GET — solo devuelve 200."""
+    return {"status": "ok"}
 
 
 # ============================================================
@@ -69,49 +61,40 @@ async def verify_webhook(request: Request):
 @app.post("/webhook/whatsapp")
 async def receive_whatsapp_message(request: Request, background_tasks: BackgroundTasks):
     """
-    Recibe mensajes de WhatsApp vía 360dialog webhook.
+    Recibe mensajes de WhatsApp vía Wassenger webhook.
     Responde inmediatamente con 200 OK y procesa en background.
     """
-    # Verificar firma del webhook (Meta App Secret)
-    if WHATSAPP_APP_SECRET:
-        signature = request.headers.get("X-Hub-Signature-256", "")
-        body = await request.body()
-        expected = "sha256=" + hmac.new(
-            WHATSAPP_APP_SECRET.encode(),
-            body,
-            hashlib.sha256
-        ).hexdigest()
-        if not hmac.compare_digest(signature, expected):
-            raise HTTPException(status_code=401, detail="Firma inválida")
-
     payload = await request.json()
 
-    # Extraer datos del mensaje de WhatsApp
-    # Estructura de 360dialog/Meta API
+    # Estructura del webhook de Wassenger
+    # https://app.wassenger.com/docs/#tag/Webhooks
     try:
-        entry = payload.get("entry", [{}])[0]
-        changes = entry.get("changes", [{}])[0]
-        value = changes.get("value", {})
-        messages = value.get("messages", [])
+        event = payload.get("event")
 
-        if not messages:
-            return {"status": "ok", "message": "no messages"}
+        # Solo procesar mensajes entrantes de texto
+        if event != "message:in:new":
+            return {"status": "ok", "message": "event ignored"}
 
-        message = messages[0]
-        from_number = message.get("from")          # Número del lead (con código de país)
-        message_type = message.get("type")
-        whatsapp_message_id = message.get("id")
+        data = payload.get("data", {})
+        from_number = data.get("fromNumber") or data.get("from_number") or ""
+        # Eliminar el sufijo @c.us si existe (formato de algunos webhooks)
+        from_number = from_number.replace("@c.us", "").replace("@s.whatsapp.net", "")
 
-        # Por ahora solo procesamos mensajes de texto
-        if message_type != "text":
+        message_type = data.get("type", "")
+        whatsapp_message_id = data.get("id", "")
+
+        # Solo texto
+        if message_type not in ("text", "chat"):
             return {"status": "ok", "message": "non-text message ignored"}
 
-        message_text = message.get("text", {}).get("body", "")
+        message_text = data.get("body") or data.get("text") or ""
+        if not message_text or not from_number:
+            return {"status": "ok", "message": "empty message"}
 
-    except (KeyError, IndexError, TypeError):
+    except (KeyError, TypeError):
         return {"status": "ok", "message": "payload parsing failed"}
 
-    # Procesar en background para responder a Meta en < 5 segundos
+    # Procesar en background para responder en < 5 segundos
     background_tasks.add_task(
         process_and_respond,
         from_number=from_number,
@@ -289,23 +272,23 @@ async def recalcular_y_guardar_scoring(
 
 
 async def send_whatsapp_message(to_number: str, message: str):
-    """Envía un mensaje de WhatsApp vía Meta Cloud API (Graph API v19)."""
-    if not WHATSAPP_ACCESS_TOKEN or not WHATSAPP_PHONE_NUMBER_ID:
+    """Envía un mensaje de WhatsApp vía Wassenger API."""
+    if not WASSENGER_API_KEY:
         print(f"[WhatsApp] Sin credenciales configuradas — mensaje NO enviado a {to_number}")
         return
 
-    url = f"https://graph.facebook.com/v19.0/{WHATSAPP_PHONE_NUMBER_ID}/messages"
+    url = "https://api.wassenger.com/v1/messages"
     headers = {
-        "Authorization": f"Bearer {WHATSAPP_ACCESS_TOKEN}",
+        "Token": WASSENGER_API_KEY,
         "Content-Type": "application/json",
     }
-    payload = {
-        "messaging_product": "whatsapp",
-        "recipient_type": "individual",
-        "to": to_number,
-        "type": "text",
-        "text": {"preview_url": False, "body": message},
+    payload: dict = {
+        "phone": to_number,
+        "message": message,
     }
+    if WASSENGER_DEVICE_ID:
+        payload["device"] = WASSENGER_DEVICE_ID
+
     async with httpx.AsyncClient() as client:
         resp = await client.post(url, json=payload, headers=headers, timeout=10)
         if resp.status_code not in (200, 201):
