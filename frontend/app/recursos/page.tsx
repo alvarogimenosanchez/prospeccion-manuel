@@ -575,15 +575,22 @@ export default function RecursosPage() {
       {/* ── Modal: nuevo/editar recurso ───────────────────────────────────── */}
       {modalAbierto && (
         <div
-          className="fixed inset-0 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.45)", zIndex: 9999 }}
+          style={{
+            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 16, background: "rgba(0,0,0,0.45)", zIndex: 9999,
+          }}
           onClick={(e) => {
             if (e.target === e.currentTarget) setModalAbierto(false);
           }}
         >
           <div
-            className="card w-full max-w-lg"
-            style={{ padding: 24, maxHeight: "90vh", overflow: "auto" }}
+            style={{
+              background: "#fff", border: "1px solid #e5ded9",
+              borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+              padding: 24, width: "100%", maxWidth: 540,
+              maxHeight: "90vh", overflowY: "auto",
+            }}
           >
             <h2 className="text-base font-semibold mb-4" style={{ color: "#414141" }}>
               {editandoId ? "Editar recurso" : "Nuevo recurso"}
