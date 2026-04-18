@@ -1046,7 +1046,7 @@ export default function LeadDetailPage() {
               {clienteExistente ? (
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-green-700 font-medium">Registrado como cliente</p>
-                  <Link href="/clientes" className="text-xs text-green-700 underline hover:text-green-900">
+                  <Link href={`/clientes?buscar=${encodeURIComponent(lead.nombre ?? "")}`} className="text-xs text-green-700 underline hover:text-green-900">
                     Ver ficha de cliente →
                   </Link>
                 </div>

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Cliente } from "@/lib/supabase";
 
@@ -73,12 +74,21 @@ function badgeRenovacion(dias: number) {
 }
 
 export default function ClientesPage() {
+  return (
+    <Suspense fallback={<div className="py-20 text-center text-slate-400 text-sm">Cargando...</div>}>
+      <ClientesContent />
+    </Suspense>
+  );
+}
+
+function ClientesContent() {
+  const searchParams = useSearchParams();
   const [clientes, setClientes] = useState<ClienteConComercial[]>([]);
   const [comerciales, setComerciales] = useState<{ id: string; nombre: string; apellidos: string | null }[]>([]);
   const [comercialLogueadoId, setComercialLogueadoId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<"todos" | "activo" | "renovacion_proxima" | "vencida">("todos");
-  const [busqueda, setBusqueda] = useState("");
+  const [busqueda, setBusqueda] = useState(searchParams.get("buscar") ?? "");
   const [modal, setModal] = useState<"nuevo" | "editar" | null>(null);
   const [editando, setEditando] = useState<ClienteConComercial | null>(null);
   const [form, setForm] = useState<FormData>(FORM_VACIO);
