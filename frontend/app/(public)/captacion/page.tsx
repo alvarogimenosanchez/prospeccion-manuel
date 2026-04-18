@@ -196,11 +196,11 @@ export default function CaptacionPage() {
             </span>
             <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
               <div
-                className="h-full bg-indigo-600 rounded-full transition-all duration-500 ease-out"
+                className="h-full bg-orange-600 rounded-full transition-all duration-500 ease-out"
                 style={{ width: `${progreso}%` }}
               />
             </div>
-            <span className="text-xs font-semibold text-indigo-600 whitespace-nowrap">
+            <span className="text-xs font-semibold text-orange-600 whitespace-nowrap">
               {progreso}%
             </span>
           </div>
@@ -220,7 +220,7 @@ export default function CaptacionPage() {
           {paso === 0 && (
             <div className="text-center space-y-6">
               <div className="flex justify-center">
-                <div className="w-16 h-16 rounded-full bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-indigo-200">
+                <div className="w-16 h-16 rounded-full bg-orange-600 flex items-center justify-center text-white text-2xl font-bold shadow-lg shadow-orange-200">
                   M
                 </div>
               </div>
@@ -236,7 +236,7 @@ export default function CaptacionPage() {
               </div>
               <button
                 onClick={() => irAPaso(1)}
-                className="inline-flex items-center gap-2 px-8 py-4 bg-indigo-600 text-white text-lg font-semibold rounded-2xl hover:bg-indigo-700 active:bg-indigo-800 transition-colors shadow-lg shadow-indigo-200"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-orange-600 text-white text-lg font-semibold rounded-2xl hover:bg-orange-700 active:bg-orange-800 transition-colors shadow-lg shadow-orange-200"
               >
                 Empezar
                 <span className="text-xl">→</span>
@@ -270,11 +270,11 @@ export default function CaptacionPage() {
                       setForm(prev => ({ ...prev, tipo_lead: opcion.tipo, preocupaciones: nuevaPreocupaciones }));
                       irAPaso(2);
                     }}
-                    className="flex items-start gap-3 p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 active:bg-indigo-100 transition-all text-left group"
+                    className="flex items-start gap-3 p-4 rounded-xl border-2 border-slate-200 hover:border-orange-400 hover:bg-orange-50 active:bg-orange-100 transition-all text-left group"
                   >
                     <span className="text-2xl mt-0.5">{opcion.emoji}</span>
                     <div>
-                      <p className="font-semibold text-slate-800 text-sm group-hover:text-indigo-700 transition-colors">
+                      <p className="font-semibold text-slate-800 text-sm group-hover:text-orange-700 transition-colors">
                         {opcion.titulo}
                       </p>
                       <p className="text-xs text-slate-500 mt-0.5">{opcion.desc}</p>
@@ -301,16 +301,16 @@ export default function CaptacionPage() {
                       onClick={() => togglePreocupacion(p.id)}
                       className={`flex items-center gap-3 px-4 py-3.5 rounded-xl border-2 transition-all text-left ${
                         activa
-                          ? "border-indigo-500 bg-indigo-50"
-                          : "border-slate-200 hover:border-indigo-300 hover:bg-slate-50"
+                          ? "border-orange-500 bg-orange-50"
+                          : "border-slate-200 hover:border-orange-300 hover:bg-slate-50"
                       }`}
                     >
                       <span className="text-xl flex-shrink-0">{p.emoji}</span>
-                      <span className={`text-sm font-medium ${activa ? "text-indigo-700" : "text-slate-700"}`}>
+                      <span className={`text-sm font-medium ${activa ? "text-orange-700" : "text-slate-700"}`}>
                         {p.texto}
                       </span>
                       <div className={`ml-auto w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all ${
-                        activa ? "border-indigo-500 bg-indigo-500" : "border-slate-300"
+                        activa ? "border-orange-500 bg-orange-500" : "border-slate-300"
                       }`}>
                         {activa && (
                           <svg viewBox="0 0 10 8" className="w-2.5 h-2" fill="none">
@@ -325,7 +325,7 @@ export default function CaptacionPage() {
               <button
                 onClick={() => irAPaso(3)}
                 disabled={form.preocupaciones.length === 0}
-                className="w-full py-4 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="w-full py-4 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 Continuar →
               </button>
@@ -350,7 +350,7 @@ export default function CaptacionPage() {
                     value={form.nombre}
                     onChange={e => setForm(prev => ({ ...prev, nombre: e.target.value }))}
                     placeholder="Tu nombre"
-                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-800 placeholder:text-slate-400 transition-colors"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-orange-400 focus:outline-none text-slate-800 placeholder:text-slate-400 transition-colors"
                   />
                 </div>
 
@@ -369,7 +369,7 @@ export default function CaptacionPage() {
                         setForm(prev => ({ ...prev, telefono: val }));
                       }}
                       placeholder="600 000 000"
-                      className="w-full pl-20 pr-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-800 placeholder:text-slate-400 transition-colors"
+                      className="w-full pl-20 pr-4 py-3 rounded-xl border-2 border-slate-200 focus:border-orange-400 focus:outline-none text-slate-800 placeholder:text-slate-400 transition-colors"
                     />
                   </div>
                 </div>
@@ -382,7 +382,7 @@ export default function CaptacionPage() {
                   <select
                     value={form.ciudad}
                     onChange={e => setForm(prev => ({ ...prev, ciudad: e.target.value }))}
-                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-800 bg-white transition-colors appearance-none"
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-orange-400 focus:outline-none text-slate-800 bg-white transition-colors appearance-none"
                   >
                     <option value="">Seleccionar ciudad...</option>
                     {CIUDADES.map(c => (
@@ -403,8 +403,8 @@ export default function CaptacionPage() {
                           onClick={() => setForm(prev => ({ ...prev, tiene_hijos: op.val }))}
                           className={`flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${
                             form.tiene_hijos === op.val
-                              ? "bg-indigo-600 border-indigo-600 text-white"
-                              : "border-slate-200 text-slate-600 hover:border-indigo-300"
+                              ? "bg-orange-600 border-orange-600 text-white"
+                              : "border-slate-200 text-slate-600 hover:border-orange-300"
                           }`}
                         >
                           {op.label}
@@ -424,8 +424,8 @@ export default function CaptacionPage() {
                             onClick={() => setForm(prev => ({ ...prev, tiene_hipoteca: op.val }))}
                             className={`flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${
                               form.tiene_hipoteca === op.val
-                                ? "bg-indigo-600 border-indigo-600 text-white"
-                                : "border-slate-200 text-slate-600 hover:border-indigo-300"
+                                ? "bg-orange-600 border-orange-600 text-white"
+                                : "border-slate-200 text-slate-600 hover:border-orange-300"
                             }`}
                           >
                             {op.label}
@@ -445,8 +445,8 @@ export default function CaptacionPage() {
                           onClick={() => setForm(prev => ({ ...prev, mayor_55: op.val }))}
                           className={`flex-1 py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${
                             form.mayor_55 === op.val
-                              ? "bg-indigo-600 border-indigo-600 text-white"
-                              : "border-slate-200 text-slate-600 hover:border-indigo-300"
+                              ? "bg-orange-600 border-orange-600 text-white"
+                              : "border-slate-200 text-slate-600 hover:border-orange-300"
                           }`}
                         >
                           {op.label}
@@ -460,7 +460,7 @@ export default function CaptacionPage() {
               <button
                 onClick={() => irAPaso(4)}
                 disabled={!form.nombre.trim() || form.telefono.length < 9}
-                className="w-full py-4 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="w-full py-4 bg-orange-600 text-white font-semibold rounded-xl hover:bg-orange-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
                 Continuar →
               </button>
@@ -484,7 +484,7 @@ export default function CaptacionPage() {
                     key={op.val}
                     onClick={() => guardarYFinalizar(op.val)}
                     disabled={guardando}
-                    className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 hover:border-indigo-400 hover:bg-indigo-50 active:bg-indigo-100 transition-all text-left disabled:opacity-50 disabled:cursor-wait"
+                    className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-slate-200 hover:border-orange-400 hover:bg-orange-50 active:bg-orange-100 transition-all text-left disabled:opacity-50 disabled:cursor-wait"
                   >
                     <span className="text-2xl">{op.emoji}</span>
                     <div>
@@ -558,21 +558,21 @@ export default function CaptacionPage() {
                         key={prod}
                         className={`flex items-center gap-3 p-3.5 rounded-xl border ${
                           i === 0
-                            ? "border-indigo-200 bg-indigo-50"
+                            ? "border-orange-200 bg-orange-50"
                             : "border-slate-200 bg-slate-50"
                         }`}
                       >
                         <span className="text-xl">{ICONOS_PRODUCTOS[prod] ?? "📋"}</span>
                         <div className="flex-1">
-                          <p className={`font-semibold text-sm ${i === 0 ? "text-indigo-700" : "text-slate-700"}`}>
+                          <p className={`font-semibold text-sm ${i === 0 ? "text-orange-700" : "text-slate-700"}`}>
                             {NOMBRES_PRODUCTOS[prod] ?? prod}
                           </p>
                           {i === 0 && (
-                            <p className="text-xs text-indigo-500 mt-0.5">Recomendación principal</p>
+                            <p className="text-xs text-orange-500 mt-0.5">Recomendación principal</p>
                           )}
                         </div>
                         {i === 0 && (
-                          <span className="text-xs bg-indigo-600 text-white px-2 py-0.5 rounded-full font-medium">
+                          <span className="text-xs bg-orange-600 text-white px-2 py-0.5 rounded-full font-medium">
                             #1
                           </span>
                         )}

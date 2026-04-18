@@ -183,7 +183,7 @@ export default function FichaComercialPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <StatBox label="Leads asignados" valor={stats.totalLeads} color="slate" />
             <StatBox label="Calientes" valor={stats.leadsCalientes} color="red" />
-            <StatBox label="Citas agendadas" valor={stats.citasAgendadas} color="indigo" />
+            <StatBox label="Citas agendadas" valor={stats.citasAgendadas} color="orange" />
             <StatBox label="Cerrados ganados" valor={stats.cerradosGanados} color="green" />
           </div>
 
@@ -297,14 +297,14 @@ export default function FichaComercialPage() {
   );
 }
 
-function StatBox({ label, valor, color }: { label: string; valor: number; color: "slate" | "red" | "indigo" | "green" }) {
+function StatBox({ label, valor, color }: { label: string; valor: number; color: "slate" | "red" | "orange" | "green" }) {
   const colorClass = {
     slate: "text-slate-800",
     red: "text-red-600",
-    indigo: "",
+    orange: "",
     green: "text-emerald-700",
   }[color];
-  const inlineStyle = color === "indigo" ? { color: "#ea650d" } : undefined;
+  const inlineStyle = color === "orange" ? { color: "#ea650d" } : undefined;
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
       <p className={`text-2xl font-bold ${colorClass}`} style={inlineStyle}>{valor}</p>
