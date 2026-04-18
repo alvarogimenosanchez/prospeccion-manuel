@@ -120,7 +120,7 @@ function ModalPostCita({ cita, onGuardar, onCerrar }: ModalPostCitaProps) {
               onChange={e => { setNotasPost(e.target.value); setError(""); }}
               rows={3}
               placeholder="¿Qué se habló? ¿Qué le interesó? ¿Qué objeciones hubo?..."
-              className={`w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none ${error ? "border-red-300 focus:border-red-400" : "border-slate-200 focus:border-indigo-300"}`}
+              className={`w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none ${error ? "border-red-300 focus:border-red-400" : "border-slate-200 focus:border-orange-300"}`}
             />
             {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
           </div>
@@ -129,7 +129,7 @@ function ModalPostCita({ cita, onGuardar, onCerrar }: ModalPostCitaProps) {
             <select
               value={proximaAccion}
               onChange={e => setProximaAccion(e.target.value)}
-              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-indigo-300"
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-orange-300"
             >
               {PROXIMAS_ACCIONES_POST.map(a => (
                 <option key={a.value} value={a.value}>{a.label}</option>
@@ -141,7 +141,7 @@ function ModalPostCita({ cita, onGuardar, onCerrar }: ModalPostCitaProps) {
                 value={proximaNota}
                 onChange={e => setProximaNota(e.target.value)}
                 placeholder="Nota para la próxima acción (opcional)"
-                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 mt-1.5 focus:outline-none focus:border-indigo-300"
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 mt-1.5 focus:outline-none focus:border-orange-300"
               />
             )}
           </div>

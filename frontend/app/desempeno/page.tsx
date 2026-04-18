@@ -581,7 +581,7 @@ function AlertaBloque({ titulo, descripcion, items, colorBorde, colorFondo, colo
           {items.slice(0, 4).map(a => (
             <Link key={a.lead_id} href={`/leads/${a.lead_id}`} className="flex items-center justify-between gap-2 group">
               <div className="min-w-0">
-                <p className="text-xs font-medium text-slate-800 truncate group-hover:text-indigo-600">{a.nombre}</p>
+                <p className="text-xs font-medium text-slate-800 truncate group-hover:opacity-70">{a.nombre}</p>
                 {a.empresa && <p className="text-xs text-slate-400 truncate">{a.empresa}</p>}
                 <p className="text-xs text-slate-400">{a.comercial}</p>
               </div>
@@ -672,7 +672,7 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <Link href={`/desempeno/${s.comercial.id}`} className="font-semibold text-slate-900 hover:text-indigo-600 hover:underline">
+            <Link href={`/desempeno/${s.comercial.id}`} className="font-semibold text-slate-900 hover:opacity-70 hover:underline">
               {nombre}
             </Link>
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${semaforo === "verde" ? "bg-green-50 text-green-700" : semaforo === "rojo" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>

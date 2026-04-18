@@ -28,7 +28,7 @@ const PRODUCTOS_NOMBRE: Record<string, string> = {
 const ESTADOS = [
   { value: "nuevo", label: "Nuevo", class: "bg-slate-100 text-slate-600" },
   { value: "enriquecido", label: "Enriquecido", class: "bg-blue-100 text-blue-600" },
-  { value: "segmentado", label: "Segmentado", class: "bg-indigo-100 text-indigo-600" },
+  { value: "segmentado", label: "Segmentado", class: "bg-orange-100 text-orange-600" },
   { value: "mensaje_enviado", label: "Msg. Enviado", class: "bg-violet-100 text-violet-600" },
   { value: "respondio", label: "Respondió", class: "bg-amber-100 text-amber-700" },
   { value: "cita_agendada", label: "Cita Agendada", class: "bg-green-100 text-green-700" },
@@ -52,7 +52,7 @@ const ACCIONES_CONFIG: Record<string, { label: string; icon: string; color: stri
   email:            { label: "Email",            icon: "📧", color: "text-violet-700 bg-violet-50 border-violet-200" },
   esperar_respuesta:{ label: "Esperar respuesta",icon: "⏳", color: "text-amber-700 bg-amber-50 border-amber-200" },
   enviar_info:      { label: "Enviar info",      icon: "📎", color: "text-slate-700 bg-slate-50 border-slate-200" },
-  reunion:          { label: "Reunión",          icon: "📅", color: "text-indigo-700 bg-indigo-50 border-indigo-200" },
+  reunion:          { label: "Reunión",          icon: "📅", color: "text-orange-700 bg-orange-50 border-orange-200" },
 };
 
 // ── Inteligencia de sector ──────────────────────────────────────────────────
@@ -719,7 +719,8 @@ export default function LeadDetailPage() {
                 <div className="space-y-1.5">
                   {RESULTADOS_CITA_LEAD.map(r => (
                     <button key={r.value} onClick={() => setPostCitaForm(p => ({ ...p, resultado: r.value }))}
-                      className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-colors ${postCitaForm.resultado === r.value ? "bg-indigo-50 border-indigo-300 text-indigo-700 font-medium" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>
+                      className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-colors ${postCitaForm.resultado === r.value ? "border-orange-300 font-medium" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                      style={postCitaForm.resultado === r.value ? { background: "#fff5f0", color: "#c2530b" } : undefined}>
                       {r.label}
                     </button>
                   ))}
@@ -732,14 +733,14 @@ export default function LeadDetailPage() {
                 <textarea value={postCitaForm.notas_post}
                   onChange={e => { setPostCitaForm(p => ({ ...p, notas_post: e.target.value })); setErrorPostCita(""); }}
                   rows={3} placeholder="¿Qué se habló? ¿Qué le interesó? ¿Qué objeciones hubo?..."
-                  className={`w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none ${errorPostCita ? "border-red-300" : "border-slate-200 focus:border-indigo-300"}`} />
+                  className={`w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none ${errorPostCita ? "border-red-300" : "border-slate-200 focus:border-orange-300"}`} />
                 {errorPostCita && <p className="text-xs text-red-500 mt-1">{errorPostCita}</p>}
               </div>
               <div>
                 <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Próxima acción</label>
                 <select value={postCitaForm.proxima_accion}
                   onChange={e => setPostCitaForm(p => ({ ...p, proxima_accion: e.target.value }))}
-                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-indigo-300">
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-orange-300">
                   <option value="llamar">📞 Llamar</option>
                   <option value="whatsapp">💬 Enviar WhatsApp</option>
                   <option value="enviar_info">📎 Enviar información</option>
@@ -750,7 +751,7 @@ export default function LeadDetailPage() {
                   <input type="text" value={postCitaForm.proxima_accion_nota}
                     onChange={e => setPostCitaForm(p => ({ ...p, proxima_accion_nota: e.target.value }))}
                     placeholder="Nota para la próxima acción (opcional)"
-                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 mt-1.5 focus:outline-none focus:border-indigo-300" />
+                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 mt-1.5 focus:outline-none focus:border-orange-300" />
                 )}
               </div>
             </div>
@@ -865,7 +866,9 @@ export default function LeadDetailPage() {
               </div>
               <button
                 onClick={abrirEdicion}
-                className="flex-shrink-0 text-xs text-slate-500 hover:text-indigo-600 border border-slate-200 hover:border-indigo-300 px-2.5 py-1.5 rounded-lg transition-colors"
+                className="flex-shrink-0 text-xs text-slate-500 border border-slate-200 hover:border-orange-300 px-2.5 py-1.5 rounded-lg transition-colors"
+                onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")}
+                onMouseLeave={e => (e.currentTarget.style.color = "")}
               >
                 Editar
               </button>
@@ -953,11 +956,11 @@ export default function LeadDetailPage() {
                             : e.value === "enriquecido"
                             ? "bg-blue-100 text-blue-700 border-blue-400 ring-2 ring-blue-300/40"
                             : e.value === "segmentado"
-                            ? "bg-indigo-100 text-indigo-700 border-indigo-400 ring-2 ring-indigo-300/40"
+                            ? "bg-orange-100 text-orange-700 border-orange-400 ring-2 ring-orange-300/40"
                             : "bg-slate-200 text-slate-700 border-slate-400 ring-2 ring-slate-300/40"
                           : isPast
                           ? "bg-slate-50 text-slate-400 border-slate-200"
-                          : "border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50"
+                          : "border-slate-200 text-slate-500 hover:border-orange-300 hover:bg-orange-50"
                       }`}
                     >
                       {isPast && !isActive ? <span className="opacity-60">{e.label}</span> : e.label}
@@ -1197,7 +1200,7 @@ export default function LeadDetailPage() {
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-400 w-20 flex-shrink-0">Web</span>
                 <a href={lead.fuente_detalle} target="_blank" rel="noopener noreferrer"
-                  className="text-sm text-indigo-600 hover:underline truncate">
+                  className="text-sm hover:underline truncate" style={{ color: "#ea650d" }}>
                   {lead.fuente_detalle.replace(/^https?:\/\//, "").replace(/\/$/, "")}
                 </a>
               </div>
@@ -1212,11 +1215,12 @@ export default function LeadDetailPage() {
                 {lead.productos_recomendados.map((p) => (
                   <div key={p} className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span className={`text-sm truncate ${p === lead.producto_interes_principal ? "font-semibold text-indigo-700" : "text-slate-600"}`}>
+                      <span className={`text-sm truncate ${p === lead.producto_interes_principal ? "font-semibold" : "text-slate-600"}`}
+                        style={p === lead.producto_interes_principal ? { color: "#ea650d" } : undefined}>
                         {PRODUCTOS_NOMBRE[p] ?? p}
                       </span>
                       {p === lead.producto_interes_principal && (
-                        <span className="text-xs bg-indigo-50 text-indigo-500 px-1.5 py-0.5 rounded flex-shrink-0">Principal</span>
+                        <span className="text-xs px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: "#fff5f0", color: "#ea650d" }}>Principal</span>
                       )}
                     </div>
                     <button
@@ -1226,7 +1230,10 @@ export default function LeadDetailPage() {
                         setMostrarEnvio(true);
                         document.querySelector("[data-mensaje-panel]")?.scrollIntoView({ behavior: "smooth" });
                       }}
-                      className="text-xs text-indigo-500 hover:text-indigo-700 border border-indigo-200 hover:border-indigo-400 px-2 py-0.5 rounded-lg flex-shrink-0 transition-colors"
+                      className="text-xs border px-2 py-0.5 rounded-lg flex-shrink-0 transition-colors"
+                      style={{ color: "#ea650d", borderColor: "#f5a677" }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = "#ea650d"; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = "#f5a677"; }}
                     >
                       → Msg
                     </button>
@@ -1242,25 +1249,25 @@ export default function LeadDetailPage() {
             if (!intel) return null;
             const ticket = getTicketEstimado(lead.tipo_lead, lead.num_empleados, intel);
             return (
-              <div className="bg-indigo-50 rounded-xl border border-indigo-200 p-5 space-y-4">
-                <h3 className="text-xs font-semibold text-indigo-600 uppercase tracking-wide">Inteligencia de sector</h3>
+              <div className="rounded-xl border p-5 space-y-4" style={{ background: "#fff5f0", borderColor: "#f5a677" }}>
+                <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#ea650d" }}>Inteligencia de sector</h3>
 
                 {/* Ticket y horario */}
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-white rounded-lg p-3 border border-indigo-100">
+                  <div className="bg-white rounded-lg p-3 border border-orange-100">
                     <p className="text-xs text-slate-400 mb-0.5">Ticket estimado</p>
-                    <p className="text-sm font-bold text-indigo-700">€{ticket.min}–{ticket.max}</p>
+                    <p className="text-sm font-bold" style={{ color: "#ea650d" }}>€{ticket.min}–{ticket.max}</p>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-indigo-100">
+                  <div className="bg-white rounded-lg p-3 border border-orange-100">
                     <p className="text-xs text-slate-400 mb-0.5">Mejor hora</p>
-                    <p className="text-xs font-semibold text-indigo-700">{intel.horario}</p>
+                    <p className="text-xs font-semibold" style={{ color: "#ea650d" }}>{intel.horario}</p>
                   </div>
                 </div>
 
                 {/* Script de apertura */}
                 <div>
-                  <p className="text-xs font-semibold text-indigo-600 mb-1.5">Script de llamada</p>
-                  <div className="bg-white rounded-lg p-3 border border-indigo-100">
+                  <p className="text-xs font-semibold mb-1.5" style={{ color: "#ea650d" }}>Script de llamada</p>
+                  <div className="bg-white rounded-lg p-3 border border-orange-100">
                     <p className="text-xs text-slate-600 leading-relaxed italic">
                       {intel.scriptApertura
                         .replace("[nombre]", lead.nombre || "...")
@@ -1271,10 +1278,10 @@ export default function LeadDetailPage() {
 
                 {/* Objeciones */}
                 <div>
-                  <p className="text-xs font-semibold text-indigo-600 mb-1.5">Objeciones frecuentes</p>
+                  <p className="text-xs font-semibold mb-1.5" style={{ color: "#ea650d" }}>Objeciones frecuentes</p>
                   <div className="space-y-2">
                     {intel.objeciones.map((o, i) => (
-                      <div key={i} className="bg-white rounded-lg p-2.5 border border-indigo-100">
+                      <div key={i} className="bg-white rounded-lg p-2.5 border border-orange-100">
                         <p className="text-xs font-medium text-slate-700 mb-1">"{o.obj}"</p>
                         <p className="text-xs text-slate-500 leading-relaxed">→ {o.respuesta}</p>
                       </div>
@@ -1306,7 +1313,7 @@ export default function LeadDetailPage() {
                     <select
                       value={citaForm.tipo}
                       onChange={e => setCitaForm(p => ({ ...p, tipo: e.target.value as typeof p.tipo }))}
-                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-indigo-300"
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-orange-300"
                     >
                       <option value="llamada">Llamada</option>
                       <option value="videollamada">Videollamada</option>
@@ -1318,7 +1325,7 @@ export default function LeadDetailPage() {
                     <select
                       value={citaForm.duracion_minutos}
                       onChange={e => setCitaForm(p => ({ ...p, duracion_minutos: parseInt(e.target.value) }))}
-                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-indigo-300"
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-orange-300"
                     >
                       <option value={15}>15 min</option>
                       <option value={30}>30 min</option>
@@ -1334,7 +1341,7 @@ export default function LeadDetailPage() {
                     type="datetime-local"
                     value={citaForm.fecha_hora}
                     onChange={e => setCitaForm(p => ({ ...p, fecha_hora: e.target.value }))}
-                    className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-indigo-300"
+                    className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-orange-300"
                   />
                 </div>
                 {comerciales.length > 0 && (
@@ -1343,7 +1350,7 @@ export default function LeadDetailPage() {
                     <select
                       value={citaForm.comercial_id}
                       onChange={e => setCitaForm(p => ({ ...p, comercial_id: e.target.value }))}
-                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-indigo-300"
+                      className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-orange-300"
                     >
                       <option value="">Asignado al lead</option>
                       {comerciales.map(c => (
@@ -1359,7 +1366,7 @@ export default function LeadDetailPage() {
                     value={citaForm.notas_previas}
                     onChange={e => setCitaForm(p => ({ ...p, notas_previas: e.target.value }))}
                     placeholder="Qué tratar, contexto..."
-                    className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-indigo-300"
+                    className="w-full px-2 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-orange-300"
                   />
                 </div>
                 <div className="flex gap-2 pt-1">
@@ -1632,7 +1639,7 @@ export default function LeadDetailPage() {
             <div className="px-3 pb-3 flex gap-2">
               <input type="text" value={nota} onChange={(e) => setNota(e.target.value)} onKeyDown={(e) => e.key === "Enter" && guardarNota()}
                 placeholder="Añadir nota del comercial..."
-                className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300" />
+                className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" />
               <button onClick={guardarNota} disabled={!nota.trim() || guardando}
                 className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors">
                 {guardando ? "..." : "Guardar"}
@@ -1659,42 +1666,42 @@ export default function LeadDetailPage() {
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">Nombre</label>
                     <input value={editForm.nombre ?? ""} onChange={e => setEditForm(p => ({ ...p, nombre: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300" />
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" />
                   </div>
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">Apellidos</label>
                     <input value={editForm.apellidos ?? ""} onChange={e => setEditForm(p => ({ ...p, apellidos: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300" />
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" />
                   </div>
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">WhatsApp</label>
                     <input value={editForm.telefono_whatsapp ?? ""} onChange={e => setEditForm(p => ({ ...p, telefono_whatsapp: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300" />
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" />
                   </div>
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">Email</label>
                     <input value={editForm.email ?? ""} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300" />
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" />
                   </div>
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">Cargo</label>
                     <input value={editForm.cargo ?? ""} onChange={e => setEditForm(p => ({ ...p, cargo: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300" />
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" />
                   </div>
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">Empresa</label>
                     <input value={editForm.empresa ?? ""} onChange={e => setEditForm(p => ({ ...p, empresa: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300" />
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" />
                   </div>
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">Sector</label>
                     <input value={editForm.sector ?? ""} onChange={e => setEditForm(p => ({ ...p, sector: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300" />
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" />
                   </div>
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">Ciudad</label>
                     <input value={editForm.ciudad ?? ""} onChange={e => setEditForm(p => ({ ...p, ciudad: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300" />
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" />
                   </div>
                 </div>
               </div>
@@ -1706,7 +1713,7 @@ export default function LeadDetailPage() {
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">Temperatura</label>
                     <select value={editForm.temperatura ?? "frio"} onChange={e => setEditForm(p => ({ ...p, temperatura: e.target.value as Lead["temperatura"] }))}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300 bg-white">
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300 bg-white">
                       <option value="caliente">Caliente</option>
                       <option value="templado">Templado</option>
                       <option value="frio">Frío</option>
@@ -1716,7 +1723,7 @@ export default function LeadDetailPage() {
                     <label className="block text-xs text-slate-500 mb-1">Interés (0-10)</label>
                     <input type="number" min={0} max={10} value={editForm.nivel_interes ?? 0}
                       onChange={e => setEditForm(p => ({ ...p, nivel_interes: Math.min(10, Math.max(0, parseInt(e.target.value) || 0)) }))}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300" />
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" />
                   </div>
                 </div>
               </div>
@@ -1729,7 +1736,7 @@ export default function LeadDetailPage() {
                   <select
                     value={editForm.comercial_asignado ?? ""}
                     onChange={e => setEditForm(p => ({ ...p, comercial_asignado: e.target.value || null }))}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300 bg-white"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300 bg-white"
                   >
                     <option value="">Sin asignar</option>
                     {comerciales.map(c => (
@@ -1744,7 +1751,7 @@ export default function LeadDetailPage() {
                 <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Notas internas</label>
                 <textarea value={editForm.notas ?? ""} onChange={e => setEditForm(p => ({ ...p, notas: e.target.value }))} rows={3}
                   placeholder="Contexto del lead, observaciones..."
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300 resize-none" />
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300 resize-none" />
               </div>
             </div>
 

@@ -40,7 +40,7 @@ export function Navbar() {
     <nav className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10">
       <div className="flex items-center gap-6">
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold" style={{ background: "#ea650d" }}>
             M
           </div>
           <span className="font-semibold text-slate-800 text-sm">Manuel · Prospección</span>
@@ -52,9 +52,10 @@ export function Navbar() {
               href={href}
               className={`text-sm transition-colors ${
                 pathname === href
-                  ? "text-indigo-600 font-medium"
+                  ? "font-medium"
                   : "text-slate-600 hover:text-slate-900"
               }`}
+              style={pathname === href ? { color: "#ea650d" } : undefined}
             >
               {label}
             </Link>

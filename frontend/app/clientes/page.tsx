@@ -244,7 +244,7 @@ export default function ClientesPage() {
           placeholder="Buscar por nombre, empresa o producto..."
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
-          className="flex-1 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          className="flex-1 px-3 py-1.5 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
         />
       </div>
 
@@ -371,7 +371,7 @@ export default function ClientesPage() {
                     type="text"
                     value={form.nombre}
                     onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                     placeholder="Juan"
                   />
                 </div>
@@ -381,7 +381,7 @@ export default function ClientesPage() {
                     type="text"
                     value={form.apellidos}
                     onChange={e => setForm(f => ({ ...f, apellidos: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                     placeholder="García López"
                   />
                 </div>
@@ -394,7 +394,7 @@ export default function ClientesPage() {
                   type="text"
                   value={form.empresa}
                   onChange={e => setForm(f => ({ ...f, empresa: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                   placeholder="Nombre de la empresa"
                 />
               </div>
@@ -407,7 +407,7 @@ export default function ClientesPage() {
                     type="email"
                     value={form.email}
                     onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                     placeholder="email@ejemplo.com"
                   />
                 </div>
@@ -417,7 +417,7 @@ export default function ClientesPage() {
                     type="tel"
                     value={form.telefono}
                     onChange={e => setForm(f => ({ ...f, telefono: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                     placeholder="600 000 000"
                   />
                 </div>
@@ -430,7 +430,7 @@ export default function ClientesPage() {
                   <select
                     value={form.producto}
                     onChange={e => setForm(f => ({ ...f, producto: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 bg-white"
                   >
                     <option value="">Seleccionar producto</option>
                     {PRODUCTOS.map(p => (
@@ -446,7 +446,7 @@ export default function ClientesPage() {
                     step={0.01}
                     value={form.valor_contrato}
                     onChange={e => setForm(f => ({ ...f, valor_contrato: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                     placeholder="1200"
                   />
                 </div>
@@ -460,7 +460,7 @@ export default function ClientesPage() {
                     type="date"
                     value={form.fecha_inicio}
                     onChange={e => setForm(f => ({ ...f, fecha_inicio: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                   />
                 </div>
                 <div>
@@ -469,7 +469,7 @@ export default function ClientesPage() {
                     type="date"
                     value={form.fecha_renovacion}
                     onChange={e => setForm(f => ({ ...f, fecha_renovacion: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                   />
                 </div>
               </div>
@@ -480,7 +480,7 @@ export default function ClientesPage() {
                 <select
                   value={form.comercial_asignado}
                   onChange={e => setForm(f => ({ ...f, comercial_asignado: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
                 >
                   <option value="">Sin asignar</option>
                   {comerciales.map(c => (
@@ -498,7 +498,7 @@ export default function ClientesPage() {
                   value={form.notas}
                   onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
                   rows={3}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300 resize-none"
                   placeholder="Condiciones especiales, recordatorios..."
                 />
               </div>

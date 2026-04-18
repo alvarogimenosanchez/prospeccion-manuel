@@ -463,7 +463,7 @@ export default function MetricasPage() {
             <select
               value={comercialId}
               onChange={(e) => setComercialId(e.target.value)}
-              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-300"
             >
               <option value="todos">Todos los comerciales</option>
               {comerciales.map((c) => (
@@ -542,7 +542,7 @@ export default function MetricasPage() {
                       {/* Conversión respecto al paso anterior */}
                       <div className="w-16 text-right">
                         {conversionAnterior !== null && (
-                          <span className="text-xs font-medium text-indigo-600">
+                          <span className="text-xs font-medium text-orange-600">
                             {pct(step.count, conversionAnterior)}
                           </span>
                         )}
@@ -557,7 +557,7 @@ export default function MetricasPage() {
                 {funnel.length >= 2 && (
                   <p className="text-xs text-slate-400">
                     Conversión total:{" "}
-                    <span className="font-semibold text-indigo-600">
+                    <span className="font-semibold text-orange-600">
                       {pct(funnel[funnel.length - 1].count, funnel[0].count)}
                     </span>{" "}
                     de leads nuevos a cerrado ganado
@@ -566,7 +566,7 @@ export default function MetricasPage() {
                 {diasHastaCierre !== null && (
                   <p className="text-xs text-slate-400">
                     Tiempo medio hasta cierre:{" "}
-                    <span className="font-semibold text-indigo-600">
+                    <span className="font-semibold text-orange-600">
                       {diasHastaCierre} {diasHastaCierre === 1 ? "día" : "días"}
                     </span>{" "}
                     desde captación
@@ -710,7 +710,7 @@ export default function MetricasPage() {
             </p>
 
             {mensajeSeguimiento && (
-              <div className="mb-4 px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-700">
+              <div className="mb-4 px-4 py-3 bg-orange-50 border border-orange-200 rounded-lg text-sm text-orange-700">
                 {mensajeSeguimiento}
               </div>
             )}
