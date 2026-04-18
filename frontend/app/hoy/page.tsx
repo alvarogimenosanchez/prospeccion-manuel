@@ -58,7 +58,7 @@ const ACCIONES_CONFIG: Record<string, { label: string; icon: string; color: stri
   email:             { label: "Email",    icon: "📧", color: "bg-sky-100 text-sky-700 hover:bg-sky-200"       },
   esperar_respuesta: { label: "Esperar",  icon: "⏳", color: "bg-slate-100 text-slate-700"                    },
   enviar_info:       { label: "Enviar info", icon: "📎", color: "bg-orange-100 text-orange-700 hover:bg-orange-200" },
-  reunion:           { label: "Reunión",  icon: "📅", color: "bg-purple-100 text-purple-700 hover:bg-purple-200" },
+  reunion:           { label: "Reunión",  icon: "📅", color: "bg-orange-100 text-orange-700 hover:bg-orange-200" },
 };
 
 const ESTADOS_CERRADOS = ["cerrado_ganado", "cerrado_perdido", "descartado"];
@@ -566,8 +566,9 @@ export default function HoyPage() {
                         💬 Responder
                       </a>
                     )}
-                    <Link href={`/leads/${lead.id}?tab=agenda`}
-                      className="rounded px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors">
+                    <Link href={`/leads/${lead.id}`}
+                      className="rounded px-2 py-1 text-xs font-medium transition-colors"
+                      style={{ background: "#fff5f0", color: "#ea650d" }}>
                       📅 Agendar cita
                     </Link>
                     <Link href={`/leads/${lead.id}`}

@@ -2,7 +2,7 @@ type Fuente = "linkedin" | "scraping" | "inbound" | "base_existente" | "referido
 
 const config: Record<string, { label: string; class: string }> = {
   linkedin: { label: "LinkedIn", class: "bg-blue-100 text-blue-700" },
-  scraping: { label: "Web", class: "bg-purple-100 text-purple-700" },
+  scraping: { label: "Web", class: "bg-orange-100 text-orange-700" },
   inbound: { label: "Inbound", class: "bg-green-100 text-green-700" },
   base_existente: { label: "BD", class: "bg-slate-100 text-slate-600" },
   referido: { label: "Referido", class: "bg-amber-100 text-amber-700" },
