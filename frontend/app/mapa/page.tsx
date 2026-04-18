@@ -218,7 +218,7 @@ export default function MapaPage() {
         </div>
         <div className="flex items-center gap-3">
           <select value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}
-            className="text-xs border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-600 focus:outline-none focus:border-indigo-300">
+            className="text-xs border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-600 focus:outline-none focus:border-orange-300">
             <option value="todos">Todos los estados</option>
             <option value="nuevo">Nuevo</option>
             <option value="mensaje_enviado">Mensaje enviado</option>
@@ -230,7 +230,7 @@ export default function MapaPage() {
           </select>
           {sectores.length > 0 && (
             <select value={filtroSector} onChange={e => setFiltroSector(e.target.value)}
-              className="text-xs border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-600 focus:outline-none focus:border-indigo-300">
+              className="text-xs border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-600 focus:outline-none focus:border-orange-300">
               <option value="todos">Todos los sectores</option>
               {sectores.map(s => (
                 <option key={s} value={s}>{s}</option>
@@ -279,7 +279,7 @@ export default function MapaPage() {
               <div className="space-y-1.5 max-h-48 overflow-y-auto">
                 {ciudadSeleccionada.leads.map(l => (
                   <a key={l.id} href={`/leads/${l.id}`}
-                    className="block text-xs p-2 rounded-lg border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50 transition-colors">
+                    className="block text-xs p-2 rounded-lg border border-slate-100 hover:border-orange-200 hover:bg-orange-50 transition-colors">
                     <p className="font-medium text-slate-700 truncate">{[l.nombre, l.apellidos].filter(Boolean).join(" ")}</p>
                     {l.empresa && <p className="text-slate-400 truncate">{l.empresa}</p>}
                     <p className="text-slate-400">{l.estado.replace(/_/g, " ")}</p>
@@ -299,7 +299,7 @@ export default function MapaPage() {
             <div className="space-y-2">
               {topCiudades.map((c, idx) => (
                 <button key={c.ciudad} onClick={() => setCiudadSeleccionada(c)}
-                  className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${ciudadSeleccionada?.ciudad === c.ciudad ? "border-indigo-300 bg-indigo-50" : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"}`}>
+                  className={`w-full text-left px-3 py-2 rounded-lg border transition-colors ${ciudadSeleccionada?.ciudad === c.ciudad ? "border-orange-300 bg-orange-50" : "border-slate-100 hover:border-slate-200 hover:bg-slate-50"}`}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-slate-400 w-4">{idx + 1}</span>

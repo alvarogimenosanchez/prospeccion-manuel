@@ -43,7 +43,7 @@ const COLUMNAS: Columna[] = [
   { estado: "nuevo",           label: "Nuevo",           color: "border-slate-300",   bg: "bg-slate-50",    dot: "bg-slate-400"   },
   { estado: "mensaje_enviado", label: "Contactado",       color: "border-blue-300",    bg: "bg-blue-50",     dot: "bg-blue-500"    },
   { estado: "respondio",       label: "Respondió",        color: "border-amber-300",   bg: "bg-amber-50",    dot: "bg-amber-500"   },
-  { estado: "cita_agendada",   label: "Cita agendada",    color: "border-indigo-300",  bg: "bg-indigo-50",   dot: "bg-indigo-500"  },
+  { estado: "cita_agendada",   label: "Cita agendada",    color: "border-orange-300",  bg: "bg-orange-50",   dot: "bg-orange-500"  },
   { estado: "en_negociacion",  label: "En negociación",   color: "border-violet-300",  bg: "bg-violet-50",   dot: "bg-violet-500"  },
   { estado: "cerrado_ganado",  label: "Ganado",           color: "border-emerald-300", bg: "bg-emerald-50",  dot: "bg-emerald-500" },
 ];
@@ -325,7 +325,7 @@ function TarjetaLead({
         {/* Nombre y empresa */}
         <div className="flex items-start justify-between gap-1">
           <Link href={`/leads/${lead.id}`} className="block group flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors leading-tight truncate">
+            <p className="text-sm font-semibold text-slate-800 transition-colors leading-tight truncate">
               {nombre || "Sin nombre"}
             </p>
             {lead.empresa && (
@@ -388,7 +388,7 @@ function TarjetaLead({
           )}
           <Link
             href={`/leads/${lead.id}`}
-            className="text-xs text-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-lg transition-colors"
+            className="text-xs text-center text-slate-400 px-2 py-1 rounded-lg transition-colors hover:bg-orange-50" onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "")}
           >
             Ver
           </Link>
@@ -400,7 +400,7 @@ function TarjetaLead({
               className={`text-xs text-center px-2 py-1 rounded-lg transition-colors disabled:opacity-40 font-medium ${
                 siguiente.estado === "cerrado_ganado"
                   ? "text-emerald-600 hover:bg-emerald-50"
-                  : "text-indigo-600 hover:bg-indigo-50"
+                  : "hover:bg-orange-50 text-orange-600"
               }`}
             >
               →

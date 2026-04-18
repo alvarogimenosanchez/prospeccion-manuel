@@ -208,7 +208,7 @@ export default function EquiposPage() {
         {tab === "equipos" && (
           <button
             onClick={() => setMostrarNuevoEquipo(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors" style={{ background: "#ea650d" }}
           >
             + Nuevo equipo
           </button>
@@ -284,7 +284,7 @@ export default function EquiposPage() {
 
                 <button
                   onClick={() => setMostrarNuevoEquipo(true)}
-                  className="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+                  className="w-full py-2.5 text-white text-sm font-semibold rounded-lg transition-colors" style={{ background: "#ea650d" }}
                 >
                   Crear el primer equipo
                 </button>
@@ -392,7 +392,7 @@ export default function EquiposPage() {
                         .split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
                       return (
                         <div key={m.id} className="flex items-center gap-4 px-5 py-3.5">
-                          <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs flex-shrink-0">
+                          <div className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0" style={{ background: "#fff5f0", color: "#ea650d" }}>
                             {iniciales}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -475,7 +475,7 @@ export default function EquiposPage() {
                       <button
                         onClick={anadirMiembro}
                         disabled={!comercialParaAnadir}
-                        className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+                        className="px-4 py-2 text-white text-sm rounded-lg disabled:opacity-40 transition-colors" style={{ background: "#ea650d" }}
                       >
                         Añadir
                       </button>
@@ -665,7 +665,7 @@ export default function EquiposPage() {
               <button
                 onClick={moverMiembro}
                 disabled={!equipoDestinoId}
-                className="flex-1 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}
               >
                 Mover
               </button>
@@ -789,7 +789,7 @@ export default function EquiposPage() {
               <button
                 onClick={crearEquipo}
                 disabled={!formEquipo.nombre.trim() || guardando}
-                className="flex-1 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}
               >
                 {guardando ? "Creando..." : `Crear equipo${formEquipo.miembros_ids.length > 0 ? ` con ${formEquipo.miembros_ids.length} miembro${formEquipo.miembros_ids.length > 1 ? "s" : ""}` : ""}`}
               </button>
@@ -860,7 +860,7 @@ export default function EquiposPage() {
               <button
                 onClick={guardarComercial}
                 disabled={guardandoComercial}
-                className="flex-1 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}
               >
                 {guardandoComercial ? "Guardando..." : "Guardar cambios"}
               </button>

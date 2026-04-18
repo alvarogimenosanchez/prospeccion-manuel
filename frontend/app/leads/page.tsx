@@ -179,7 +179,7 @@ function LeadsContent() {
           {soloMios && (
             <button
               onClick={() => setSoloMios(false)}
-              className="mt-2 text-sm text-indigo-600 hover:underline"
+              className="mt-2 text-sm hover:underline" style={{ color: "#ea650d" }}
             >
               Ver todos los leads
             </button>
@@ -209,7 +209,7 @@ function LeadsContent() {
             <div className="px-4 py-4 border-t border-slate-100 text-center">
               <button
                 onClick={cargarMas}
-                className="text-sm text-indigo-600 hover:text-indigo-800 font-medium px-4 py-2 rounded-lg hover:bg-indigo-50 transition-colors"
+                className="text-sm font-medium px-4 py-2 rounded-lg transition-colors" style={{ color: "#ea650d" }}
               >
                 Cargar más leads ({total - leads.length} restantes)
               </button>
