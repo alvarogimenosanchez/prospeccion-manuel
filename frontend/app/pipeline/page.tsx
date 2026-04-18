@@ -159,13 +159,19 @@ function PipelineContent() {
 
   useEffect(() => { cargarLeads(); }, [cargarLeads]);
 
+  const TEMP_POR_ESTADO: Record<string, string> = {
+    nuevo: "frio", mensaje_enviado: "frio", segmentado: "frio",
+    respondio: "templado",
+    cita_agendada: "caliente", en_negociacion: "caliente",
+    cerrado_ganado: "caliente", cerrado_perdido: "frio",
+  };
+
   async function moverLead(leadId: string, nuevoEstado: Estado) {
     setMoviendo(leadId);
     const leadActual = leads.find(l => l.id === leadId);
-    await supabase.from("leads").update({
-      estado: nuevoEstado,
-      updated_at: new Date().toISOString(),
-    }).eq("id", leadId);
+    const updates: Record<string, string> = { estado: nuevoEstado, updated_at: new Date().toISOString() };
+    if (TEMP_POR_ESTADO[nuevoEstado]) updates.temperatura = TEMP_POR_ESTADO[nuevoEstado];
+    await supabase.from("leads").update(updates).eq("id", leadId);
     if (leadActual) {
       supabase.from("lead_state_history").insert({
         lead_id: leadId,

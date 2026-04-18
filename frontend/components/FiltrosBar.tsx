@@ -6,6 +6,8 @@ import { supabase } from "@/lib/supabase";
 export type EstadoFiltro =
   | ""
   | "nuevo"
+  | "enriquecido"
+  | "segmentado"
   | "mensaje_enviado"
   | "respondio"
   | "cita_agendada"
@@ -27,14 +29,16 @@ type FiltrosBarProps = {
 };
 
 const ESTADO_BTNS: { value: EstadoFiltro; label: string }[] = [
-  { value: "",               label: "Todos"      },
-  { value: "nuevo",          label: "Nuevo"      },
-  { value: "mensaje_enviado",label: "Contactado" },
-  { value: "respondio",      label: "Respondió"  },
-  { value: "cita_agendada",  label: "Cita"       },
-  { value: "en_negociacion", label: "Negociando" },
-  { value: "cerrado_ganado", label: "Ganado"     },
-  { value: "cerrado_perdido",label: "Perdido"    },
+  { value: "",               label: "Todos"       },
+  { value: "nuevo",          label: "Nuevo"       },
+  { value: "enriquecido",    label: "Enriquecido" },
+  { value: "segmentado",     label: "Segmentado"  },
+  { value: "mensaje_enviado",label: "Contactado"  },
+  { value: "respondio",      label: "Respondió"   },
+  { value: "cita_agendada",  label: "Cita"        },
+  { value: "en_negociacion", label: "Negociando"  },
+  { value: "cerrado_ganado", label: "Ganado"      },
+  { value: "cerrado_perdido",label: "Perdido"     },
 ];
 
 const PRIORIDAD_BTNS = [
@@ -70,7 +74,7 @@ export function FiltrosBar({
   const pill = (active: boolean) =>
     `px-3 py-1.5 rounded-lg text-sm font-medium transition-all border ${
       active
-        ? "bg-slate-800 text-white border-slate-800"
+        ? "text-white border-transparent"
         : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
     }`;
 
@@ -124,6 +128,7 @@ export function FiltrosBar({
               key={b.value}
               onClick={() => onPrioridad(b.value)}
               className={pill(prioridad === b.value)}
+              style={prioridad === b.value ? { background: "#ea650d" } : undefined}
             >
               {b.label}
             </button>
@@ -139,9 +144,10 @@ export function FiltrosBar({
             onClick={() => onEstado(b.value)}
             className={`px-2.5 py-1 rounded-lg text-xs font-medium border transition-all ${
               estado === b.value
-                ? "bg-slate-800 text-white border-slate-800"
+                ? "text-white border-transparent"
                 : "bg-white text-slate-500 border-slate-200 hover:border-slate-400 hover:text-slate-700"
             }`}
+            style={estado === b.value ? { background: "#ea650d" } : undefined}
           >
             {b.label}
           </button>

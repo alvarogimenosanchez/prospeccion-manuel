@@ -120,7 +120,7 @@ export default function MensajesPage() {
       {/* Cabecera */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-800">Mensajes pendientes</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Mensajes</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             Revisa y aprueba los mensajes generados por IA antes de enviarlos
           </p>

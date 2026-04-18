@@ -68,7 +68,7 @@ const PROXIMAS_ACCIONES_POST = [
 
 type ModalPostCitaProps = {
   cita: CitaConLead;
-  onGuardar: (citaId: string, datos: { notas_post: string; resultado: string; proxima_accion: string; proxima_accion_nota: string }) => Promise<void>;
+  onGuardar: (citaId: string, datos: { notas_post: string; resultado: string; proxima_accion: string; proxima_accion_nota: string; proxima_accion_fecha: string }) => Promise<void>;
   onCerrar: () => void;
 };
 
@@ -78,13 +78,14 @@ function ModalPostCita({ cita, onGuardar, onCerrar }: ModalPostCitaProps) {
   const [notasPost, setNotasPost] = useState("");
   const [proximaAccion, setProximaAccion] = useState("llamar");
   const [proximaNota, setProximaNota] = useState("");
+  const [proximaFecha, setProximaFecha] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
 
   async function handleGuardar() {
     if (!notasPost.trim()) { setError("Escribe al menos una nota sobre cómo fue la cita."); return; }
     setGuardando(true);
-    await onGuardar(cita.id, { notas_post: notasPost, resultado, proxima_accion: proximaAccion, proxima_accion_nota: proximaNota });
+    await onGuardar(cita.id, { notas_post: notasPost, resultado, proxima_accion: proximaAccion, proxima_accion_nota: proximaNota, proxima_accion_fecha: proximaFecha });
     setGuardando(false);
   }
 
@@ -136,13 +137,21 @@ function ModalPostCita({ cita, onGuardar, onCerrar }: ModalPostCitaProps) {
               ))}
             </select>
             {proximaAccion !== "ninguna" && (
-              <input
-                type="text"
-                value={proximaNota}
-                onChange={e => setProximaNota(e.target.value)}
-                placeholder="Nota para la próxima acción (opcional)"
-                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 mt-1.5 focus:outline-none focus:border-orange-300"
-              />
+              <div className="space-y-1.5 mt-1.5">
+                <input
+                  type="datetime-local"
+                  value={proximaFecha}
+                  onChange={e => setProximaFecha(e.target.value)}
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300"
+                />
+                <input
+                  type="text"
+                  value={proximaNota}
+                  onChange={e => setProximaNota(e.target.value)}
+                  placeholder="Nota (opcional)"
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300"
+                />
+              </div>
             )}
           </div>
         </div>
@@ -227,7 +236,7 @@ export default function AgendaPage() {
     setCitas(prev => prev.map(c => c.id === citaId ? { ...c, estado: nuevoEstado } : c));
   }
 
-  async function guardarResultadoCita(citaId: string, datos: { notas_post: string; resultado: string; proxima_accion: string; proxima_accion_nota: string }) {
+  async function guardarResultadoCita(citaId: string, datos: { notas_post: string; resultado: string; proxima_accion: string; proxima_accion_nota: string; proxima_accion_fecha: string }) {
     const cita = citas.find(c => c.id === citaId);
     // Guardar en appointment
     await supabase.from("appointments").update({
@@ -247,7 +256,7 @@ export default function AgendaPage() {
       const leadUpdates: Record<string, string | null> = {
         proxima_accion: datos.proxima_accion !== "ninguna" ? datos.proxima_accion : null,
         proxima_accion_nota: datos.proxima_accion_nota || null,
-        proxima_accion_fecha: null,
+        proxima_accion_fecha: datos.proxima_accion_fecha || null,
         updated_at: new Date().toISOString(),
       };
       if (datos.resultado === "cerrado_ganado") leadUpdates.estado = "cerrado_ganado";
