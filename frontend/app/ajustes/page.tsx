@@ -312,7 +312,7 @@ export default function AjustesPage() {
             </button>
           </div>
         ) : (
-          <div style={{ divide: "1px solid #f0ebe7" }}>
+          <div>
             {[...plantillas].sort((a, b) => a.orden - b.orden).map((p, i) => (
               <div
                 key={p.id}

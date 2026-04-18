@@ -177,7 +177,7 @@ export default function EquipoPage() {
                 <div
                   key={c.id}
                   className={`bg-white rounded-xl border p-4 transition-all cursor-pointer ${seleccionado ? "ring-2" : "border-slate-200 hover:border-slate-300"}`}
-                  style={seleccionado ? { borderColor: "#ea650d", ringColor: "#fff5f0" } : undefined}
+                  style={seleccionado ? { borderColor: "#ea650d", outline: "2px solid #fff5f0" } : undefined}
                   onClick={() => verLeads(c)}
                 >
                   <div className="flex items-center gap-3 mb-3">
