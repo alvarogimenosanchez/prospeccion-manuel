@@ -188,6 +188,7 @@ export default function LeadDetailPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [nota, setNota] = useState("");
   const [currentComercialId, setCurrentComercialId] = useState<string | null>(null);
+  const [plantillasWA, setPlantillasWA] = useState<{ id: string; titulo: string; contenido: string }[]>([]);
   const [guardando, setGuardando] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mensajeWhatsapp, setMensajeWhatsapp] = useState("");
@@ -267,7 +268,18 @@ export default function LeadDetailPage() {
           .select("id")
           .eq("email", user.email)
           .single();
-        if (comercial) setCurrentComercialId(comercial.id);
+        if (comercial) {
+          setCurrentComercialId(comercial.id);
+          // Load custom WA templates from ajustes
+          const { data: plantillas } = await supabase
+            .from("recursos_rapidos")
+            .select("id, titulo, contenido")
+            .eq("tipo", "plantilla_wa")
+            .or(`es_global.eq.true,creado_por.eq.${comercial.id}`)
+            .order("orden")
+            .order("titulo");
+          setPlantillasWA((plantillas as { id: string; titulo: string; contenido: string }[]) ?? []);
+        }
       }
 
       setLoading(false);
@@ -582,6 +594,17 @@ export default function LeadDetailPage() {
     }
     setGuardadoOk(true);
     setTimeout(() => setGuardadoOk(false), 1500);
+  }
+
+  function aplicarVariablesPlantilla(texto: string): string {
+    if (!lead) return texto;
+    return texto
+      .replaceAll("{{nombre}}", lead.nombre || "")
+      .replaceAll("{{empresa}}", lead.empresa || "")
+      .replaceAll("{{ciudad}}", lead.ciudad || "")
+      .replaceAll("{{sector}}", lead.sector || "")
+      .replaceAll("{{cargo}}", lead.cargo || "")
+      .replaceAll("{{producto}}", lead.producto_interes_principal || lead.productos_recomendados?.[0] || "");
   }
 
   if (loading) return <div className="text-center py-20 text-slate-400 text-sm">Cargando...</div>;
@@ -1452,7 +1475,7 @@ export default function LeadDetailPage() {
                     <button
                       onClick={generarMensajeIA}
                       disabled={generandoMensajeIA}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-medium rounded-lg disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}
                     >
                       {generandoMensajeIA ? "Generando..." : "✨ IA"}
                     </button>
@@ -1478,21 +1501,30 @@ export default function LeadDetailPage() {
                       { key: "recordatorio_2", label: "Recordatorio 2" },
                     ].map(({ key, label }) => (
                       <button key={key} onClick={() => setMensajeWhatsapp(generarMensaje(key as "primer_contacto" | "recordatorio_1" | "recordatorio_2"))}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:border-indigo-300 hover:text-indigo-600 transition-colors">
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:border-orange-300 transition-colors">
                         {label}
                       </button>
                     ))}
-                    {/* Templates específicos de sector */}
+                    {/* Templates de sector */}
                     {getSectorIntel(lead.sector, lead.tipo_lead)?.templatesMensaje.map((t) => (
                       <button key={t.label}
                         onClick={() => setMensajeWhatsapp(t.texto(lead.nombre || "", lead.empresa || "", lead.ciudad || "tu zona"))}
-                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-indigo-200 text-indigo-600 bg-indigo-50 hover:border-indigo-400 transition-colors">
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors" style={{ borderColor: "#f5a677", color: "#ea650d", background: "#fff5f0" }}>
                         ✦ {t.label}
+                      </button>
+                    ))}
+                    {/* Plantillas personales de /ajustes */}
+                    {plantillasWA.map((p) => (
+                      <button key={p.id}
+                        onClick={() => setMensajeWhatsapp(aplicarVariablesPlantilla(p.contenido))}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-orange-200 transition-colors hover:border-orange-400" style={{ color: "#ea650d", background: "#fff5f0" }}
+                        title={p.titulo}>
+                        📋 {p.titulo}
                       </button>
                     ))}
                   </div>
                   <textarea value={mensajeWhatsapp} onChange={e => setMensajeWhatsapp(e.target.value)} rows={5}
-                    className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-indigo-300 resize-none text-slate-700 leading-relaxed"
+                    className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2.5 focus:outline-none focus:border-orange-300 resize-none text-slate-700 leading-relaxed"
                     placeholder="Escribe o edita el mensaje..." />
                   <p className="text-xs text-slate-400">Puedes editar el mensaje antes de enviarlo. Se enviará directamente desde el número de WhatsApp Business.</p>
                   {errorEnvio && (
