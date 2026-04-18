@@ -69,11 +69,11 @@ const SECTORES = [
 ];
 
 const FUNNEL_STEPS: Pick<FunnelStep, "label" | "estado" | "color">[] = [
-  { label: "Total leads",    estado: "",               color: "bg-indigo-100" },
-  { label: "Contactados",    estado: "mensaje_enviado", color: "bg-indigo-200" },
-  { label: "Respondieron",   estado: "respondio",       color: "bg-indigo-300" },
-  { label: "Cita agendada",  estado: "cita_agendada",   color: "bg-indigo-500" },
-  { label: "Cerrado ganado", estado: "cerrado_ganado",  color: "bg-indigo-700" },
+  { label: "Total leads",    estado: "",               color: "bg-orange-100" },
+  { label: "Contactados",    estado: "mensaje_enviado", color: "bg-orange-200" },
+  { label: "Respondieron",   estado: "respondio",       color: "bg-orange-300" },
+  { label: "Cita agendada",  estado: "cita_agendada",   color: "bg-orange-400" },
+  { label: "Cerrado ganado", estado: "cerrado_ganado",  color: "bg-orange-600" },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -448,9 +448,10 @@ export default function MetricasPage() {
                 onClick={() => setPeriodo(p)}
                 className={`px-3 py-1.5 font-medium transition-colors ${
                   periodo === p
-                    ? "bg-indigo-600 text-white"
+                    ? "text-white"
                     : "text-slate-600 hover:bg-slate-50"
                 }`}
+                style={periodo === p ? { background: "#ea650d" } : undefined}
               >
                 {p === "semana" ? "7 días" : p === "mes" ? "Este mes" : "Total"}
               </button>
@@ -480,8 +481,8 @@ export default function MetricasPage() {
       ) : !hayDatos ? (
         /* ── Empty state ────────────────────────────────────────────────────── */
         <div className="py-24 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-50 mb-4">
-            <svg className="w-8 h-8 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4" style={{ background: "#fff5f0" }}>
+            <svg className="w-8 h-8" style={{ color: "#ea650d" }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
             </svg>
           </div>
@@ -494,7 +495,7 @@ export default function MetricasPage() {
           <div className="mt-6 flex flex-wrap justify-center gap-3">
             <button
               onClick={() => setPeriodo("total")}
-              className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+              className="px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors" style={{ background: "#ea650d" }}
             >
               Ver datos totales
             </button>

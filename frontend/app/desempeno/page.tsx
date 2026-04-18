@@ -437,7 +437,7 @@ export default function DesempenoPage() {
                     <Link key={s.comercial.id} href={`/desempeno/${s.comercial.id}`}
                       className={`flex-shrink-0 flex flex-col items-center gap-2 px-6 py-4 rounded-xl border ${bgPodio[i]} hover:shadow-md transition-shadow min-w-[130px]`}>
                       <span className="text-2xl">{medallas[i]}</span>
-                      <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ background: "#fff5f0", color: "#ea650d" }}>
                         {iniciales}
                       </div>
                       <p className="text-xs font-semibold text-slate-800 text-center leading-tight">{s.comercial.nombre}</p>
@@ -513,7 +513,7 @@ export default function DesempenoPage() {
                           <td className="px-4 py-3 font-medium text-slate-800">
                             <div className="flex items-center gap-2">
                               <span className={`w-2 h-2 rounded-full flex-shrink-0 ${semaforo === "verde" ? "bg-green-500" : semaforo === "rojo" ? "bg-red-500" : "bg-amber-400"}`} />
-                              <Link href={`/desempeno/${s.comercial.id}`} className="hover:text-indigo-600 hover:underline">
+                              <Link href={`/desempeno/${s.comercial.id}`} className="hover:underline">
                                 {s.comercial.nombre} {s.comercial.apellidos ?? ""}
                               </Link>
                               {s.activoHoy && (
@@ -651,9 +651,9 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
 
   const funnel = [
     { label: "Leads", value: s.totalLeads, color: "bg-slate-300" },
-    { label: "Contactados", value: s.leadsContactados, color: "bg-indigo-200" },
-    { label: "Respondieron", value: s.respondieron, color: "bg-indigo-400" },
-    { label: "Citas", value: s.citasAgendadas, color: "bg-indigo-600" },
+    { label: "Contactados", value: s.leadsContactados, color: "bg-orange-200" },
+    { label: "Respondieron", value: s.respondieron, color: "bg-orange-400" },
+    { label: "Citas", value: s.citasAgendadas, color: "bg-orange-500" },
     { label: "Ganados", value: s.cerradosGanados, color: "bg-green-500" },
   ];
   const maxVal = s.totalLeads || 1;
@@ -663,7 +663,7 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
       {/* Header: avatar + nombre + estado + actividad */}
       <div className="flex items-center gap-3">
         <div className="relative flex-shrink-0">
-          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
+          <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm" style={{ background: "#fff5f0", color: "#ea650d" }}>
             {iniciales}
           </div>
           {posicion <= 3 && (
@@ -683,7 +683,7 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
             <span className="text-xs text-slate-400">{s.comercial.rol === "director" ? "Director" : "Comercial"}</span>
             <span className={`text-xs font-medium ${actividad.color}`}>● {actividad.texto}</span>
             {s.topProducto && (
-              <span className="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-medium">
+              <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: "#fff5f0", color: "#ea650d" }}>
                 {PRODUCTOS_NOMBRE[s.topProducto] ?? s.topProducto}
               </span>
             )}
@@ -748,14 +748,14 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
               <span className={`text-xs font-semibold ${cierresAtrasado ? "text-red-600" : pctCierres >= 100 ? "text-green-600" : "text-slate-700"}`}>{s.cerradosGanados}</span>
               <span className="text-xs text-slate-400">de</span>
               {editandoCierres ? (
-                <input type="number" min={0} className="w-10 text-xs border border-indigo-300 rounded px-1 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                <input type="number" min={0} className="w-10 text-xs border border-orange-300 rounded px-1 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-orange-400"
                   value={tempCierres} onChange={e => setTempCierres(e.target.value)}
                   onBlur={() => guardarObjetivo("objetivo_cierres_mes", tempCierres, () => setEditandoCierres(false))}
                   onKeyDown={e => { if (e.key === "Enter") guardarObjetivo("objetivo_cierres_mes", tempCierres, () => setEditandoCierres(false)); if (e.key === "Escape") setEditandoCierres(false); }}
                   autoFocus />
               ) : (
                 <button onClick={() => { setTempCierres(String(s.objetivoCierres)); setEditandoCierres(true); }}
-                  className="text-xs text-slate-500 hover:text-indigo-600 hover:underline" title="Editar objetivo">
+                  className="text-xs text-slate-500 hover:underline" title="Editar objetivo">
                   {s.objetivoCierres}
                 </button>
               )}
@@ -763,7 +763,7 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
             </div>
           </div>
           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full transition-all duration-500 ${pctCierres >= 100 ? "bg-green-500" : cierresAtrasado ? "bg-red-400" : "bg-indigo-500"}`}
+            <div className={`h-full rounded-full transition-all duration-500 ${pctCierres >= 100 ? "bg-green-500" : cierresAtrasado ? "bg-red-400" : "bg-orange-500"}`}
               style={{ width: `${pctCierres}%` }} />
           </div>
         </div>
@@ -775,14 +775,14 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
               <span className={`text-xs font-semibold ${citasAtrasado ? "text-red-600" : pctCitas >= 100 ? "text-green-600" : "text-slate-700"}`}>{s.citasAgendadas}</span>
               <span className="text-xs text-slate-400">de</span>
               {editandoCitas ? (
-                <input type="number" min={0} className="w-10 text-xs border border-indigo-300 rounded px-1 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                <input type="number" min={0} className="w-10 text-xs border border-orange-300 rounded px-1 py-0.5 text-center focus:outline-none focus:ring-1 focus:ring-orange-400"
                   value={tempCitas} onChange={e => setTempCitas(e.target.value)}
                   onBlur={() => guardarObjetivo("objetivo_citas_mes", tempCitas, () => setEditandoCitas(false))}
                   onKeyDown={e => { if (e.key === "Enter") guardarObjetivo("objetivo_citas_mes", tempCitas, () => setEditandoCitas(false)); if (e.key === "Escape") setEditandoCitas(false); }}
                   autoFocus />
               ) : (
                 <button onClick={() => { setTempCitas(String(s.objetivoCitas)); setEditandoCitas(true); }}
-                  className="text-xs text-slate-500 hover:text-indigo-600 hover:underline" title="Editar objetivo">
+                  className="text-xs text-slate-500 hover:underline" title="Editar objetivo">
                   {s.objetivoCitas}
                 </button>
               )}
@@ -790,7 +790,7 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
             </div>
           </div>
           <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full transition-all duration-500 ${pctCitas >= 100 ? "bg-green-500" : citasAtrasado ? "bg-red-400" : "bg-indigo-500"}`}
+            <div className={`h-full rounded-full transition-all duration-500 ${pctCitas >= 100 ? "bg-green-500" : citasAtrasado ? "bg-red-400" : "bg-orange-500"}`}
               style={{ width: `${pctCitas}%` }} />
           </div>
         </div>

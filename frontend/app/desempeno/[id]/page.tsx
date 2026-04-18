@@ -155,15 +155,15 @@ export default function FichaComercialPage() {
       {/* Header */}
       <div className="bg-white rounded-xl border border-slate-200 p-6">
         <div className="flex items-start gap-4">
-          <div className="w-14 h-14 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-lg flex-shrink-0">
+          <div className="w-14 h-14 rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0" style={{ background: "#fff5f0", color: "#ea650d" }}>
             {iniciales}
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-slate-900">{nombre}</h1>
             <p className="text-sm text-slate-500 mt-0.5 capitalize">{comercial.rol === "director" ? "Director comercial" : "Comercial"}</p>
             <div className="flex flex-wrap gap-4 mt-3 text-sm text-slate-600">
-              {comercial.email && <a href={`mailto:${comercial.email}`} className="hover:text-indigo-600">{comercial.email}</a>}
-              {comercial.telefono && <a href={`tel:${comercial.telefono}`} className="hover:text-indigo-600">{comercial.telefono}</a>}
+              {comercial.email && <a href={`mailto:${comercial.email}`} className="transition-colors" onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "")}>{comercial.email}</a>}
+              {comercial.telefono && <a href={`tel:${comercial.telefono}`} className="transition-colors" onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "")}>{comercial.telefono}</a>}
             </div>
           </div>
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 shrink-0">
@@ -193,9 +193,9 @@ export default function FichaComercialPage() {
             <div className="space-y-2">
               {[
                 { label: "Total leads", val: stats.totalLeads, color: "bg-slate-200" },
-                { label: "Contactados", val: stats.contactados, color: "bg-indigo-200" },
-                { label: "Respondieron", val: stats.respondieron, color: "bg-indigo-400" },
-                { label: "Citas agendadas", val: stats.citasAgendadas, color: "bg-indigo-600" },
+                { label: "Contactados", val: stats.contactados, color: "bg-orange-200" },
+                { label: "Respondieron", val: stats.respondieron, color: "bg-orange-400" },
+                { label: "Citas agendadas", val: stats.citasAgendadas, color: "bg-orange-500" },
                 { label: "Cerrados ganados", val: stats.cerradosGanados, color: "bg-green-500" },
               ].map(row => {
                 const pct = stats.totalLeads > 0 ? Math.round((row.val / stats.totalLeads) * 100) : 0;
@@ -253,7 +253,7 @@ export default function FichaComercialPage() {
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
           <h2 className="text-sm font-semibold text-slate-800">Leads activos</h2>
-          <Link href={`/leads?comercial=${id}`} className="text-xs text-indigo-600 hover:underline">Ver todos →</Link>
+          <Link href={`/leads?comercial=${id}`} className="text-xs hover:underline" style={{ color: "#ea650d" }}>Ver todos →</Link>
         </div>
         {leadsActivos.length === 0 ? (
           <p className="text-sm text-slate-400 text-center py-8">Sin leads activos</p>
@@ -301,12 +301,13 @@ function StatBox({ label, valor, color }: { label: string; valor: number; color:
   const colorClass = {
     slate: "text-slate-800",
     red: "text-red-600",
-    indigo: "text-indigo-700",
+    indigo: "",
     green: "text-emerald-700",
   }[color];
+  const inlineStyle = color === "indigo" ? { color: "#ea650d" } : undefined;
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-      <p className={`text-2xl font-bold ${colorClass}`}>{valor}</p>
+      <p className={`text-2xl font-bold ${colorClass}`} style={inlineStyle}>{valor}</p>
       <p className="text-xs font-semibold text-slate-600 mt-0.5">{label}</p>
     </div>
   );
