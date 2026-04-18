@@ -91,9 +91,10 @@ export function FiltrosBar({
           onClick={() => onSoloMios(!soloMios)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
             soloMios
-              ? "bg-indigo-600 text-white border-indigo-600"
+              ? "text-white border-transparent"
               : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
           }`}
+          style={soloMios ? { background: "#ea650d" } : undefined}
         >
           <span>{soloMios ? "👤" : "👥"}</span>
           <span>{soloMios ? "Mis leads" : "Todos"}</span>

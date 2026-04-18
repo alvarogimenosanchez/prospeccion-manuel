@@ -14,9 +14,9 @@ const ESTADO_CFG: Record<string, { label: string; cls: string }> = {
   enriquecido:       { label: "Enriquecido", cls: "bg-sky-50 text-sky-700"          },
   segmentado:        { label: "Segmentado",  cls: "bg-blue-50 text-blue-700"        },
   mensaje_generado:  { label: "Msg. listo",  cls: "bg-cyan-50 text-cyan-700"        },
-  mensaje_enviado:   { label: "Contactado",  cls: "bg-indigo-50 text-indigo-700"    },
+  mensaje_enviado:   { label: "Contactado",  cls: "bg-orange-50 text-orange-700"    },
   respondio:         { label: "Respondió",   cls: "bg-amber-50 text-amber-700 font-semibold" },
-  cita_agendada:     { label: "Cita",        cls: "bg-indigo-100 text-indigo-800"   },
+  cita_agendada:     { label: "Cita",        cls: "bg-orange-100 text-orange-800"   },
   en_negociacion:    { label: "Negociando",  cls: "bg-violet-50 text-violet-700"    },
   cerrado_ganado:    { label: "✓ Ganado",    cls: "bg-emerald-50 text-emerald-700"  },
   cerrado_perdido:   { label: "Perdido",     cls: "bg-red-50 text-red-600"          },
@@ -102,7 +102,7 @@ export function LeadRow({ lead }: { lead: LeadDashboard }) {
           )}
         </div>
         <Link href={`/leads/${lead.id}`} className="block group/link">
-          <p className="text-sm font-semibold text-slate-800 group-hover/link:text-indigo-600 transition-colors truncate leading-tight">
+          <p className="text-sm font-semibold text-slate-800 truncate leading-tight">
             {nombre || "Sin nombre"}
           </p>
           {sublinea && (
@@ -127,7 +127,7 @@ export function LeadRow({ lead }: { lead: LeadDashboard }) {
               key={p}
               className={`text-xs px-1.5 py-0.5 rounded border ${
                 p === lead.producto_interes_principal
-                  ? "bg-indigo-50 border-indigo-200 text-indigo-700 font-medium"
+                  ? "border-orange-200 font-medium"
                   : "bg-slate-50 border-slate-200 text-slate-500"
               }`}
             >
@@ -152,11 +152,11 @@ export function LeadRow({ lead }: { lead: LeadDashboard }) {
       {/* Actividad / próxima acción */}
       <div className="w-36 text-right hidden md:block">
         {accionInfo ? (
-          <p className={`text-xs font-medium ${accionInfo.urgente ? "text-red-500" : "text-indigo-600"}`}>
+          <p className={`text-xs font-medium ${accionInfo.urgente ? "text-red-500" : ""}`} style={accionInfo.urgente ? undefined : { color: "#ea650d" }}>
             {accionInfo.text}
           </p>
         ) : lead.proxima_cita ? (
-          <p className="text-xs text-indigo-500 font-medium">
+          <p className="text-xs font-medium" style={{ color: "#ea650d" }}>
             Cita {format(new Date(lead.proxima_cita), "d MMM", { locale: es })}
           </p>
         ) : ultimaActividad ? (
@@ -199,7 +199,7 @@ export function LeadRow({ lead }: { lead: LeadDashboard }) {
         )}
         <Link
           href={`/leads/${lead.id}`}
-          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+          className="p-1.5 rounded-lg text-slate-400 hover:bg-orange-50 transition-colors"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M9 18l6-6-6-6"/>
