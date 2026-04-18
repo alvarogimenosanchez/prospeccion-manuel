@@ -183,6 +183,18 @@ export default function AgendaPage() {
   const [equipos, setEquipos] = useState<{ id: string; nombre: string }[]>([]);
   const [citaParaRegistrar, setCitaParaRegistrar] = useState<CitaConLead | null>(null);
 
+  // Nueva cita modal
+  const [modalNuevaCita, setModalNuevaCita] = useState(false);
+  const [nuevaCitaLeadQuery, setNuevaCitaLeadQuery] = useState("");
+  const [nuevaCitaLeadResultados, setNuevaCitaLeadResultados] = useState<{ id: string; nombre: string; apellidos: string | null; empresa: string | null }[]>([]);
+  const [nuevaCitaLeadSel, setNuevaCitaLeadSel] = useState<{ id: string; nombre: string; apellidos: string | null; empresa: string | null } | null>(null);
+  const [nuevaCitaFecha, setNuevaCitaFecha] = useState("");
+  const [nuevaCitaTipo, setNuevaCitaTipo] = useState<"llamada" | "videollamada" | "reunion_presencial">("llamada");
+  const [nuevaCitaNotas, setNuevaCitaNotas] = useState("");
+  const [nuevaCitaComercial, setNuevaCitaComercial] = useState("");
+  const [guardandoNuevaCita, setGuardandoNuevaCita] = useState(false);
+  const [nuevaCitaError, setNuevaCitaError] = useState("");
+
   useEffect(() => {
     Promise.all([
       supabase.from("comerciales").select("id, nombre, apellidos").eq("activo", true).order("nombre"),
@@ -268,6 +280,49 @@ export default function AgendaPage() {
     setCitaParaRegistrar(null);
   }
 
+  // Buscar leads para nueva cita
+  useEffect(() => {
+    if (!nuevaCitaLeadQuery.trim()) { setNuevaCitaLeadResultados([]); return; }
+    const t = setTimeout(async () => {
+      const { data } = await supabase.from("leads")
+        .select("id, nombre, apellidos, empresa")
+        .or(`nombre.ilike.%${nuevaCitaLeadQuery}%,apellidos.ilike.%${nuevaCitaLeadQuery}%,empresa.ilike.%${nuevaCitaLeadQuery}%`)
+        .not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)")
+        .limit(8);
+      setNuevaCitaLeadResultados(data ?? []);
+    }, 250);
+    return () => clearTimeout(t);
+  }, [nuevaCitaLeadQuery, supabase]);
+
+  async function guardarNuevaCita() {
+    if (!nuevaCitaLeadSel || !nuevaCitaFecha) { setNuevaCitaError("Selecciona un lead y una fecha."); return; }
+    setGuardandoNuevaCita(true);
+    setNuevaCitaError("");
+    const { data } = await supabase.from("appointments").insert({
+      lead_id: nuevaCitaLeadSel.id,
+      tipo: nuevaCitaTipo,
+      estado: "confirmada",
+      fecha_hora: new Date(nuevaCitaFecha).toISOString(),
+      duracion_minutos: 30,
+      notas_previas: nuevaCitaNotas || null,
+      comercial_id: nuevaCitaComercial || null,
+    }).select(`*, lead:leads(nombre, apellidos, empresa, telefono_whatsapp, temperatura), comercial:comerciales(nombre, apellidos)`).single();
+    if (data) {
+      setCitas(prev => [...prev, data as CitaConLead].sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora)));
+      // Log interaction
+      await supabase.from("interactions").insert({
+        lead_id: nuevaCitaLeadSel.id, tipo: "nota_manual",
+        mensaje: `📅 Cita agendada: ${nuevaCitaTipo === "llamada" ? "Llamada" : nuevaCitaTipo === "videollamada" ? "Videollamada" : "Reunión presencial"} · ${format(new Date(nuevaCitaFecha), "d MMM HH:mm", { locale: es })}`,
+        origen: "comercial",
+      });
+      await supabase.from("leads").update({ estado: "cita_agendada", temperatura: "caliente", updated_at: new Date().toISOString() }).eq("id", nuevaCitaLeadSel.id);
+    }
+    setModalNuevaCita(false);
+    setNuevaCitaLeadQuery(""); setNuevaCitaLeadSel(null); setNuevaCitaFecha("");
+    setNuevaCitaNotas(""); setNuevaCitaComercial(""); setNuevaCitaTipo("llamada");
+    setGuardandoNuevaCita(false);
+  }
+
   const dias = Array.from({ length: 7 }, (_, i) => addDays(semanaBase, i));
   const hoy = new Date();
 
@@ -280,6 +335,98 @@ export default function AgendaPage() {
 
   return (
     <div className="space-y-6">
+      {/* Modal nueva cita */}
+      {modalNuevaCita && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(0,0,0,0.45)", zIndex: 9999 }}
+          onClick={e => { if (e.target === e.currentTarget) setModalNuevaCita(false); }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-800">Nueva cita</h2>
+              <button onClick={() => setModalNuevaCita(false)} className="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+            </div>
+            <div className="p-6 space-y-4">
+              {/* Lead search */}
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Lead</label>
+                {nuevaCitaLeadSel ? (
+                  <div className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">{[nuevaCitaLeadSel.nombre, nuevaCitaLeadSel.apellidos].filter(Boolean).join(" ")}</p>
+                      {nuevaCitaLeadSel.empresa && <p className="text-xs text-slate-500">{nuevaCitaLeadSel.empresa}</p>}
+                    </div>
+                    <button onClick={() => { setNuevaCitaLeadSel(null); setNuevaCitaLeadQuery(""); }} className="text-xs text-orange-600 hover:text-orange-800">Cambiar</button>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <input value={nuevaCitaLeadQuery} onChange={e => setNuevaCitaLeadQuery(e.target.value)}
+                      placeholder="Buscar por nombre o empresa..."
+                      className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300" />
+                    {nuevaCitaLeadResultados.length > 0 && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 overflow-hidden">
+                        {nuevaCitaLeadResultados.map(l => (
+                          <button key={l.id} onClick={() => { setNuevaCitaLeadSel(l); setNuevaCitaLeadQuery(""); setNuevaCitaLeadResultados([]); }}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-orange-50 border-b border-slate-100 last:border-0">
+                            <span className="font-medium text-slate-800">{[l.nombre, l.apellidos].filter(Boolean).join(" ")}</span>
+                            {l.empresa && <span className="text-slate-500 ml-2 text-xs">{l.empresa}</span>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              {/* Fecha y hora */}
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Fecha y hora <span className="text-red-400">*</span></label>
+                <input type="datetime-local" value={nuevaCitaFecha} onChange={e => setNuevaCitaFecha(e.target.value)}
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300" />
+              </div>
+              {/* Tipo */}
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Tipo</label>
+                <div className="flex gap-2">
+                  {(["llamada", "videollamada", "reunion_presencial"] as const).map(t => (
+                    <button key={t} onClick={() => setNuevaCitaTipo(t)}
+                      className="flex-1 text-xs py-2 rounded-lg border font-medium transition-all"
+                      style={nuevaCitaTipo === t ? { background: "#ea650d", color: "#fff", borderColor: "#ea650d" } : { background: "#fff", color: "#6b7280", borderColor: "#e5e7eb" }}>
+                      {t === "llamada" ? "📞 Llamada" : t === "videollamada" ? "💻 Video" : "🤝 Presencial"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Comercial */}
+              {comerciales.length > 1 && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Comercial</label>
+                  <select value={nuevaCitaComercial} onChange={e => setNuevaCitaComercial(e.target.value)}
+                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-orange-300">
+                    <option value="">Sin asignar</option>
+                    {comerciales.map(c => <option key={c.id} value={c.id}>{c.nombre} {c.apellidos ?? ""}</option>)}
+                  </select>
+                </div>
+              )}
+              {/* Notas */}
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Notas previas</label>
+                <textarea value={nuevaCitaNotas} onChange={e => setNuevaCitaNotas(e.target.value)} rows={2}
+                  placeholder="Contexto, tema a tratar, preparación..."
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 resize-none focus:outline-none focus:border-orange-300" />
+              </div>
+              {nuevaCitaError && <p className="text-xs text-red-500">{nuevaCitaError}</p>}
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+              <button onClick={guardarNuevaCita} disabled={guardandoNuevaCita || !nuevaCitaLeadSel || !nuevaCitaFecha}
+                className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}>
+                {guardandoNuevaCita ? "Guardando..." : "Agendar cita"}
+              </button>
+              <button onClick={() => setModalNuevaCita(false)} className="px-4 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal post-cita */}
       {citaParaRegistrar && (
         <ModalPostCita
@@ -300,6 +447,10 @@ export default function AgendaPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <button onClick={() => setModalNuevaCita(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-white text-sm font-medium rounded-lg transition-colors" style={{ background: "#ea650d" }}>
+            <span className="text-base leading-none">+</span> Nueva cita
+          </button>
           {/* Filtro equipo */}
           {equipos.length > 0 && (
             <select
