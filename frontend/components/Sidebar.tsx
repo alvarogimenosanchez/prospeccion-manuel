@@ -35,7 +35,7 @@ function NavIcon({ name }: { name: string }) {
   );
 }
 
-// ── Navigation groups ─────────────────────────────────────────────────────────
+// ── Navigation ────────────────────────────────────────────────────────────────
 const NAV_GROUPS = [
   {
     label: "Diario",
@@ -94,26 +94,49 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
-  return (
-    <div className="flex flex-col h-full bg-[#0D1117] overflow-y-auto sidebar-scroll">
+  // Styles as inline to match brand tokens exactly
+  const navItemBase: React.CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "7px 12px",
+    borderRadius: "4px",
+    fontSize: "14px",
+    transition: "background 0.12s, color 0.12s",
+    textDecoration: "none",
+    cursor: "pointer",
+  };
 
+  return (
+    <div
+      className="flex flex-col h-full overflow-y-auto sidebar-scroll"
+      style={{ background: "#ffffff", borderRight: "1px solid #e5ded9" }}
+    >
       {/* Logo */}
       <div className="flex items-center justify-between px-4 pt-5 pb-4 shrink-0">
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold shrink-0"
-            style={{ background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)" }}>
-            M
+        <Link href="/" className="flex items-center gap-2.5">
+          {/* NN orange logo mark */}
+          <div
+            className="w-8 h-8 flex items-center justify-center text-white text-sm font-bold shrink-0"
+            style={{ background: "#ea650d", borderRadius: "4px" }}
+          >
+            NN
           </div>
           <div>
-            <p className="text-white text-sm font-semibold leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
+            <p className="text-sm font-semibold leading-tight" style={{ color: "#414141" }}>
               Manuel
             </p>
-            <p className="text-slate-600 text-[10px] leading-tight">Prospección CRM</p>
+            <p className="text-[10px] leading-tight" style={{ color: "#a09890" }}>
+              Prospección CRM
+            </p>
           </div>
         </Link>
-        {/* Close btn — mobile only */}
         {onClose && (
-          <button onClick={onClose} className="md:hidden p-1 text-slate-500 hover:text-white transition-colors">
+          <button
+            onClick={onClose}
+            className="md:hidden p-1 rounded transition-colors"
+            style={{ color: "#a09890" }}
+          >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
@@ -121,16 +144,18 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         )}
       </div>
 
-      {/* Dashboard link */}
+      {/* Dashboard */}
       <div className="px-2 mb-1">
         <Link
           href="/"
           onClick={onClose}
-          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
-            isActive("/")
-              ? "bg-white/8 text-white font-medium"
-              : "text-slate-500 hover:text-slate-300 hover:bg-white/4"
-          }`}
+          style={{
+            ...navItemBase,
+            background: isActive("/") ? "#fff5f0" : "transparent",
+            color: isActive("/") ? "#ea650d" : "#6b6560",
+            fontWeight: isActive("/") ? 500 : 400,
+            borderLeft: isActive("/") ? "3px solid #ea650d" : "3px solid transparent",
+          }}
         >
           <NavIcon name="home" />
           <span>Dashboard</span>
@@ -138,60 +163,90 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       </div>
 
       {/* Divider */}
-      <div className="mx-4 h-px bg-white/5 mb-2" />
+      <div className="mx-4 mb-2" style={{ height: "1px", background: "#f0ebe7" }} />
 
       {/* Nav groups */}
       <nav className="flex-1 px-2 space-y-4 pb-4">
         {NAV_GROUPS.map((group) => (
           <div key={group.label}>
-            <p className="px-3 mb-1 text-[10px] uppercase tracking-[0.14em] text-slate-700 font-semibold">
+            <p
+              className="px-3 mb-1 uppercase text-[10px] tracking-[0.14em] font-semibold"
+              style={{ color: "#bbb5b0" }}
+            >
               {group.label}
             </p>
             <div className="space-y-0.5">
-              {group.items.map(({ href, label, icon }) => (
-                <Link
-                  key={href}
-                  href={href}
-                  onClick={onClose}
-                  className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
-                    isActive(href)
-                      ? "bg-indigo-500/12 text-indigo-300 font-medium"
-                      : "text-slate-500 hover:text-slate-300 hover:bg-white/4"
-                  }`}
-                >
-                  <NavIcon name={icon} />
-                  <span>{label}</span>
-                </Link>
-              ))}
+              {group.items.map(({ href, label, icon }) => {
+                const active = isActive(href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={onClose}
+                    style={{
+                      ...navItemBase,
+                      background: active ? "#fff5f0" : "transparent",
+                      color: active ? "#ea650d" : "#6b6560",
+                      fontWeight: active ? 500 : 400,
+                      borderLeft: active ? "3px solid #ea650d" : "3px solid transparent",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!active) {
+                        e.currentTarget.style.background = "#faf8f6";
+                        e.currentTarget.style.color = "#414141";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!active) {
+                        e.currentTarget.style.background = "transparent";
+                        e.currentTarget.style.color = "#6b6560";
+                      }
+                    }}
+                  >
+                    <NavIcon name={icon} />
+                    <span>{label}</span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         ))}
       </nav>
 
       {/* User footer */}
-      <div className="shrink-0 border-t border-white/5 px-3 py-3">
+      <div
+        className="shrink-0 px-3 py-3"
+        style={{ borderTop: "1px solid #f0ebe7" }}
+      >
         {user ? (
           <div className="flex items-center gap-2.5">
             {user.user_metadata?.avatar_url ? (
               <img
                 src={user.user_metadata.avatar_url}
                 alt=""
-                className="w-7 h-7 rounded-full border border-white/10 shrink-0"
+                className="w-7 h-7 rounded-full shrink-0"
+                style={{ border: "1px solid #e5ded9" }}
               />
             ) : (
-              <div className="w-7 h-7 rounded-full bg-indigo-500/20 flex items-center justify-center shrink-0">
-                <span className="text-indigo-300 text-xs font-semibold">
+              <div
+                className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: "#fff5f0" }}
+              >
+                <span className="text-xs font-semibold" style={{ color: "#ea650d" }}>
                   {(user.user_metadata?.full_name ?? user.email ?? "?")[0].toUpperCase()}
                 </span>
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-slate-300 text-xs font-medium truncate leading-tight">
+              <p className="text-xs font-medium truncate leading-tight" style={{ color: "#414141" }}>
                 {user.user_metadata?.full_name?.split(" ")[0] ?? user.email}
               </p>
               <button
                 onClick={cerrarSesion}
-                className="text-slate-600 text-[10px] hover:text-red-400 transition-colors leading-tight flex items-center gap-1 mt-0.5"
+                className="text-[10px] leading-tight flex items-center gap-1 mt-0.5 transition-colors"
+                style={{ color: "#a09890" }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#e64415")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "#a09890")}
               >
                 <NavIcon name="logout" />
                 Cerrar sesión

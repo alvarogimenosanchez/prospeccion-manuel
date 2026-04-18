@@ -17,105 +17,126 @@ function LoginForm() {
     setLoading(true);
     await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     });
   }
 
   return (
-    <div className="min-h-screen flex" style={{ background: "#080C14" }}>
-      {/* Left panel — branding */}
-      <div className="hidden lg:flex flex-col justify-between w-[420px] shrink-0 px-10 py-12"
-        style={{ background: "linear-gradient(160deg, #0D1117 0%, #111827 100%)", borderRight: "1px solid rgba(255,255,255,0.05)" }}>
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-base"
-            style={{ background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)" }}>
-            M
+    <div className="min-h-screen flex" style={{ background: "#f1edeb" }}>
+      {/* Left — branding panel */}
+      <div
+        className="hidden lg:flex flex-col justify-between w-[440px] shrink-0 px-10 py-12"
+        style={{ background: "#ffffff", borderRight: "1px solid #e5ded9" }}
+      >
+        {/* Logo */}
+        <div className="flex items-center gap-3">
+          <div
+            className="w-10 h-10 flex items-center justify-center text-white font-bold text-sm"
+            style={{ background: "#ea650d", borderRadius: "4px" }}
+          >
+            NN
           </div>
-          <span className="text-white font-semibold text-base" style={{ fontFamily: "var(--font-heading)" }}>
-            Manuel · CRM
-          </span>
+          <div>
+            <p className="font-semibold text-sm" style={{ color: "#414141" }}>
+              Nationale-Nederlanden
+            </p>
+            <p className="text-xs" style={{ color: "#a09890" }}>Prospección Comercial</p>
+          </div>
         </div>
 
+        {/* Central message */}
         <div className="space-y-6">
           <div>
-            <h1 className="text-3xl font-bold text-white leading-tight" style={{ fontFamily: "var(--font-heading)" }}>
+            <h1 className="text-3xl font-normal leading-tight" style={{ color: "#414141" }}>
               Tu sistema de<br />
-              <span style={{ background: "linear-gradient(90deg, #818CF8, #A78BFA)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                prospección comercial
-              </span>
+              <span style={{ color: "#ea650d" }}>prospección inteligente</span>
             </h1>
-            <p className="mt-3 text-slate-500 text-sm leading-relaxed">
-              Gestiona leads, automatiza seguimientos y cierra más operaciones con inteligencia artificial.
+            <p className="mt-3 text-sm leading-relaxed" style={{ color: "#6b6560", lineHeight: "22px" }}>
+              Gestiona leads, automatiza el seguimiento y cierra más operaciones con ayuda de IA.
             </p>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3.5">
             {[
               { icon: "🎯", text: "Cola diaria priorizada automáticamente" },
-              { icon: "🤖", text: "Mensajes personalizados con IA" },
+              { icon: "🤖", text: "Mensajes personalizados generados con IA" },
               { icon: "📊", text: "Métricas de desempeño en tiempo real" },
+              { icon: "📱", text: "Envío directo por WhatsApp integrado" },
             ].map(({ icon, text }) => (
               <div key={text} className="flex items-center gap-3">
-                <span className="text-base">{icon}</span>
-                <span className="text-slate-400 text-sm">{text}</span>
+                <span className="text-base w-5 text-center shrink-0">{icon}</span>
+                <span className="text-sm" style={{ color: "#6b6560" }}>{text}</span>
               </div>
             ))}
           </div>
         </div>
 
-        <p className="text-slate-700 text-xs">
-          © 2026 Manuel · Prospección Comercial
+        <p className="text-xs" style={{ color: "#c7bdb7" }}>
+          © 2026 Nationale-Nederlanden España · Manuel CRM
         </p>
       </div>
 
-      {/* Right panel — login form */}
+      {/* Right — login form */}
       <div className="flex-1 flex items-center justify-center px-6">
         <div className="w-full max-w-sm space-y-7">
           {/* Mobile logo */}
-          <div className="lg:hidden flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-base"
-              style={{ background: "linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)" }}>
-              M
+          <div className="lg:hidden flex items-center gap-3">
+            <div
+              className="w-9 h-9 flex items-center justify-center text-white font-bold text-sm"
+              style={{ background: "#ea650d", borderRadius: "4px" }}
+            >
+              NN
             </div>
-            <span className="text-white font-semibold text-base" style={{ fontFamily: "var(--font-heading)" }}>
+            <span className="font-semibold text-sm" style={{ color: "#414141" }}>
               Manuel · CRM
             </span>
           </div>
 
+          {/* Heading */}
           <div>
-            <h2 className="text-2xl font-bold text-white" style={{ fontFamily: "var(--font-heading)" }}>
+            <h2 className="text-2xl font-normal" style={{ color: "#414141" }}>
               Iniciar sesión
             </h2>
-            <p className="text-slate-500 text-sm mt-1">
+            <p className="text-sm mt-1" style={{ color: "#a09890" }}>
               Accede con tu cuenta de Google autorizada
             </p>
           </div>
 
+          {/* Error */}
           {error === "no_autorizado" && (
-            <div className="rounded-xl px-4 py-3 text-sm"
-              style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)", color: "#FCA5A5" }}>
+            <div
+              className="rounded px-4 py-3 text-sm"
+              style={{
+                background: "#fff5f0",
+                border: "1px solid #f5c5a8",
+                color: "#c0400a",
+                borderRadius: "4px",
+              }}
+            >
               Tu cuenta de Google no está autorizada. Contacta con el administrador.
             </div>
           )}
 
+          {/* Google button */}
           <button
             onClick={loginConGoogle}
             disabled={loading}
-            className="w-full flex items-center justify-center gap-3 px-5 py-3.5 rounded-xl text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-3 px-5 py-3 text-sm font-medium transition-all disabled:opacity-50"
             style={{
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              color: "#E2E8F0",
+              background: "#ffffff",
+              border: "1px solid #e5ded9",
+              borderRadius: "4px",
+              color: "#414141",
+              boxShadow: "0 2px 8px rgba(102,102,102,0.08)",
             }}
-            onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "rgba(255,255,255,0.10)")}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.06)")}
+            onMouseEnter={(e) => !loading && (e.currentTarget.style.background = "#faf8f6")}
+            onMouseLeave={(e) => (e.currentTarget.style.background = "#ffffff")}
           >
             {loading ? (
-              <svg className="animate-spin w-5 h-5 text-slate-400" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+              <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none"
+                stroke="#ea650d" strokeWidth="2">
+                <circle className="opacity-25" cx="12" cy="12" r="10" strokeWidth="4" />
+                <path className="opacity-75" fill="#ea650d" d="M4 12a8 8 0 018-8v8H4z" />
               </svg>
             ) : (
               <svg width="20" height="20" viewBox="0 0 24 24">
@@ -128,8 +149,14 @@ function LoginForm() {
             <span>{loading ? "Redirigiendo..." : "Continuar con Google"}</span>
           </button>
 
-          <p className="text-center text-xs text-slate-700">
-            Acceso restringido a comerciales autorizados
+          {/* Primary CTA — orange style */}
+          <div
+            className="h-px w-full"
+            style={{ background: "#e5ded9" }}
+          />
+
+          <p className="text-center text-xs" style={{ color: "#c7bdb7" }}>
+            Acceso restringido a comerciales autorizados de Nationale-Nederlanden
           </p>
         </div>
       </div>

@@ -1,0 +1,56 @@
+/**
+ * Nationale-Nederlanden Design Tokens
+ * Source: https://www.nnespana.es/
+ * Generated: 2026-04-18
+ *
+ * Usage in Tailwind v4 via @theme + :root CSS variables.
+ * NNNittiGrotesk is proprietary — fallback is Lato (Google Fonts).
+ */
+
+@theme {
+  /* ── Brand Colors ──────────────────────────────────────────────────────── */
+  --color-brand:         #ea650d;  /* Primary orange */
+  --color-brand-hover:   #e64415;  /* Dark orange for hover */
+  --color-charcoal:      #414141;  /* Primary text */
+  --color-charcoal-btn:  #404040;  /* Secondary button bg */
+  --color-trust:         #0270e0;  /* Blue accent / links */
+  --color-warm:          #f1edeb;  /* Subtle bg sections */
+  --color-border:        #e5ded9;  /* Borders and dividers */
+
+  /* ── Border Radius ─────────────────────────────────────────────────────── */
+  --radius-sm:   2px;
+  --radius-md:   4px;   /* Standard — most components */
+  --radius-lg:   6px;
+  --radius-xl:   8px;
+  --radius-pill: 25px;
+
+  /* ── Spacing (4px base grid) ───────────────────────────────────────────── */
+  --spacing-xs:  4px;
+  --spacing-sm:  8px;
+  --spacing-md:  12px;
+  --spacing-lg:  16px;
+  --spacing-xl:  24px;
+  --spacing-2xl: 32px;
+  --spacing-3xl: 40px;
+}
+
+:root {
+  /* Colors (also as :root for non-Tailwind usage) */
+  --color-brand:         #ea650d;
+  --color-brand-hover:   #e64415;
+  --color-charcoal:      #414141;
+  --color-trust:         #0270e0;
+  --color-warm:          #f1edeb;
+  --color-border:        #e5ded9;
+
+  /* Typography scale */
+  --font-heading-size-lg: 36px;
+  --font-heading-lh-lg:   40px;
+  --font-heading-size-md: 24px;
+  --font-heading-lh-md:   28px;
+  --font-body-size-lg:    24px;
+  --font-body-lh-lg:      33.6px;
+  --font-body-size:       16px;
+  --font-body-lh:         22px;
+  --font-body-lh-medium:  24px;
+}
