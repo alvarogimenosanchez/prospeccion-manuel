@@ -120,6 +120,7 @@ function PipelineContent() {
   const [colapsadas, setColapsadas] = useState<Set<Estado>>(new Set());
   const [busqueda, setBusqueda] = useState("");
   const [limiteColumna, setLimiteColumna] = useState<Record<string, number>>({});
+  const [verTodos, setVerTodos] = useState(false);
 
   const CARDS_PER_COL = 25;
 
@@ -142,18 +143,19 @@ function PipelineContent() {
   }, []);
 
   const cargarLeads = useCallback(async () => {
-    if (!comercialId) return;
+    if (!comercialId && !verTodos) return;
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from("leads")
       .select("id, nombre, apellidos, empresa, sector, nivel_interes, ciudad, estado, updated_at, comercial_asignado, proxima_accion, proxima_accion_fecha, telefono_whatsapp")
       .in("estado", COLUMNAS.map(c => c.estado))
-      .eq("comercial_asignado", comercialId)
       .order("nivel_interes", { ascending: false })
       .limit(500);
+    if (!verTodos && comercialId) query = query.eq("comercial_asignado", comercialId);
+    const { data } = await query;
     setLeads((data as Lead[]) ?? []);
     setLoading(false);
-  }, [comercialId]);
+  }, [comercialId, verTodos]);
 
   useEffect(() => { cargarLeads(); }, [cargarLeads]);
 
@@ -208,10 +210,17 @@ function PipelineContent() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Pipeline</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {comercialNombre ? `Leads de ${comercialNombre}` : "Vista Kanban del proceso de ventas"}
+            {verTodos ? "Todos los comerciales" : comercialNombre ? `Leads de ${comercialNombre}` : "Vista Kanban del proceso de ventas"}
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setVerTodos(v => !v)}
+            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border font-medium transition-all ${verTodos ? "text-white border-transparent" : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"}`}
+            style={verTodos ? { background: "#ea650d" } : undefined}
+          >
+            {verTodos ? "👥 Todos" : "👤 Mis leads"}
+          </button>
           <input
             type="text"
             placeholder="Buscar lead..."
@@ -227,7 +236,7 @@ function PipelineContent() {
 
       {loading ? (
         <div className="py-24 text-center text-sm text-slate-400">Cargando pipeline...</div>
-      ) : !comercialId ? (
+      ) : (!comercialId && !verTodos) ? (
         <div className="py-24 text-center text-sm text-slate-400">No se encontró tu perfil de comercial.</div>
       ) : (
         <div className="overflow-x-auto pb-4">
