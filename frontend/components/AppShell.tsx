@@ -25,9 +25,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 z-40 h-full w-56 transition-transform duration-200 ease-out
+        className={`fixed left-0 top-0 z-40 h-full w-56
+          transition-transform duration-200 ease-out
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
-          md:translate-x-0`}
+          md:translate-x-0 md:[transform:none]`}
       >
         <Sidebar onClose={() => setSidebarOpen(false)} />
       </aside>
