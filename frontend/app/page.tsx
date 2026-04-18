@@ -315,12 +315,13 @@ export default function DashboardPage() {
       {/* ── Accesos rápidos ── */}
       <div>
         <h2 className="text-sm font-semibold text-slate-700 mb-3">Accesos rápidos</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          <QuickLink href="/hoy" icon="🎯" label="Hoy" sub="Tareas y cola del día" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <QuickLink href="/hoy" icon="🎯" label="Hoy" sub="Cola del día" />
+          <QuickLink href="/leads/nuevo" icon="➕" label="Nuevo lead" sub="Añadir manualmente" highlight />
           <QuickLink href="/mensajes" icon="💬" label="Mensajes" sub="WhatsApp pendientes" />
           <QuickLink href="/mensajes-internos" icon="🗨️" label="Chat equipo" sub="Mensajes internos" />
-          <QuickLink href="/prospeccion" icon="📥" label="Prospectar" sub="Importar y gestionar leads" />
-          <QuickLink href="/desempeno" icon="📊" label="Desempeño" sub="Métricas del equipo" />
+          <QuickLink href="/prospeccion" icon="📥" label="Prospectar" sub="Importar leads" />
+          <QuickLink href="/desempeno" icon="📊" label="Desempeño" sub="Métricas" />
         </div>
       </div>
     </div>
@@ -338,7 +339,20 @@ function StatBox({ label, valor, sub, href, color }: { label: string; valor: num
   );
 }
 
-function QuickLink({ href, icon, label, sub }: { href: string; icon: string; label: string; sub: string }) {
+function QuickLink({ href, icon, label, sub, highlight }: { href: string; icon: string; label: string; sub: string; highlight?: boolean }) {
+  if (highlight) {
+    return (
+      <Link href={href} className="rounded-xl p-4 hover:shadow-sm transition-all flex items-start gap-3" style={{ background: "#ea650d", border: "1px solid #c95309" }}
+        onMouseEnter={e => (e.currentTarget.style.filter = "brightness(1.05)")}
+        onMouseLeave={e => (e.currentTarget.style.filter = "")}>
+        <span className="text-xl">{icon}</span>
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-white">{label}</p>
+          <p className="text-xs text-orange-100 mt-0.5 truncate">{sub}</p>
+        </div>
+      </Link>
+    );
+  }
   return (
     <Link href={href} className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-sm transition-all flex items-start gap-3" onMouseEnter={e => (e.currentTarget.style.borderColor = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.borderColor = "")}>
       <span className="text-xl">{icon}</span>

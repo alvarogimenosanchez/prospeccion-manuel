@@ -38,7 +38,19 @@ const ESTADOS = [
   { value: "descartado", label: "Descartado", class: "bg-slate-100 text-slate-400" },
 ];
 
-const TEMPERATURA_POR_ESTADO: Record<string, string> = {};
+const TEMPERATURA_POR_ESTADO: Record<string, string> = {
+  nuevo:            "frio",
+  enriquecido:      "frio",
+  segmentado:       "frio",
+  mensaje_generado: "frio",
+  mensaje_enviado:  "frio",
+  respondio:        "templado",
+  cita_agendada:    "caliente",
+  en_negociacion:   "caliente",
+  cerrado_ganado:   "caliente",
+  cerrado_perdido:  "frio",
+  descartado:       "frio",
+};
 
 function prioridadDeNivel(nivel: number): "alta" | "media" | "baja" {
   if (nivel >= 8) return "alta";
@@ -216,7 +228,7 @@ export default function LeadDetailPage() {
 
   // Post-cita
   const [citaParaRegistrar, setCitaParaRegistrar] = useState<Appointment | null>(null);
-  const [postCitaForm, setPostCitaForm] = useState({ resultado: "interesado", notas_post: "", proxima_accion: "llamar", proxima_accion_nota: "" });
+  const [postCitaForm, setPostCitaForm] = useState({ resultado: "interesado", notas_post: "", proxima_accion: "llamar", proxima_accion_nota: "", proxima_accion_fecha: "" });
   const [errorPostCita, setErrorPostCita] = useState("");
   const [guardandoPostCita, setGuardandoPostCita] = useState(false);
 
@@ -473,7 +485,7 @@ export default function LeadDetailPage() {
       const cita = appointments.find(a => a.id === citaId);
       if (cita) {
         setCitaParaRegistrar(cita);
-        setPostCitaForm({ resultado: "interesado", notas_post: "", proxima_accion: "llamar", proxima_accion_nota: "" });
+        setPostCitaForm({ resultado: "interesado", notas_post: "", proxima_accion: "llamar", proxima_accion_nota: "", proxima_accion_fecha: "" });
         return;
       }
     }
@@ -499,7 +511,7 @@ export default function LeadDetailPage() {
     const leadUpdates: Record<string, string | null> = {
       proxima_accion: postCitaForm.proxima_accion !== "ninguna" ? postCitaForm.proxima_accion : null,
       proxima_accion_nota: postCitaForm.proxima_accion_nota || null,
-      proxima_accion_fecha: null,
+      proxima_accion_fecha: postCitaForm.proxima_accion_fecha || null,
       updated_at: new Date().toISOString(),
     };
     if (postCitaForm.resultado === "cerrado_ganado") leadUpdates.estado = "cerrado_ganado";
@@ -765,10 +777,15 @@ export default function LeadDetailPage() {
                   <option value="ninguna">— Ninguna (cerrado)</option>
                 </select>
                 {postCitaForm.proxima_accion !== "ninguna" && (
-                  <input type="text" value={postCitaForm.proxima_accion_nota}
-                    onChange={e => setPostCitaForm(p => ({ ...p, proxima_accion_nota: e.target.value }))}
-                    placeholder="Nota para la próxima acción (opcional)"
-                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 mt-1.5 focus:outline-none focus:border-orange-300" />
+                  <div className="space-y-1.5 mt-1.5">
+                    <input type="datetime-local" value={postCitaForm.proxima_accion_fecha}
+                      onChange={e => setPostCitaForm(p => ({ ...p, proxima_accion_fecha: e.target.value }))}
+                      className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300" />
+                    <input type="text" value={postCitaForm.proxima_accion_nota}
+                      onChange={e => setPostCitaForm(p => ({ ...p, proxima_accion_nota: e.target.value }))}
+                      placeholder="Nota (opcional)"
+                      className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300" />
+                  </div>
                 )}
               </div>
             </div>
