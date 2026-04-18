@@ -462,7 +462,7 @@ export default function ProspeccionPage() {
                 <span className="font-semibold text-slate-800">{headerStats.estaSemana}</span> esta semana
               </span>
               <span className="text-slate-300">|</span>
-              <span className="text-sm text-red-600">
+              <span className="text-sm text-green-700">
                 <span className="font-semibold">{headerStats.respondieron}</span> respondió
               </span>
             </div>
@@ -481,7 +481,7 @@ export default function ProspeccionPage() {
       </div>
 
       {/* Barra de agentes */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
           <div>
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
@@ -1009,6 +1009,9 @@ export default function ProspeccionPage() {
           <option value="nuevo">Nuevos (sin contactar)</option>
           <option value="mensaje_enviado">Contactados</option>
           <option value="respondio">Respondieron</option>
+          <option value="cita_agendada">Cita agendada</option>
+          <option value="reunion_completada">Reunión completada</option>
+          <option value="en_negociacion">En negociación</option>
           <option value="descartado">Descartados</option>
         </select>
 
