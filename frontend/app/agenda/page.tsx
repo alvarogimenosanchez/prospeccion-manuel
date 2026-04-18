@@ -651,7 +651,9 @@ function TarjetaCitaCompleta({ cita, onActualizar }: { cita: CitaConLead; onActu
 
       {/* Estado badge */}
       <span className={`text-xs px-2 py-0.5 rounded-full font-medium border flex-shrink-0 ${ESTADO_COLOR[cita.estado] ?? "bg-slate-100 text-slate-500 border-slate-200"}`}>
-        {cita.estado === "solicitud_pendiente" ? "Solicitud" : cita.estado}
+        {cita.estado === "solicitud_pendiente" ? "Solicitud"
+          : cita.estado === "no_show" ? "No asistió"
+          : cita.estado}
       </span>
     </div>
   );

@@ -316,6 +316,7 @@ export default function LeadDetailPage() {
       cargo: lead.cargo ?? "",
       sector: lead.sector ?? "",
       ciudad: lead.ciudad ?? "",
+      web: lead.web ?? "",
       estado: lead.estado,
       temperatura: lead.temperatura,
       nivel_interes: lead.nivel_interes,
@@ -1212,12 +1213,12 @@ export default function LeadDetailPage() {
                 <span className="text-sm text-slate-700">{lead.ciudad}</span>
               </div>
             )}
-            {lead.fuente_detalle && lead.fuente_detalle.startsWith("http") && (
+            {(lead.web || (lead.fuente_detalle && lead.fuente_detalle.startsWith("http"))) && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-400 w-20 flex-shrink-0">Web</span>
-                <a href={lead.fuente_detalle} target="_blank" rel="noopener noreferrer"
+                <a href={lead.web || lead.fuente_detalle!} target="_blank" rel="noopener noreferrer"
                   className="text-sm hover:underline truncate" style={{ color: "#ea650d" }}>
-                  {lead.fuente_detalle.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+                  {(lead.web || lead.fuente_detalle!).replace(/^https?:\/\//, "").replace(/\/$/, "")}
                 </a>
               </div>
             )}
@@ -1723,6 +1724,12 @@ export default function LeadDetailPage() {
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">Ciudad</label>
                     <input value={editForm.ciudad ?? ""} onChange={e => setEditForm(p => ({ ...p, ciudad: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" />
+                  </div>
+                  <div className="col-span-2">
+                    <label className="block text-xs text-slate-500 mb-1">Web del negocio</label>
+                    <input value={editForm.web ?? ""} onChange={e => setEditForm(p => ({ ...p, web: e.target.value }))}
+                      placeholder="https://ejemplo.com"
                       className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" />
                   </div>
                 </div>

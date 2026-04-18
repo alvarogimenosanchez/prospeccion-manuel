@@ -34,6 +34,7 @@ export type Lead = {
   productos_recomendados: string[] | null;
   producto_interes_principal: string | null;
   notas: string | null;
+  web: string | null;
   comercial_asignado: string | null;
   team_id: string | null;
   proxima_accion: "llamar" | "whatsapp" | "email" | "esperar_respuesta" | "enviar_info" | "reunion" | "ninguna" | null;
