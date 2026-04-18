@@ -73,21 +73,14 @@ function LeadsContent() {
       query = query.eq("comercial_asignado", comercialId);
     }
 
+    // Búsqueda server-side para buscar en todos los leads, no solo los cargados
+    if (busqueda.trim()) {
+      const q = `%${busqueda.trim()}%`;
+      query = query.or(`nombre.ilike.${q},apellidos.ilike.${q},empresa.ilike.${q},ciudad.ilike.${q}`);
+    }
+
     const { data, count } = await query;
     let resultado = (data as LeadDashboard[]) ?? [];
-
-    // Filtro por búsqueda en cliente (funciona sobre la página cargada)
-    if (busqueda.trim()) {
-      const q = busqueda.toLowerCase();
-      resultado = resultado.filter(
-        (l) =>
-          l.nombre?.toLowerCase().includes(q) ||
-          l.apellidos?.toLowerCase().includes(q) ||
-          l.empresa?.toLowerCase().includes(q) ||
-          l.cargo?.toLowerCase().includes(q) ||
-          l.ciudad?.toLowerCase().includes(q)
-      );
-    }
 
     const totalCount = count ?? 0;
     if (nuevoOffset === 0) {
