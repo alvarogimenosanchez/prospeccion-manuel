@@ -1,6 +1,6 @@
 # Roadmap — Sistema de Prospección Manuel
 
-Estado actualizado: 2026-03-15
+Estado actualizado: 2026-04-19
 
 ---
 
@@ -43,101 +43,71 @@ Columnas relevantes en leads: `estado`, `temperatura`, `nivel_interes`, `priorid
 - Reescritura completa de `/`: stats de leads, pipeline, citas hoy, mensajes, clientes, renovaciones, alertas urgentes y accesos rápidos
 
 #### ~~Temperatura automática por estado~~ [✅ 2026-03-15]
-- Pipeline y ficha de lead derivan temperatura del estado en tiempo real (sin depender del campo BD)
+- Pipeline y ficha de lead derivan temperatura del estado en tiempo real
 - Mapa: nuevo/segmentado/mensaje_enviado → frío · respondio → templado · cita_agendada/en_negociacion → caliente
 
 #### ~~Prioridad derivada de nivel de interés~~ [✅ 2026-03-15]
-- Eliminado selector manual de prioridad; se calcula automáticamente: nivel 8-10 → Alta, 5-7 → Media, 1-4 → Baja
+- Calculada automáticamente: nivel 8-10 → Alta, 5-7 → Media, 1-4 → Baja
 
-#### ~~Mensajes IA más humanos + cuestionario~~ [✅ 2026-03-15]
-- `agent3_mensajes.py`: tono natural sin jerga de seguros, variedad de estructura, URL cuestionario en cada mensaje (`CUESTIONARIO_URL` en env)
+#### ~~Mensajes IA~~ [✅ 2026-03-15]
+- `agent3_mensajes.py`: tono natural, URL cuestionario incluida, bandeja de aprobación
 
 #### ~~Agenda mejorada~~ [✅ 2026-03-15]
-- Vista "hoy" nueva, filtro por equipo, métricas técnicas (tasa realización, % no-show, tasa conversión, desglose por tipo)
+- Vista hoy/semana/lista, filtro por comercial y equipo, métricas técnicas
 
-#### ~~Desempeño — filtros + ficha individual~~ [✅ 2026-03-15]
-- Filtros por equipo, rol (director/comercial) y periodo; alertas de decisión para director
-- Nueva página `/desempeno/[id]` con ficha completa por comercial
-
-#### ~~Equipos — usuarios modificables~~ [✅ 2026-03-15]
-- Mover miembros entre equipos (modal con selector de destino); nombres linkados a `/desempeno/[id]`
+#### ~~Desempeño~~ [✅ 2026-03-15]
+- Filtros equipo/rol/periodo; alertas de decisión; ficha individual `/desempeno/[id]`
 
 #### ~~Próxima acción comprometida~~ [✅ 2026-03-15]
-- Panel en ficha del lead: tipo de acción + fecha + nota, urgencia en color (rojo=vencida, naranja=hoy, verde=futura)
-- Botón "Marcar como hecha" → abre selector de siguiente acción
-- Badge Vencida/Hoy en el listado de leads
-- Sección "Acciones vencidas" en el dashboard principal
+- Panel en ficha del lead + badge vencida/hoy en listado + sección acciones vencidas en /hoy
 
-#### ~~Registro post-cita obligatorio~~ [✅ 2026-03-15]
-- Modal obligatorio al marcar cita como realizada: resultado + nota (obligatoria) + próxima acción
-- Estado del lead actualizado automáticamente según resultado
-- Nota guardada en el historial de interacciones del lead
+#### ~~WhatsApp via Wassenger + seguridad webhook~~ [✅ 2026-04-13]
+- Migrado de Meta Cloud API a Wassenger
+- Verificación HMAC-SHA256 en webhook (firma `X-Webhook-Signature`)
+
+#### ~~Chatbot WhatsApp~~ [✅ 2026-04-13]
+- `agent5_chatbot.py`: responde automáticamente con Claude, detecta intención, escala a humano
+
+#### ~~Importar Excel de contactos~~ [✅ 2026-04-13]
+- `/prospeccion`: arrastrar Excel, mapear columnas, deduplicar por teléfono/email, importar en lotes
+
+#### ~~Scoring automático — Agente 6~~ [✅ 2026-04-13]
+- `agent6_scoring.py`: temperatura + nivel de interés calculados por señales léxicas y comportamiento
+
+#### ~~Auditoría completa UX + brand~~ [✅ 2026-04-19]
+- Revisión de todas las páginas: brand NN España (#ea650d), purple→orange/teal donde no había semántica
+- Campo `web` expuesto en ficha de lead y en agent3/agent4
+- Mensajes WA: botón enviar auto-aprueba (flujo de un clic)
+- /hoy: notas previas de citas visibles, link agendar cita corregido
+- /clientes: enlace desde ficha de lead con búsqueda pre-rellenada
+- DB: `max_leads_activos` y `comercial_id` en mensajes_pendientes migrados
+- Schema.sql sincronizado con BD real (teams, comerciales, team_members)
 
 ---
 
 ## Próximos pasos (por orden de prioridad)
 
-### FASE 2 — Completar el ciclo de contacto
-
-#### 1. Generación y envío de mensajes desde la UI [ ]
-- En la ficha del lead: generar mensaje personalizado con Claude (ya existe el endpoint)
-- El comercial revisa y aprueba con 1 click
-- Envío real via 360dialog WhatsApp API
-- Guardar el mensaje enviado en tabla `interactions`
-- Requiere: añadir `ANTHROPIC_API_KEY` a Railway env vars
-
-#### 3. Chatbot WhatsApp — Agente 5 [ ]
-- Cuando llega un mensaje entrante al webhook `/webhook/whatsapp`:
-  - Si el lead existe en BD → cargar su historial y contexto
-  - Responder automáticamente con Claude usando `knowledge_base_productos.json`
-  - Detectar intención: informacional / comparativa / decisional
-  - Si detecta señal de compra → notificar al comercial (push o email)
-  - Guardar cada mensaje en tabla `interactions`
-- Requiere: 360dialog configurado con webhook apuntando a Railway
-
-#### 4. Scoring automático — Agente 6 [ ]
-- Después de cada interacción, recalcular temperatura del lead:
-  - Caliente / Templado / Frío según respuestas, tiempo, preguntas hechas
-- Actualizar `puntuacion_interes` (1-10) y `temperatura` en la ficha
-- Próxima acción recomendada automática
-
----
-
 ### FASE 3 — Prospección avanzada
 
-#### 5. Importar base de datos existente de Manuel [ ]
-- Subir Excel de contactos actuales → convertir a leads en Supabase
-- Deduplicar con leads existentes
-- Clasificar automáticamente por estado inicial
+#### 1. Enriquecedor mejorado (Agente 4) [ ]
+- El enriquecedor actual funciona bien para negocios con web propia (hostelería, peluquerías, talleres)
+- Mejorar para: LinkedIn scraping de perfiles, cruce con registros públicos
+- Las inmobiliarias grandes no funcionan (webs corporativas sin nombre del director)
 
-#### 6. Agente 2 — Enriquecedor mejorado [ ]
-- El enriquecedor actual (Agente 4) funciona bien para negocios pequeños con web propia
-- Mejorar para: LinkedIn scraping de perfiles individuales, cruce con registros públicos
-- Priorizar categorías donde funciona bien: hostelería, peluquerías, talleres (negocios donde el dueño aparece en la web)
-- Las inmobiliarias grandes no funcionan bien (webs corporativas sin nombre del director)
-
-#### 7. Agente 3 — Segmentador automático [ ]
-- Al crear un lead, asignar automáticamente producto recomendado + prioridad
-- Lógica ya definida en el plan estratégico (ver PLAN_ESTRATEGICO.md)
-- Mostrar en la ficha del lead: "Producto recomendado: Contigo Pyme — Motivo: autónomo hostelería"
+#### 2. Segmentador automático (Agente 3) [ ]
+- Al crear un lead, asignar producto recomendado + prioridad automáticamente
+- Mostrar en ficha: "Producto recomendado: Contigo Pyme — Motivo: autónomo hostelería"
 
 ---
 
 ### FASE 4 — Automatización completa
 
-#### 8. Cadencia de seguimiento automática [ ]
-- Día 1: primer mensaje
-- Día 3 sin respuesta: follow-up suave
-- Día 7 sin respuesta: cambio de ángulo
-- Día 14 sin respuesta: lead pasa a templado, recordatorio en 30 días
-- Motor de cron jobs en Railway
-
-#### 9. Renovaciones y cross-selling [ ]
-- Cuando un lead se marca como "cerrado ganado" → pasa a tabla `clientes`
-- Recordatorio de renovación según plazo del producto
+#### 3. Renovaciones y cross-selling [ ]
+- Cuando un lead se marca como "cerrado ganado" → ya pasa a tabla `clientes`
+- Alertas de renovación (cron_seguimiento.py ya cubre esto)
 - A los 30 días: flujo de cross-selling automático
 
-#### 10. Referidos sistematizados [ ]
+#### 4. Referidos sistematizados [ ]
 - 30 días tras contratación → mensaje automático pidiendo referido
 - Referido entra al CRM con tag y prioridad alta
 
@@ -145,9 +115,10 @@ Columnas relevantes en leads: `estado`, `temperatura`, `nivel_interes`, `priorid
 
 ## Deuda técnica pendiente
 
-- [ ] Añadir `ANTHROPIC_API_KEY` a Railway env vars (necesario para generación de mensajes)
-- [ ] Probar enriquecimiento con categorías hostelería/peluquerías (funcionará mejor que inmobiliarias)
-- [ ] 360dialog: configurar webhook en producción apuntando a Railway
+- [ ] Añadir `ANTHROPIC_API_KEY` a Railway env vars (necesario para generación de mensajes con Claude)
+- [ ] Añadir `WASSENGER_WEBHOOK_SECRET` a Railway/Vercel env vars (activar verificación HMAC webhook)
+- [ ] Probar enriquecimiento con categorías hostelería/peluquerías (mejor rendimiento que inmobiliarias)
+- [ ] Google Calendar sync para agenda (campo `google_calendar_id` no existe aún en comerciales)
 
 ---
 
@@ -158,6 +129,6 @@ Columnas relevantes en leads: `estado`, `temperatura`, `nivel_interes`, `priorid
 | Frontend | Next.js + Tailwind | https://prospeccion-manuel.vercel.app |
 | Backend | FastAPI + Python | https://prospeccion-manuel-production.up.railway.app |
 | Base de datos | Supabase (PostgreSQL) | supabase.com |
-| WhatsApp | 360dialog + Meta API | pendiente de configurar |
+| WhatsApp | Wassenger API | configurado y activo |
 | IA | Claude (Anthropic) | claude-sonnet-4-6 |
 | Email | Resend via Supabase Edge | configurado |
