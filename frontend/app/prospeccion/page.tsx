@@ -1010,7 +1010,6 @@ export default function ProspeccionPage() {
           <option value="mensaje_enviado">Contactados</option>
           <option value="respondio">Respondieron</option>
           <option value="cita_agendada">Cita agendada</option>
-          <option value="reunion_completada">Reunión completada</option>
           <option value="en_negociacion">En negociación</option>
           <option value="descartado">Descartados</option>
         </select>
