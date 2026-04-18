@@ -733,7 +733,7 @@ export default function LeadDetailPage() {
             </div>
             <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
               <button onClick={guardarPostCita} disabled={guardandoPostCita}
-                className="flex-1 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}
                 {guardandoPostCita ? "Guardando..." : "Guardar resultado"}
               </button>
               <button onClick={() => setCitaParaRegistrar(null)}
@@ -1033,7 +1033,7 @@ export default function LeadDetailPage() {
                   {accion && !editandoAccion && (
                     <div className="flex gap-2">
                       <button onClick={abrirEdicionAccion} className="text-xs text-slate-400 hover:text-slate-700">Editar</button>
-                      <button onClick={marcarAccionHecha} className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">✓ Hecha</button>
+                      <button onClick={marcarAccionHecha} className="text-xs font-medium" style={{ color: "#ea650d" }}>✓ Hecha</button>
                     </div>
                   )}
                 </div>
@@ -1106,7 +1106,7 @@ export default function LeadDetailPage() {
                       <button
                         onClick={guardarAccion}
                         disabled={guardandoAccion}
-                        className="flex-1 text-sm bg-indigo-600 text-white rounded-lg py-2 hover:bg-indigo-700 disabled:opacity-50"
+                        className="flex-1 text-sm text-white rounded-lg py-2 disabled:opacity-50" style={{ background: "#ea650d" }}
                       >
                         {guardandoAccion ? "Guardando..." : "Guardar"}
                       </button>
@@ -1718,7 +1718,7 @@ export default function LeadDetailPage() {
 
             <div className="sticky bottom-0 bg-white border-t border-slate-100 px-6 py-4 flex gap-3 rounded-b-2xl">
               <button onClick={guardarEdicion} disabled={guardandoEdicion}
-                className="flex-1 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors">
+                className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}
                 {guardandoEdicion ? "Guardando..." : "Guardar cambios"}
               </button>
               <button onClick={() => setEditando(false)}

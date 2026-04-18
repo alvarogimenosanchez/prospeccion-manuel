@@ -137,7 +137,7 @@ export default function DashboardPage() {
   const fecha = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
   const fechaCap = fecha.charAt(0).toUpperCase() + fecha.slice(1);
 
-  if (loading) return <div className="py-24 text-center text-sm text-slate-400">Cargando dashboard...</div>;
+  if (loading) return <div className="py-24 text-center text-sm" style={{ color: "#a09890" }}>Cargando dashboard...</div>;
 
   return (
     <div className="space-y-6">
@@ -199,7 +199,7 @@ export default function DashboardPage() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-slate-700">Leads</h2>
-          <Link href="/leads" className="text-xs text-indigo-600 hover:underline">Ver todos →</Link>
+          <Link href="/leads" className="text-xs hover:underline" style={{ color: "#ea650d" }}>Ver todos →</Link>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatBox label="Total activos" valor={stats!.leads_total} sub="en el sistema" href="/leads" />
@@ -213,7 +213,7 @@ export default function DashboardPage() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-slate-700">Pipeline</h2>
-          <Link href="/pipeline" className="text-xs text-indigo-600 hover:underline">Ver kanban →</Link>
+          <Link href="/pipeline" className="text-xs hover:underline" style={{ color: "#ea650d" }}>Ver kanban →</Link>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
           <div className="grid grid-cols-4 sm:grid-cols-7 divide-x divide-slate-100">
@@ -236,7 +236,7 @@ export default function DashboardPage() {
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-slate-700">Agenda hoy</h2>
-          <Link href="/agenda" className="text-xs text-indigo-600 hover:underline">Ver agenda →</Link>
+          <Link href="/agenda" className="text-xs hover:underline" style={{ color: "#ea650d" }}>Ver agenda →</Link>
         </div>
         {citasHoy.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-xl px-4 py-6 text-center text-sm text-slate-400">
@@ -276,7 +276,7 @@ export default function DashboardPage() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-slate-700">Mensajes</h2>
-            <Link href="/mensajes" className="text-xs text-indigo-600 hover:underline">Ver todos →</Link>
+            <Link href="/mensajes" className="text-xs hover:underline" style={{ color: "#ea650d" }}>Ver todos →</Link>
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -285,7 +285,7 @@ export default function DashboardPage() {
                 {stats!.mensajes_pendientes}
               </span>
             </div>
-            <Link href="/mensajes" className="block w-full text-center text-xs text-indigo-600 border border-indigo-200 rounded-lg py-2 hover:bg-indigo-50 transition-colors">
+            <Link href="/mensajes" className="block w-full text-center text-xs rounded-lg py-2 transition-colors" style={{ color: "#ea650d", border: "1px solid #f5c5a8" }} onMouseEnter={e => (e.currentTarget.style.background = "#fff5f0")} onMouseLeave={e => (e.currentTarget.style.background = "")}>
               Revisar mensajes →
             </Link>
           </div>
@@ -295,7 +295,7 @@ export default function DashboardPage() {
         <div>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-semibold text-slate-700">Clientes</h2>
-            <Link href="/clientes" className="text-xs text-indigo-600 hover:underline">Ver cartera →</Link>
+            <Link href="/clientes" className="text-xs hover:underline" style={{ color: "#ea650d" }}>Ver cartera →</Link>
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
@@ -316,10 +316,10 @@ export default function DashboardPage() {
       <div>
         <h2 className="text-sm font-semibold text-slate-700 mb-3">Accesos rápidos</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <QuickLink href="/prospeccion" icon="🎯" label="Prospectar" sub="Importar y gestionar leads" />
+          <QuickLink href="/hoy" icon="🎯" label="Hoy" sub="Tareas y cola del día" />
           <QuickLink href="/mensajes" icon="💬" label="Mensajes" sub="WhatsApp pendientes" />
+          <QuickLink href="/prospeccion" icon="📥" label="Prospectar" sub="Importar y gestionar leads" />
           <QuickLink href="/desempeno" icon="📊" label="Desempeño" sub="Métricas del equipo" />
-          <QuickLink href="/equipos" icon="👥" label="Equipos" sub="Organización comercial" />
         </div>
       </div>
     </div>
@@ -329,7 +329,7 @@ export default function DashboardPage() {
 function StatBox({ label, valor, sub, href, color }: { label: string; valor: number; sub: string; href: string; color?: "red" | "blue" | "green" }) {
   const valColor = color === "red" ? "text-red-600" : color === "blue" ? "text-blue-700" : color === "green" ? "text-emerald-700" : "text-slate-900";
   return (
-    <Link href={href} className="bg-white border border-slate-200 rounded-xl p-4 hover:border-indigo-300 hover:shadow-sm transition-all block">
+    <Link href={href} className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-sm transition-all block" style={{ borderColor: undefined }} onMouseEnter={e => (e.currentTarget.style.borderColor = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.borderColor = "")}>
       <p className={`text-2xl font-bold ${valColor}`}>{valor}</p>
       <p className="text-xs font-semibold text-slate-700 mt-1">{label}</p>
       <p className="text-xs text-slate-400">{sub}</p>
@@ -339,7 +339,7 @@ function StatBox({ label, valor, sub, href, color }: { label: string; valor: num
 
 function QuickLink({ href, icon, label, sub }: { href: string; icon: string; label: string; sub: string }) {
   return (
-    <Link href={href} className="bg-white border border-slate-200 rounded-xl p-4 hover:border-indigo-300 hover:shadow-sm transition-all flex items-start gap-3">
+    <Link href={href} className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-sm transition-all flex items-start gap-3" onMouseEnter={e => (e.currentTarget.style.borderColor = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.borderColor = "")}>
       <span className="text-xl">{icon}</span>
       <div className="min-w-0">
         <p className="text-sm font-semibold text-slate-800">{label}</p>

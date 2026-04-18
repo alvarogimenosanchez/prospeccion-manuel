@@ -322,7 +322,7 @@ export default function HoyPage() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
         <div className="text-center">
-          <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+          <div className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-4 border-t-transparent" style={{ borderColor: "#ea650d", borderTopColor: "transparent" }} />
           <p className="text-sm text-slate-500">Cargando tareas...</p>
         </div>
       </div>
@@ -386,7 +386,7 @@ export default function HoyPage() {
               return (
                 <FilaLead key={lead.id}>
                   <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors truncate">
+                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 transition-colors truncate" style={{ color: "#414141" }} onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "#414141")}>
                       {nombreCompleto(lead)}
                       {lead.empresa && <span className="ml-1 font-normal text-slate-500">· {lead.empresa}</span>}
                     </Link>
@@ -448,7 +448,7 @@ export default function HoyPage() {
               return (
                 <FilaLead key={lead.id}>
                   <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors truncate">
+                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 transition-colors truncate" style={{ color: "#414141" }} onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "#414141")}>
                       {nombreCompleto(lead)}
                       {lead.empresa && <span className="ml-1 font-normal text-slate-500">· {lead.empresa}</span>}
                     </Link>
@@ -504,7 +504,7 @@ export default function HoyPage() {
               return (
                 <FilaLead key={lead.id}>
                   <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors truncate">
+                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 transition-colors truncate" style={{ color: "#414141" }} onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "#414141")}>
                       {nombreCompleto(lead)}
                       {lead.empresa && <span className="ml-1 font-normal text-slate-500">· {lead.empresa}</span>}
                     </Link>
@@ -512,7 +512,7 @@ export default function HoyPage() {
                     <span className="rounded bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">
                       sin acción · {tiempoLabel}
                     </span>
-                    <span className="rounded bg-indigo-50 px-2 py-0.5 text-xs text-indigo-600">
+                    <span className="rounded px-2 py-0.5 text-xs" style={{ background: "#fff5f0", color: "#ea650d" }}>
                       {lead.nivel_interes}/10
                     </span>
                   </div>
@@ -551,7 +551,7 @@ export default function HoyPage() {
               return (
                 <FilaLead key={lead.id}>
                   <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors truncate">
+                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 transition-colors truncate" style={{ color: "#414141" }} onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "#414141")}>
                       {nombreCompleto(lead)}
                       {lead.empresa && <span className="ml-1 font-normal text-slate-500">· {lead.empresa}</span>}
                     </Link>
@@ -589,7 +589,7 @@ export default function HoyPage() {
               return (
                 <FilaLead key={lead.id}>
                   <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors truncate">
+                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 transition-colors truncate" style={{ color: "#414141" }} onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "#414141")}>
                       {nombreCompleto(lead)}
                       {lead.empresa && <span className="ml-1 font-normal text-slate-500">· {lead.empresa}</span>}
                     </Link>
@@ -635,7 +635,7 @@ export default function HoyPage() {
                     </span>
                     <span className="text-xs text-slate-500">{TIPO_CITA_LABEL[cita.tipo] ?? cita.tipo}</span>
                     {lead && (
-                      <Link href={`/leads/${cita.lead_id}`} className="font-medium text-slate-900 hover:text-indigo-600 transition-colors truncate">
+                      <Link href={`/leads/${cita.lead_id}`} className="font-medium text-slate-900 transition-colors truncate" style={{ color: "#414141" }} onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "#414141")}>
                         {nombreCompleto(lead)}
                         {lead.empresa && <span className="ml-1 font-normal text-slate-500">· {lead.empresa}</span>}
                       </Link>

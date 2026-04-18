@@ -127,7 +127,7 @@ export default function MensajesPage() {
         <button
           onClick={generarMensajes}
           disabled={generando}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}
         >
           {generando ? (
             <>
@@ -154,7 +154,7 @@ export default function MensajesPage() {
           <p className="text-xs text-slate-500 mt-1">Aprobados (listos para enviar)</p>
         </div>
         <div className="bg-white border border-slate-200 rounded-xl p-4 text-center">
-          <p className="text-2xl font-bold text-indigo-600">{stats.enviados}</p>
+          <p className="text-2xl font-bold" style={{ color: "#ea650d" }}>{stats.enviados}</p>
           <p className="text-xs text-slate-500 mt-1">Enviados</p>
         </div>
       </div>
@@ -167,7 +167,7 @@ export default function MensajesPage() {
           <p className="text-slate-500 text-sm">No hay mensajes pendientes de revisión</p>
           <button
             onClick={generarMensajes}
-            className="text-sm text-indigo-600 hover:underline"
+            className="text-sm hover:underline" style={{ color: "#ea650d" }}
           >
             Generar mensajes para leads nuevos
           </button>
@@ -189,7 +189,7 @@ export default function MensajesPage() {
                 {/* Cabecera del lead */}
                 <div className="flex items-center justify-between px-5 py-3 bg-slate-50 border-b border-slate-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-semibold text-indigo-600">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold" style={{ background: "#fff5f0", color: "#ea650d" }}>
                       {destinatario[0]?.toUpperCase()}
                     </div>
                     <div>
@@ -277,7 +277,7 @@ export default function MensajesPage() {
                     <button
                       onClick={() => aprobar(m.id)}
                       disabled={ocupado}
-                      className="px-4 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                      className="px-4 py-1.5 text-white text-xs font-medium rounded-lg disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}
                     >
                       {ocupado ? "..." : "✓ Aprobar"}
                     </button>
