@@ -146,7 +146,6 @@ const COLOR_MAP: Record<string, {
   bg: string; text: string; btn: string; light: string; border: string;
   gradient: string; ring: string;
 }> = {
-  indigo: { bg: "bg-indigo-600", text: "text-indigo-600", btn: "bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800", light: "bg-indigo-50", border: "border-indigo-200", gradient: "from-indigo-600 to-indigo-800", ring: "ring-indigo-500" },
   emerald: { bg: "bg-emerald-600", text: "text-emerald-600", btn: "bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800", light: "bg-emerald-50", border: "border-emerald-200", gradient: "from-emerald-600 to-emerald-800", ring: "ring-emerald-500" },
   blue: { bg: "bg-blue-600", text: "text-blue-600", btn: "bg-blue-600 hover:bg-blue-700 active:bg-blue-800", light: "bg-blue-50", border: "border-blue-200", gradient: "from-blue-600 to-blue-800", ring: "ring-blue-500" },
   violet: { bg: "bg-violet-600", text: "text-violet-600", btn: "bg-violet-600 hover:bg-violet-700 active:bg-violet-800", light: "bg-violet-50", border: "border-violet-200", gradient: "from-violet-600 to-violet-800", ring: "ring-violet-500" },
@@ -193,7 +192,7 @@ export default function LandingPage({ params }: { params: { producto: string } }
     );
   }
 
-  const c = COLOR_MAP[content.color] || COLOR_MAP.indigo;
+  const c = COLOR_MAP[content.color] || COLOR_MAP.orange;
 
   async function enviarFormulario(e: React.FormEvent) {
     e.preventDefault();
