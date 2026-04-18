@@ -26,6 +26,9 @@ type Lead = {
   estado: Estado;
   updated_at: string;
   comercial_asignado: string | null;
+  proxima_accion: string | null;
+  proxima_accion_fecha: string | null;
+  telefono_whatsapp: string | null;
 };
 
 type Columna = {
@@ -45,11 +48,59 @@ const COLUMNAS: Columna[] = [
   { estado: "cerrado_ganado",  label: "Ganado",           color: "border-emerald-300", bg: "bg-emerald-50",  dot: "bg-emerald-500" },
 ];
 
-function diasDesde(fecha: string): string {
-  const dias = Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
+const ESTADOS_CERRADOS: Estado[] = ["cerrado_ganado", "cerrado_perdido"];
+
+function diasDesde(fecha: string): number {
+  return Math.floor((Date.now() - new Date(fecha).getTime()) / 86_400_000);
+}
+
+function diasDesdeLabel(fecha: string): string {
+  const dias = diasDesde(fecha);
   if (dias === 0) return "hoy";
   if (dias === 1) return "ayer";
   return `hace ${dias}d`;
+}
+
+/** Devuelve info de la próxima acción para mostrar en la card */
+function infoProximaAccion(
+  accion: string | null,
+  fecha: string | null
+): { texto: string; clase: string } {
+  if (!accion) {
+    return { texto: "Sin acción", clase: "text-slate-300" };
+  }
+
+  const accionCorta = accion.length > 20 ? accion.slice(0, 20) + "…" : accion;
+
+  if (!fecha) {
+    return { texto: accionCorta, clase: "text-slate-400" };
+  }
+
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const fechaAccion = new Date(fecha);
+  fechaAccion.setHours(0, 0, 0, 0);
+  const diffDias = Math.round((fechaAccion.getTime() - hoy.getTime()) / 86_400_000);
+
+  if (diffDias < 0) {
+    // Vencida
+    return { texto: `⚠ ${accionCorta} · vencida`, clase: "text-red-500 font-medium" };
+  }
+  if (diffDias === 0) {
+    // Hoy
+    return { texto: `Hoy · ${accionCorta}`, clase: "text-orange-500 font-medium" };
+  }
+  // Futura — mostrar día de la semana abreviado
+  const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  const diaSemana = dias[new Date(fecha).getDay()];
+  return { texto: `${diaSemana} · ${accionCorta}`, clase: "text-slate-400" };
+}
+
+/** Color de fondo según nivel de interés */
+function colorInteres(nivel: number): string {
+  if (nivel >= 8) return "bg-emerald-500";
+  if (nivel >= 5) return "bg-amber-400";
+  return "bg-slate-300";
 }
 
 export default function PipelinePage() {
@@ -66,6 +117,7 @@ function PipelineContent() {
   const [moviendo, setMoviendo] = useState<string | null>(null);
   const [comercialId, setComercialId] = useState<string | null>(null);
   const [comercialNombre, setComercialNombre] = useState<string>("");
+  const [colapsadas, setColapsadas] = useState<Set<Estado>>(new Set());
 
   // Obtener el comercial logueado
   useEffect(() => {
@@ -90,7 +142,7 @@ function PipelineContent() {
     setLoading(true);
     const { data } = await supabase
       .from("leads")
-      .select("id, nombre, apellidos, empresa, sector, nivel_interes, ciudad, estado, updated_at, comercial_asignado")
+      .select("id, nombre, apellidos, empresa, sector, nivel_interes, ciudad, estado, updated_at, comercial_asignado, proxima_accion, proxima_accion_fecha, telefono_whatsapp")
       .in("estado", COLUMNAS.map(c => c.estado))
       .eq("comercial_asignado", comercialId)
       .order("nivel_interes", { ascending: false })
@@ -120,6 +172,18 @@ function PipelineContent() {
     setMoviendo(null);
   }
 
+  function toggleColapsada(estado: Estado) {
+    setColapsadas(prev => {
+      const next = new Set(prev);
+      if (next.has(estado)) {
+        next.delete(estado);
+      } else {
+        next.add(estado);
+      }
+      return next;
+    });
+  }
+
   const leadsColumna = (estado: Estado) => leads.filter(l => l.estado === estado);
 
   return (
@@ -142,32 +206,70 @@ function PipelineContent() {
         <div className="py-24 text-center text-sm text-slate-400">No se encontró tu perfil de comercial.</div>
       ) : (
         <div className="overflow-x-auto pb-4">
-          <div className="flex gap-4 min-w-max">
+          <div className="flex gap-3 min-w-max items-start">
             {COLUMNAS.map(col => {
               const colLeads = leadsColumna(col.estado);
+              const vacia = colLeads.length === 0;
+              const colapsada = colapsadas.has(col.estado);
+
+              // Columna vacía colapsada: ancho mínimo
+              if (vacia) {
+                return (
+                  <div key={col.estado} className="w-20 flex-shrink-0">
+                    <div
+                      className={`flex flex-col items-center gap-1.5 px-2 py-3 rounded-xl border ${col.color} ${col.bg} cursor-pointer select-none`}
+                      title={col.label}
+                    >
+                      <div className={`w-2 h-2 rounded-full ${col.dot}`} />
+                      <span className="text-xs text-slate-400 font-medium writing-mode-vertical" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", letterSpacing: "0.05em" }}>
+                        {col.label}
+                      </span>
+                      <span className="text-xs text-slate-300 font-medium">0</span>
+                    </div>
+                  </div>
+                );
+              }
+
               return (
-                <div key={col.estado} className="w-64 flex-shrink-0">
-                  <div className={`flex items-center gap-2 px-3 py-2 rounded-t-xl border-t border-x ${col.color} ${col.bg}`}>
-                    <div className={`w-2 h-2 rounded-full ${col.dot}`} />
-                    <span className="text-sm font-semibold text-slate-700">{col.label}</span>
-                    <span className="ml-auto text-xs font-medium text-slate-500 bg-white rounded-full px-2 py-0.5 border border-slate-200">
+                <div key={col.estado} className={`flex-shrink-0 transition-all duration-200 ${colapsada ? "w-20" : "w-64"}`}>
+                  {/* Header de columna */}
+                  <div
+                    className={`flex items-center gap-2 px-3 py-2 rounded-t-xl border-t border-x ${col.color} ${col.bg} cursor-pointer select-none`}
+                    onClick={() => toggleColapsada(col.estado)}
+                    title={colapsada ? "Expandir columna" : "Colapsar columna"}
+                  >
+                    <div className={`w-2 h-2 rounded-full flex-shrink-0 ${col.dot}`} />
+                    {!colapsada && (
+                      <span className="text-sm font-semibold text-slate-700 truncate">{col.label}</span>
+                    )}
+                    <span className={`text-xs font-medium text-slate-500 bg-white rounded-full px-2 py-0.5 border border-slate-200 flex-shrink-0 ${colapsada ? "mx-auto" : "ml-auto"}`}>
                       {colLeads.length}
                     </span>
                   </div>
-                  <div className={`min-h-64 rounded-b-xl border ${col.color} ${col.bg} p-2 space-y-2`}>
-                    {colLeads.length === 0 && (
-                      <p className="text-xs text-slate-400 text-center py-8">Sin leads</p>
-                    )}
-                    {colLeads.map(lead => (
-                      <TarjetaLead
-                        key={lead.id}
-                        lead={lead}
-                        columnas={COLUMNAS}
-                        moviendo={moviendo === lead.id}
-                        onMover={moverLead}
-                      />
-                    ))}
-                  </div>
+
+                  {/* Cuerpo de columna */}
+                  {colapsada ? (
+                    <div
+                      className={`rounded-b-xl border ${col.color} ${col.bg} p-2 min-h-20 flex items-center justify-center cursor-pointer`}
+                      onClick={() => toggleColapsada(col.estado)}
+                    >
+                      <span className="text-xs text-slate-400" style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}>
+                        {col.label}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className={`min-h-64 rounded-b-xl border ${col.color} ${col.bg} p-2 space-y-2`}>
+                      {colLeads.map(lead => (
+                        <TarjetaLead
+                          key={lead.id}
+                          lead={lead}
+                          columnas={COLUMNAS}
+                          moviendo={moviendo === lead.id}
+                          onMover={moverLead}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -186,72 +288,131 @@ function TarjetaLead({
   moviendo: boolean;
   onMover: (id: string, estado: Estado) => void;
 }) {
+  const [hover, setHover] = useState(false);
+
   const nombre = [lead.nombre, lead.apellidos].filter(Boolean).join(" ");
   const colActual = columnas.findIndex(c => c.estado === lead.estado);
   const siguiente = columnas[colActual + 1];
   const anterior = columnas[colActual - 1];
 
-  return (
-    <div className={`bg-white rounded-xl border border-slate-200 p-3 shadow-sm hover:shadow-md transition-all ${moviendo ? "opacity-50" : ""}`}>
-      <Link href={`/leads/${lead.id}`} className="block group">
-        <p className="text-sm font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors leading-tight">
-          {nombre || "Sin nombre"}
-        </p>
-        {lead.empresa && (
-          <p className="text-xs text-slate-500 mt-0.5 truncate">{lead.empresa}</p>
-        )}
-      </Link>
+  // Badge urgencia: >3 días sin cambio y no es estado cerrado
+  const diasSinCambio = diasDesde(lead.updated_at);
+  const esUrgente = diasSinCambio >= 3 && !ESTADOS_CERRADOS.includes(lead.estado);
 
-      {lead.ciudad && (
-        <div className="mt-2">
-          <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
-            {lead.ciudad}
+  // Próxima acción
+  const accionInfo = infoProximaAccion(lead.proxima_accion, lead.proxima_accion_fecha);
+
+  // WhatsApp URL
+  const waUrl = lead.telefono_whatsapp
+    ? `https://wa.me/${lead.telefono_whatsapp.replace(/\D/g, "")}`
+    : null;
+
+  // Nivel interés color
+  const interesColor = colorInteres(lead.nivel_interes);
+
+  return (
+    <div
+      className={`bg-white rounded-xl border shadow-sm hover:shadow-md transition-all relative ${moviendo ? "opacity-50" : ""} ${esUrgente ? "border-red-300 ring-1 ring-red-200" : "border-slate-200"}`}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+    >
+      {/* Badge urgencia */}
+      {esUrgente && (
+        <div className="absolute -top-2 right-2 z-10">
+          <span className="text-[10px] font-semibold bg-red-100 text-red-600 border border-red-200 rounded-full px-2 py-0.5 whitespace-nowrap">
+            {diasSinCambio}d sin contacto
           </span>
         </div>
       )}
 
-      <div className="flex items-center justify-between mt-2">
-        <div className="flex items-center gap-1">
-          {[...Array(10)].map((_, i) => (
-            <div
-              key={i}
-              className={`w-1.5 h-3 rounded-sm ${i < lead.nivel_interes ? "bg-indigo-500" : "bg-slate-100"}`}
-            />
-          ))}
+      <div className="p-3">
+        {/* Nombre y empresa */}
+        <div className="flex items-start justify-between gap-1">
+          <Link href={`/leads/${lead.id}`} className="block group flex-1 min-w-0">
+            <p className="text-sm font-semibold text-slate-800 group-hover:text-indigo-600 transition-colors leading-tight truncate">
+              {nombre || "Sin nombre"}
+            </p>
+            {lead.empresa && (
+              <p className="text-xs text-slate-500 mt-0.5 truncate">{lead.empresa}</p>
+            )}
+          </Link>
+
+          {/* Nivel interés como número */}
+          <div className="flex items-center gap-1 flex-shrink-0 ml-1">
+            <div className={`w-2 h-2 rounded-full ${interesColor}`} />
+            <span className="text-xs font-semibold text-slate-600">{lead.nivel_interes}/10</span>
+          </div>
         </div>
-        <span className="text-xs text-slate-400">{diasDesde(lead.updated_at)}</span>
+
+        {/* Ciudad */}
+        {lead.ciudad && (
+          <div className="mt-1.5">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
+              {lead.ciudad}
+            </span>
+          </div>
+        )}
+
+        {/* Próxima acción */}
+        <div className="mt-2 flex items-center gap-1">
+          <span className={`text-[11px] leading-tight ${accionInfo.clase}`}>
+            {accionInfo.texto}
+          </span>
+        </div>
+
+        {/* Footer: tiempo + botones */}
+        <div className="flex items-center gap-1 mt-2.5 pt-2 border-t border-slate-100">
+          <span className="text-[10px] text-slate-300 mr-auto">{diasDesdeLabel(lead.updated_at)}</span>
+
+          {anterior && (
+            <button
+              onClick={() => onMover(lead.id, anterior.estado)}
+              disabled={moviendo}
+              title={`← ${anterior.label}`}
+              className="text-xs text-slate-400 hover:text-slate-700 hover:bg-slate-50 px-2 py-1 rounded-lg transition-colors disabled:opacity-40"
+            >
+              ←
+            </button>
+          )}
+          <Link
+            href={`/leads/${lead.id}`}
+            className="text-xs text-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded-lg transition-colors"
+          >
+            Ver
+          </Link>
+          {siguiente && (
+            <button
+              onClick={() => onMover(lead.id, siguiente.estado)}
+              disabled={moviendo}
+              title={`→ ${siguiente.label}`}
+              className={`text-xs text-center px-2 py-1 rounded-lg transition-colors disabled:opacity-40 font-medium ${
+                siguiente.estado === "cerrado_ganado"
+                  ? "text-emerald-600 hover:bg-emerald-50"
+                  : "text-indigo-600 hover:bg-indigo-50"
+              }`}
+            >
+              →
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="flex items-center gap-1 mt-3 pt-2 border-t border-slate-100">
-        {anterior && (
-          <button
-            onClick={() => onMover(lead.id, anterior.estado)}
-            disabled={moviendo}
-            className="flex-1 text-xs text-slate-400 hover:text-slate-700 hover:bg-slate-50 py-1 rounded-lg transition-colors disabled:opacity-40"
-          >
-            ←
-          </button>
-        )}
-        <Link
-          href={`/leads/${lead.id}`}
-          className="flex-1 text-xs text-center text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 py-1 rounded-lg transition-colors"
+      {/* Botón WhatsApp en hover */}
+      {waUrl && hover && (
+        <a
+          href={waUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={e => e.stopPropagation()}
+          className="absolute bottom-2.5 right-2.5 flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-semibold px-2 py-1 rounded-lg shadow-md transition-colors z-20"
+          title="Abrir WhatsApp"
         >
-          Ver
-        </Link>
-        {siguiente && (
-          <button
-            onClick={() => onMover(lead.id, siguiente.estado)}
-            disabled={moviendo}
-            className={`flex-1 text-xs text-center py-1 rounded-lg transition-colors disabled:opacity-40 font-medium ${
-              siguiente.estado === "cerrado_ganado"
-                ? "text-emerald-600 hover:bg-emerald-50"
-                : "text-indigo-600 hover:bg-indigo-50"
-            }`}
-          >
-            → {siguiente.label.split(" ")[0]}
-          </button>
-        )}
-      </div>
+          <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+          </svg>
+          WA
+        </a>
+      )}
     </div>
   );
 }

@@ -18,8 +18,8 @@ type Comercial = {
   nombre: string;
   apellidos: string | null;
   rol: string;
-  objetivo_cierres_mes: number;
-  objetivo_citas_mes: number;
+  objetivo_cierres_mes: number | null;
+  objetivo_citas_mes: number | null;
 };
 
 type StatsComercial = {
@@ -32,16 +32,15 @@ type StatsComercial = {
   cerradosGanados: number;
   tasaRespuesta: number;
   tasaConversion: number;
-  leadsHoy: number;
   accionesVencidas: number;
   sinActividad7d: number;
   objetivoCierres: number;
   objetivoCitas: number;
+  activoHoy: boolean;
   ultimaActividad: string | null;
   cerradosPeriodoAnterior: number;
   citasPeriodoAnterior: number;
   topProducto: string | null;
-  tiempoMedioEstados: { de: string; a: string; dias: number }[];
 };
 
 type AlertaDecision = {
@@ -91,202 +90,247 @@ export default function DesempenoPage() {
   async function cargarDatos() {
     setLoading(true);
     try {
+      const ahora = new Date();
+      const hoyStr = ahora.toISOString().slice(0, 10); // YYYY-MM-DD
+      const inicioHoy = `${hoyStr}T00:00:00.000Z`;
 
-    const ahora = new Date();
-    let fechaDesde: string | null = null;
-    let fechaAnteriorDesde: string | null = null;
-    let fechaAnteriorHasta: string | null = null;
+      let fechaDesde: string | null = null;
+      let fechaAnteriorDesde: string | null = null;
+      let fechaAnteriorHasta: string | null = null;
 
-    if (periodo === "semana") {
-      fechaDesde = new Date(ahora.getTime() - 7 * 86_400_000).toISOString();
-      fechaAnteriorDesde = new Date(ahora.getTime() - 14 * 86_400_000).toISOString();
-      fechaAnteriorHasta = fechaDesde;
-    } else if (periodo === "mes") {
-      fechaDesde = new Date(ahora.getFullYear(), ahora.getMonth(), 1).toISOString();
-      fechaAnteriorDesde = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1).toISOString();
-      fechaAnteriorHasta = fechaDesde;
-    }
+      if (periodo === "semana") {
+        fechaDesde = new Date(ahora.getTime() - 7 * 86_400_000).toISOString();
+        fechaAnteriorDesde = new Date(ahora.getTime() - 14 * 86_400_000).toISOString();
+        fechaAnteriorHasta = fechaDesde;
+      } else if (periodo === "mes") {
+        fechaDesde = new Date(ahora.getFullYear(), ahora.getMonth(), 1).toISOString();
+        fechaAnteriorDesde = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1).toISOString();
+        fechaAnteriorHasta = fechaDesde;
+      }
 
-    const [{ data: comerciales }, alertasSinAtencion, alertasVencidas, alertasEstancados] = await Promise.all([
-      supabase.from("comerciales").select("id, nombre, apellidos, rol, objetivo_cierres_mes, objetivo_citas_mes").eq("activo", true),
-      supabase.from("leads")
-        .select("id, nombre, apellidos, empresa, comercial_asignado, comerciales(nombre, apellidos), updated_at")
-        .eq("temperatura", "caliente")
-        .not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)")
-        .lt("updated_at", new Date(ahora.getTime() - 48 * 3_600_000).toISOString())
-        .order("updated_at", { ascending: true }).limit(10),
-      supabase.from("leads")
-        .select("id, nombre, apellidos, empresa, comercial_asignado, comerciales(nombre, apellidos), proxima_accion_fecha")
-        .not("proxima_accion", "is", null).neq("proxima_accion", "ninguna")
-        .lt("proxima_accion_fecha", ahora.toISOString())
-        .not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)")
-        .order("proxima_accion_fecha", { ascending: true }).limit(10),
-      supabase.from("leads")
-        .select("id, nombre, apellidos, empresa, comercial_asignado, comerciales(nombre, apellidos), updated_at")
-        .eq("estado", "en_negociacion")
-        .lt("updated_at", new Date(ahora.getTime() - 7 * 86_400_000).toISOString())
-        .order("updated_at", { ascending: true }).limit(10),
-    ]);
-
-    const nuevasAlertas: AlertaDecision[] = [];
-    for (const l of (alertasSinAtencion.data ?? [])) {
-      const horas = Math.round((ahora.getTime() - new Date(l.updated_at).getTime()) / 3_600_000);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const com = (l as any).comerciales;
-      nuevasAlertas.push({ tipo: "sin_atencion", lead_id: l.id, nombre: [l.nombre, l.apellidos].filter(Boolean).join(" ") || "Sin nombre", empresa: l.empresa, horas, comercial: com ? `${com.nombre} ${com.apellidos ?? ""}`.trim() : "Sin asignar" });
-    }
-    for (const l of (alertasVencidas.data ?? [])) {
-      const horas = Math.round((ahora.getTime() - new Date(l.proxima_accion_fecha).getTime()) / 3_600_000);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const com = (l as any).comerciales;
-      nuevasAlertas.push({ tipo: "accion_vencida", lead_id: l.id, nombre: [l.nombre, l.apellidos].filter(Boolean).join(" ") || "Sin nombre", empresa: l.empresa, horas, comercial: com ? `${com.nombre} ${com.apellidos ?? ""}`.trim() : "Sin asignar" });
-    }
-    for (const l of (alertasEstancados.data ?? [])) {
-      const dias = Math.round((ahora.getTime() - new Date(l.updated_at).getTime()) / 86_400_000);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const com = (l as any).comerciales;
-      nuevasAlertas.push({ tipo: "pipeline_estancado", lead_id: l.id, nombre: [l.nombre, l.apellidos].filter(Boolean).join(" ") || "Sin nombre", empresa: l.empresa, horas: dias * 24, comercial: com ? `${com.nombre} ${com.apellidos ?? ""}`.trim() : "Sin asignar" });
-    }
-    setAlertas(nuevasAlertas);
-
-    if (!comerciales || comerciales.length === 0) {
-      setStats([]);
-      setLoading(false);
-      return;
-    }
-
-    const resultado: StatsComercial[] = [];
-
-    for (const comercial of comerciales) {
-      const base = supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", comercial.id);
-
+      // ── 1. Fetch global (5-6 queries para todos los comerciales) ──────────
       const [
-        { count: totalLeads },
-        { count: leadsCalientes },
-        { count: leadsContactados },
-        { count: respondieron },
-        { count: citasAgendadas },
-        { count: cerradosGanados },
-        { count: accionesVencidas },
-        { count: sinActividad7d },
-        // Periodo anterior para tendencia
-        { count: cierresAnteriores },
-        { count: citasAnteriores },
-        // Última actividad (interacción más reciente)
-        { data: ultimaInteraccion },
-        // Top producto
-        { data: leadsGanados },
-        // Historial de estados
-        historialRes,
+        { data: comerciales },
+        alertasSinAtencion,
+        alertasVencidas,
+        alertasEstancados,
+        { data: todosLeads },
+        { data: todasInteracciones },
+        { data: interaccionesHoy },
       ] = await Promise.all([
-        fechaDesde ? base.gte("fecha_captacion", fechaDesde) : base,
-        (() => { let q = supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", comercial.id).eq("temperatura", "caliente"); if (fechaDesde) q = q.gte("fecha_captacion", fechaDesde); return q; })(),
-        (() => { let q = supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", comercial.id).in("estado", ["mensaje_enviado", "respondio", "cita_agendada", "en_negociacion", "cerrado_ganado", "cerrado_perdido"]); if (fechaDesde) q = q.gte("fecha_captacion", fechaDesde); return q; })(),
-        (() => { let q = supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", comercial.id).in("estado", ["respondio", "cita_agendada", "en_negociacion", "cerrado_ganado"]); if (fechaDesde) q = q.gte("fecha_captacion", fechaDesde); return q; })(),
-        (() => { let q = supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", comercial.id).in("estado", ["cita_agendada", "en_negociacion", "cerrado_ganado"]); if (fechaDesde) q = q.gte("fecha_captacion", fechaDesde); return q; })(),
-        (() => { let q = supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", comercial.id).eq("estado", "cerrado_ganado"); if (fechaDesde) q = q.gte("fecha_captacion", fechaDesde); return q; })(),
-        supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", comercial.id).not("proxima_accion", "is", null).neq("proxima_accion", "ninguna").lt("proxima_accion_fecha", ahora.toISOString()).not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)"),
-        supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", comercial.id).eq("estado", "en_negociacion").lt("updated_at", new Date(ahora.getTime() - 7 * 86_400_000).toISOString()),
-        // Cierres periodo anterior
+        // Comerciales activos con sus objetivos
+        supabase.from("comerciales")
+          .select("id, nombre, apellidos, rol, objetivo_cierres_mes, objetivo_citas_mes")
+          .eq("activo", true),
+
+        // Alertas de decisión (no cambian con comercial)
+        supabase.from("leads")
+          .select("id, nombre, apellidos, empresa, comercial_asignado, comerciales(nombre, apellidos), updated_at")
+          .eq("temperatura", "caliente")
+          .not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)")
+          .lt("updated_at", new Date(ahora.getTime() - 48 * 3_600_000).toISOString())
+          .order("updated_at", { ascending: true }).limit(10),
+
+        supabase.from("leads")
+          .select("id, nombre, apellidos, empresa, comercial_asignado, comerciales(nombre, apellidos), proxima_accion_fecha")
+          .not("proxima_accion", "is", null).neq("proxima_accion", "ninguna")
+          .lt("proxima_accion_fecha", ahora.toISOString())
+          .not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)")
+          .order("proxima_accion_fecha", { ascending: true }).limit(10),
+
+        supabase.from("leads")
+          .select("id, nombre, apellidos, empresa, comercial_asignado, comerciales(nombre, apellidos), updated_at")
+          .eq("estado", "en_negociacion")
+          .lt("updated_at", new Date(ahora.getTime() - 7 * 86_400_000).toISOString())
+          .order("updated_at", { ascending: true }).limit(10),
+
+        // TODOS los leads de todos los comerciales activos — columnas necesarias
         (() => {
-          let q = supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", comercial.id).eq("estado", "cerrado_ganado");
-          if (fechaAnteriorDesde) q = q.gte("fecha_captacion", fechaAnteriorDesde);
-          if (fechaAnteriorHasta) q = q.lt("fecha_captacion", fechaAnteriorHasta);
+          let q = supabase.from("leads").select(
+            "id, comercial_asignado, estado, temperatura, fecha_captacion, updated_at, proxima_accion, proxima_accion_fecha, producto_interes_principal"
+          );
+          if (fechaDesde) q = q.gte("fecha_captacion", fechaDesde);
           return q;
         })(),
-        // Citas periodo anterior
-        (() => {
-          let q = supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", comercial.id).in("estado", ["cita_agendada", "en_negociacion", "cerrado_ganado"]);
-          if (fechaAnteriorDesde) q = q.gte("fecha_captacion", fechaAnteriorDesde);
-          if (fechaAnteriorHasta) q = q.lt("fecha_captacion", fechaAnteriorHasta);
-          return q;
-        })(),
-        // Última actividad: lead más recientemente actualizado
-        supabase.from("leads").select("updated_at").eq("comercial_asignado", comercial.id).order("updated_at", { ascending: false }).limit(1),
-        // Leads ganados con producto para calcular top
-        supabase.from("leads").select("producto_interes_principal").eq("comercial_asignado", comercial.id).eq("estado", "cerrado_ganado").not("producto_interes_principal", "is", null).limit(100),
-        // Historial de estados para tiempos medios
-        supabase.from("lead_state_history").select("estado_anterior, estado_nuevo, created_at").eq("comercial_id", comercial.id).order("created_at", { ascending: true }).limit(500),
+
+        // Última interacción de cada lead (para detectar "activo hoy" real)
+        supabase.from("interactions")
+          .select("lead_id, created_at")
+          .order("created_at", { ascending: false }),
+
+        // Interacciones creadas hoy (para badge "Activo hoy")
+        supabase.from("interactions")
+          .select("lead_id, created_at")
+          .gte("created_at", inicioHoy),
       ]);
 
-      // Calcular top producto
-      let topProducto: string | null = null;
-      if (leadsGanados && leadsGanados.length > 0) {
-        const conteo: Record<string, number> = {};
-        for (const l of leadsGanados) {
-          const p = l.producto_interes_principal as string;
-          conteo[p] = (conteo[p] ?? 0) + 1;
+      // ── 2. Alertas de decisión ────────────────────────────────────────────
+      const nuevasAlertas: AlertaDecision[] = [];
+      for (const l of (alertasSinAtencion.data ?? [])) {
+        const horas = Math.round((ahora.getTime() - new Date(l.updated_at).getTime()) / 3_600_000);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const com = (l as any).comerciales;
+        nuevasAlertas.push({ tipo: "sin_atencion", lead_id: l.id, nombre: [l.nombre, l.apellidos].filter(Boolean).join(" ") || "Sin nombre", empresa: l.empresa, horas, comercial: com ? `${com.nombre} ${com.apellidos ?? ""}`.trim() : "Sin asignar" });
+      }
+      for (const l of (alertasVencidas.data ?? [])) {
+        const horas = Math.round((ahora.getTime() - new Date(l.proxima_accion_fecha).getTime()) / 3_600_000);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const com = (l as any).comerciales;
+        nuevasAlertas.push({ tipo: "accion_vencida", lead_id: l.id, nombre: [l.nombre, l.apellidos].filter(Boolean).join(" ") || "Sin nombre", empresa: l.empresa, horas, comercial: com ? `${com.nombre} ${com.apellidos ?? ""}`.trim() : "Sin asignar" });
+      }
+      for (const l of (alertasEstancados.data ?? [])) {
+        const dias = Math.round((ahora.getTime() - new Date(l.updated_at).getTime()) / 86_400_000);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const com = (l as any).comerciales;
+        nuevasAlertas.push({ tipo: "pipeline_estancado", lead_id: l.id, nombre: [l.nombre, l.apellidos].filter(Boolean).join(" ") || "Sin nombre", empresa: l.empresa, horas: dias * 24, comercial: com ? `${com.nombre} ${com.apellidos ?? ""}`.trim() : "Sin asignar" });
+      }
+      setAlertas(nuevasAlertas);
+
+      if (!comerciales || comerciales.length === 0) {
+        setStats([]);
+        setLoading(false);
+        return;
+      }
+
+      // ── 3. Precalcular índices para agrupar en JS ─────────────────────────
+      const leads = todosLeads ?? [];
+      const interacciones = todasInteracciones ?? [];
+      const intHoy = interaccionesHoy ?? [];
+
+      // Leads con el estado anterior al periodo (para tendencia)
+      const leadsPeriodoAnterior = (fechaAnteriorDesde && fechaAnteriorHasta)
+        ? await supabase.from("leads")
+            .select("comercial_asignado, estado")
+            .gte("fecha_captacion", fechaAnteriorDesde)
+            .lt("fecha_captacion", fechaAnteriorHasta)
+            .then(r => r.data ?? [])
+        : [];
+
+      // Leads sin restricción de período (para accionesVencidas y sinActividad7d — siempre globales)
+      const { data: leadsGlobales } = await supabase.from("leads")
+        .select("id, comercial_asignado, estado, proxima_accion, proxima_accion_fecha, updated_at");
+      const lg = leadsGlobales ?? [];
+
+      // Map lead_id → última interacción (para "activo hoy" real y última actividad)
+      const ultimaInteraccionPorLead = new Map<string, string>();
+      for (const i of interacciones) {
+        if (!ultimaInteraccionPorLead.has(i.lead_id)) {
+          ultimaInteraccionPorLead.set(i.lead_id, i.created_at);
         }
-        topProducto = Object.entries(conteo).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
       }
 
-      // Última actividad — updated_at del lead más reciente
-      let ultimaActividad: string | null = null;
-      if (ultimaInteraccion && ultimaInteraccion.length > 0) {
-        ultimaActividad = (ultimaInteraccion[0] as { updated_at: string }).updated_at;
+      // Mapa lead_id → comercial_asignado para cruzar interacciones con comercial
+      const leadACom = new Map<string, string>();
+      for (const l of lg) {
+        if (l.comercial_asignado) leadACom.set(l.id, l.comercial_asignado);
       }
 
-      // Calcular tiempos medios entre estados
-      const transicionesInteres = [
-        { de: "nuevo", a: "mensaje_enviado" },
-        { de: "mensaje_enviado", a: "respondio" },
-        { de: "respondio", a: "cita_agendada" },
-        { de: "cita_agendada", a: "cerrado_ganado" },
-      ];
-      type HistRow = { estado_anterior: string; estado_nuevo: string; created_at: string };
-      const historial = (historialRes?.data ?? []) as HistRow[];
-      const tiempoMedioEstados: { de: string; a: string; dias: number }[] = [];
-      for (const trans of transicionesInteres) {
-        const pares: number[] = [];
-        // Para cada transición, buscar pares de registros consecutivos del mismo lead
-        // Agrupamos por lead implícitamente usando timestamps consecutivos
-        const salidas = historial.filter(h => h.estado_anterior === trans.de && h.estado_nuevo === trans.a);
-        // Buscamos el registro de entrada al estado "de" más cercano anterior para cada salida
-        for (const salida of salidas) {
-          const entradas = historial.filter(h =>
-            h.estado_nuevo === trans.de &&
-            new Date(h.created_at) < new Date(salida.created_at)
-          );
-          if (entradas.length > 0) {
-            const entrada = entradas[entradas.length - 1];
-            const diasEnEstado = (new Date(salida.created_at).getTime() - new Date(entrada.created_at).getTime()) / 86_400_000;
-            if (diasEnEstado >= 0 && diasEnEstado < 365) pares.push(diasEnEstado);
+      // Set de comerciales que tuvieron interacción hoy (badge "Activo hoy")
+      const comercialesActivosHoy = new Set<string>();
+      for (const i of intHoy) {
+        const com = leadACom.get(i.lead_id);
+        if (com) comercialesActivosHoy.add(com);
+      }
+
+      const siete_dias_atras = new Date(ahora.getTime() - 7 * 86_400_000).toISOString();
+
+      // ── 4. Calcular stats por comercial en JS ─────────────────────────────
+      const resultado: StatsComercial[] = [];
+
+      for (const comercial of comerciales) {
+        const misLeads = leads.filter(l => l.comercial_asignado === comercial.id);
+        const misLeadsGlobales = lg.filter(l => l.comercial_asignado === comercial.id);
+
+        const totalLeads = misLeads.length;
+        const leadsCalientes = misLeads.filter(l => l.temperatura === "caliente").length;
+
+        const estadosContactado = ["mensaje_enviado", "respondio", "cita_agendada", "en_negociacion", "cerrado_ganado", "cerrado_perdido"];
+        const estadosRespondio = ["respondio", "cita_agendada", "en_negociacion", "cerrado_ganado"];
+        const estadosCita = ["cita_agendada", "en_negociacion", "cerrado_ganado"];
+
+        const leadsContactados = misLeads.filter(l => estadosContactado.includes(l.estado)).length;
+        const respondieron = misLeads.filter(l => estadosRespondio.includes(l.estado)).length;
+        const citasAgendadas = misLeads.filter(l => estadosCita.includes(l.estado)).length;
+        const cerradosGanados = misLeads.filter(l => l.estado === "cerrado_ganado").length;
+
+        // Acciones vencidas y sin actividad 7d — siempre sobre todos sus leads (no filtrado por período)
+        const accionesVencidas = misLeadsGlobales.filter(l =>
+          l.proxima_accion && l.proxima_accion !== "ninguna" &&
+          l.proxima_accion_fecha && l.proxima_accion_fecha < ahora.toISOString() &&
+          !["cerrado_ganado", "cerrado_perdido", "descartado"].includes(l.estado)
+        ).length;
+
+        const sinActividad7d = misLeadsGlobales.filter(l =>
+          l.estado === "en_negociacion" &&
+          l.updated_at < siete_dias_atras
+        ).length;
+
+        // Tendencia período anterior
+        const cerradosPeriodoAnterior = leadsPeriodoAnterior.filter(l => l.comercial_asignado === comercial.id && l.estado === "cerrado_ganado").length;
+        const citasPeriodoAnterior = leadsPeriodoAnterior.filter(l => l.comercial_asignado === comercial.id && estadosCita.includes(l.estado)).length;
+
+        // Top producto de leads ganados
+        let topProducto: string | null = null;
+        const ganados = misLeads.filter(l => l.estado === "cerrado_ganado" && l.producto_interes_principal);
+        if (ganados.length > 0) {
+          const conteo: Record<string, number> = {};
+          for (const l of ganados) {
+            const p = l.producto_interes_principal as string;
+            conteo[p] = (conteo[p] ?? 0) + 1;
+          }
+          topProducto = Object.entries(conteo).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+        }
+
+        // Última actividad real — interacción más reciente en cualquiera de sus leads
+        let ultimaActividad: string | null = null;
+        for (const l of misLeadsGlobales) {
+          const fechaInt = ultimaInteraccionPorLead.get(l.id);
+          if (fechaInt && (!ultimaActividad || fechaInt > ultimaActividad)) {
+            ultimaActividad = fechaInt;
           }
         }
-        if (pares.length > 0) {
-          const media = pares.reduce((a, b) => a + b, 0) / pares.length;
-          tiempoMedioEstados.push({ de: trans.de, a: trans.a, dias: Math.round(media * 10) / 10 });
-        }
+
+        // "Activo hoy" — hubo interacción hoy en alguno de sus leads
+        const activoHoy = comercialesActivosHoy.has(comercial.id);
+
+        const tasaRespuesta = leadsContactados > 0 ? Math.round((respondieron / leadsContactados) * 100) : 0;
+        const tasaConversion = totalLeads > 0 ? Math.round((cerradosGanados / totalLeads) * 100) : 0;
+
+        resultado.push({
+          comercial,
+          totalLeads,
+          leadsCalientes,
+          leadsContactados,
+          respondieron,
+          citasAgendadas,
+          cerradosGanados,
+          tasaRespuesta,
+          tasaConversion,
+          accionesVencidas,
+          sinActividad7d,
+          objetivoCierres: comercial.objetivo_cierres_mes ?? 5,
+          objetivoCitas: comercial.objetivo_citas_mes ?? 20,
+          activoHoy,
+          ultimaActividad,
+          cerradosPeriodoAnterior,
+          citasPeriodoAnterior,
+          topProducto,
+        });
       }
 
-      const t = totalLeads ?? 0;
-      const c = leadsContactados ?? 0;
-      const r = respondieron ?? 0;
+      // ── 5. Ranking: si todos tienen 0 cierres → rankear por actividad ─────
+      const todosEnCero = resultado.every(s => s.cerradosGanados === 0);
+      if (todosEnCero) {
+        resultado.sort((a, b) => {
+          const actividadA = a.leadsContactados + a.respondieron + a.citasAgendadas;
+          const actividadB = b.leadsContactados + b.respondieron + b.citasAgendadas;
+          return actividadB - actividadA || b.totalLeads - a.totalLeads;
+        });
+      } else {
+        resultado.sort((a, b) => b.cerradosGanados - a.cerradosGanados || b.totalLeads - a.totalLeads);
+      }
 
-      resultado.push({
-        comercial,
-        totalLeads: t,
-        leadsCalientes: leadsCalientes ?? 0,
-        leadsContactados: c,
-        respondieron: r,
-        citasAgendadas: citasAgendadas ?? 0,
-        cerradosGanados: cerradosGanados ?? 0,
-        tasaRespuesta: c > 0 ? Math.round((r / c) * 100) : 0,
-        tasaConversion: t > 0 ? Math.round(((cerradosGanados ?? 0) / t) * 100) : 0,
-        leadsHoy: 0,
-        accionesVencidas: accionesVencidas ?? 0,
-        sinActividad7d: sinActividad7d ?? 0,
-        objetivoCierres: comercial.objetivo_cierres_mes ?? 5,
-        objetivoCitas: comercial.objetivo_citas_mes ?? 20,
-        ultimaActividad,
-        cerradosPeriodoAnterior: cierresAnteriores ?? 0,
-        citasPeriodoAnterior: citasAnteriores ?? 0,
-        topProducto,
-        tiempoMedioEstados,
-      });
-    }
-
-    setStats(resultado.sort((a, b) => b.cerradosGanados - a.cerradosGanados || b.totalLeads - a.totalLeads));
+      setStats(resultado);
     } catch (err) {
       console.error("Error cargando desempeño:", err);
     } finally {
@@ -306,6 +350,8 @@ export default function DesempenoPage() {
     }
     return true;
   });
+
+  const todosEnCeroFiltrado = statsFiltrados.every(s => s.cerradosGanados === 0);
 
   return (
     <div className="space-y-8">
@@ -371,13 +417,22 @@ export default function DesempenoPage() {
           {/* Ranking */}
           {statsFiltrados.length > 1 && (
             <section>
-              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">Ranking del periodo</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Ranking del periodo</h2>
+                {todosEnCeroFiltrado && (
+                  <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">Ordenado por actividad (sin cierres aún)</span>
+                )}
+              </div>
               <div className="flex gap-3 overflow-x-auto pb-1">
                 {statsFiltrados.slice(0, 3).map((s, i) => {
                   const nombre = `${s.comercial.nombre} ${s.comercial.apellidos ?? ""}`.trim();
                   const iniciales = nombre.split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
                   const medallas = ["🥇", "🥈", "🥉"];
                   const bgPodio = ["bg-yellow-50 border-yellow-200", "bg-slate-50 border-slate-200", "bg-orange-50 border-orange-200"];
+                  const metricaValor = todosEnCeroFiltrado
+                    ? s.leadsContactados + s.respondieron + s.citasAgendadas
+                    : s.cerradosGanados;
+                  const metricaLabel = todosEnCeroFiltrado ? "actividad" : "cierres";
                   return (
                     <Link key={s.comercial.id} href={`/desempeno/${s.comercial.id}`}
                       className={`flex-shrink-0 flex flex-col items-center gap-2 px-6 py-4 rounded-xl border ${bgPodio[i]} hover:shadow-md transition-shadow min-w-[130px]`}>
@@ -386,20 +441,23 @@ export default function DesempenoPage() {
                         {iniciales}
                       </div>
                       <p className="text-xs font-semibold text-slate-800 text-center leading-tight">{s.comercial.nombre}</p>
-                      <p className="text-lg font-bold text-green-600">{s.cerradosGanados}</p>
-                      <p className="text-xs text-slate-400">cierres</p>
+                      <p className="text-lg font-bold text-green-600">{metricaValor}</p>
+                      <p className="text-xs text-slate-400">{metricaLabel}</p>
                     </Link>
                   );
                 })}
                 {statsFiltrados.slice(3).map((s, i) => {
                   const nombre = `${s.comercial.nombre} ${s.comercial.apellidos ?? ""}`.trim();
+                  const metricaValor = todosEnCeroFiltrado
+                    ? s.leadsContactados + s.respondieron + s.citasAgendadas
+                    : s.cerradosGanados;
                   return (
                     <Link key={s.comercial.id} href={`/desempeno/${s.comercial.id}`}
                       className="flex-shrink-0 flex flex-col items-center gap-1.5 px-4 py-3 rounded-xl border border-slate-200 bg-white hover:shadow-md transition-shadow min-w-[110px]">
                       <span className="text-sm font-bold text-slate-400">#{i + 4}</span>
                       <p className="text-xs font-medium text-slate-700 text-center">{nombre}</p>
-                      <p className="text-base font-bold text-slate-600">{s.cerradosGanados}</p>
-                      <p className="text-xs text-slate-400">cierres</p>
+                      <p className="text-base font-bold text-slate-600">{metricaValor}</p>
+                      <p className="text-xs text-slate-400">{todosEnCeroFiltrado ? "actividad" : "cierres"}</p>
                     </Link>
                   );
                 })}
@@ -410,7 +468,7 @@ export default function DesempenoPage() {
           {/* Tarjetas por comercial */}
           <section>
             <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">Rendimiento por comercial</h2>
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
               {statsFiltrados.map((s, i) => (
                 <TarjetaComercial key={s.comercial.id} stats={s} posicion={i + 1} periodo={periodo}
                   onUpdateObjetivo={async (campo, valor) => {
@@ -435,12 +493,12 @@ export default function DesempenoPage() {
                       <th className="px-4 py-3 text-left">#</th>
                       <th className="px-4 py-3 text-left">Comercial</th>
                       <th className="px-4 py-3 text-right">Leads</th>
+                      <th className="px-4 py-3 text-right">Contactados</th>
+                      <th className="px-4 py-3 text-right">Respondieron</th>
                       <th className="px-4 py-3 text-right">Citas</th>
                       <th className="px-4 py-3 text-right">Ganados</th>
                       <th className="px-4 py-3 text-right">% obj.</th>
-                      <th className="px-4 py-3 text-right">Conversión</th>
                       <th className="px-4 py-3 text-right">Vencidas</th>
-                      <th className="px-4 py-3 text-right">Top producto</th>
                       <th className="px-4 py-3 text-right">Estado</th>
                     </tr>
                   </thead>
@@ -458,9 +516,14 @@ export default function DesempenoPage() {
                               <Link href={`/desempeno/${s.comercial.id}`} className="hover:text-indigo-600 hover:underline">
                                 {s.comercial.nombre} {s.comercial.apellidos ?? ""}
                               </Link>
+                              {s.activoHoy && (
+                                <span className="text-xs bg-green-50 text-green-700 px-1.5 py-0.5 rounded font-medium">hoy</span>
+                              )}
                             </div>
                           </td>
                           <td className="px-4 py-3 text-right text-slate-600">{s.totalLeads}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">{s.leadsContactados}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">{s.respondieron}</td>
                           <td className="px-4 py-3 text-right text-slate-600">{s.citasAgendadas}</td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-1">
@@ -475,16 +538,10 @@ export default function DesempenoPage() {
                               </span>
                             ) : <span className="text-slate-300 text-xs">—</span>}
                           </td>
-                          <td className="px-4 py-3 text-right"><TasaBadge valor={s.tasaConversion} /></td>
                           <td className="px-4 py-3 text-right">
                             {s.accionesVencidas > 0
                               ? <span className="text-xs font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">{s.accionesVencidas}</span>
                               : <span className="text-xs text-slate-300">—</span>}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            {s.topProducto
-                              ? <span className="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-medium">{PRODUCTOS_NOMBRE[s.topProducto] ?? s.topProducto}</span>
-                              : <span className="text-slate-300 text-xs">—</span>}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${semaforo === "verde" ? "bg-green-50 text-green-700" : semaforo === "rojo" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>
@@ -574,38 +631,38 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
     s.cerradosGanados > 0 && s.accionesVencidas === 0 && !cierresAtrasado ? "verde" :
     s.accionesVencidas > 2 || s.sinActividad7d > 3 || (cierresAtrasado && s.cerradosGanados === 0) ? "rojo" : "naranja";
 
-  const funnel = [
-    { label: "Leads totales", value: s.totalLeads, color: "bg-slate-300" },
-    { label: "Contactados", value: s.leadsContactados, color: "bg-indigo-200" },
-    { label: "Respondieron", value: s.respondieron, color: "bg-indigo-400" },
-    { label: "Citas agendadas", value: s.citasAgendadas, color: "bg-indigo-600" },
-    { label: "Cerrados ganados", value: s.cerradosGanados, color: "bg-green-500" },
-  ];
-  const maxVal = s.totalLeads || 1;
-
-  // Última actividad
-  function actividadLabel(fecha: string | null): { texto: string; color: string } {
-    if (!fecha) return { texto: "Sin actividad registrada", color: "text-slate-400" };
-    const horas = (Date.now() - new Date(fecha).getTime()) / 3_600_000;
-    if (horas < 24) return { texto: "Activo hoy", color: "text-green-600" };
-    if (horas < 48) return { texto: "Activo ayer", color: "text-green-500" };
-    const dias = Math.floor(horas / 24);
-    if (dias <= 3) return { texto: `Hace ${dias} días`, color: "text-amber-600" };
-    return { texto: `Sin actividad hace ${dias} días`, color: "text-red-500" };
-  }
-  const actividad = actividadLabel(s.ultimaActividad);
-
   async function guardarObjetivo(campo: string, val: string, cerrar: () => void) {
     const n = parseInt(val);
     if (!isNaN(n) && n >= 0) await onUpdateObjetivo(campo, n);
     cerrar();
   }
 
+  // Etiqueta de última actividad
+  function actividadLabel(): { texto: string; color: string } {
+    if (s.activoHoy) return { texto: "Activo hoy", color: "text-green-600" };
+    if (!s.ultimaActividad) return { texto: "Sin actividad", color: "text-slate-400" };
+    const horas = (Date.now() - new Date(s.ultimaActividad).getTime()) / 3_600_000;
+    if (horas < 48) return { texto: "Activo ayer", color: "text-green-500" };
+    const dias = Math.floor(horas / 24);
+    if (dias <= 3) return { texto: `Hace ${dias} días`, color: "text-amber-600" };
+    return { texto: `${dias}d sin actividad`, color: "text-red-500" };
+  }
+  const actividad = actividadLabel();
+
+  const funnel = [
+    { label: "Leads", value: s.totalLeads, color: "bg-slate-300" },
+    { label: "Contactados", value: s.leadsContactados, color: "bg-indigo-200" },
+    { label: "Respondieron", value: s.respondieron, color: "bg-indigo-400" },
+    { label: "Citas", value: s.citasAgendadas, color: "bg-indigo-600" },
+    { label: "Ganados", value: s.cerradosGanados, color: "bg-green-500" },
+  ];
+  const maxVal = s.totalLeads || 1;
+
   return (
-    <div className={`bg-white rounded-xl border p-6 space-y-5 ${semaforo === "rojo" ? "border-red-200" : semaforo === "naranja" ? "border-amber-200" : "border-slate-200"}`}>
-      {/* Header */}
+    <div className={`bg-white rounded-xl border p-5 space-y-4 ${semaforo === "rojo" ? "border-red-200" : semaforo === "naranja" ? "border-amber-200" : "border-slate-200"}`}>
+      {/* Header: avatar + nombre + estado + actividad */}
       <div className="flex items-center gap-3">
-        <div className="relative">
+        <div className="relative flex-shrink-0">
           <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">
             {iniciales}
           </div>
@@ -622,24 +679,28 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
               {semaforo === "verde" ? "OK" : semaforo === "rojo" ? "Atención" : "Revisar"}
             </span>
           </div>
-          <div className="flex items-center gap-3 mt-0.5">
-            <p className="text-xs text-slate-400">{s.comercial.rol === "director" ? "Director comercial" : "Comercial activo"}</p>
+          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+            <span className="text-xs text-slate-400">{s.comercial.rol === "director" ? "Director" : "Comercial"}</span>
             <span className={`text-xs font-medium ${actividad.color}`}>● {actividad.texto}</span>
+            {s.topProducto && (
+              <span className="text-xs bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded font-medium">
+                {PRODUCTOS_NOMBRE[s.topProducto] ?? s.topProducto}
+              </span>
+            )}
           </div>
         </div>
-        {s.cerradosGanados > 0 && (
-          <div className="text-right flex-shrink-0">
-            <div className="flex items-center gap-1 justify-end">
-              <p className="text-lg font-bold text-green-600">{s.cerradosGanados}</p>
-              {periodo !== "todo" && <TendenciaBadge actual={s.cerradosGanados} anterior={s.cerradosPeriodoAnterior} />}
-            </div>
-            <p className="text-xs text-slate-400">Ganados</p>
+        {/* Cierres destacados */}
+        <div className="text-right flex-shrink-0">
+          <div className="flex items-center gap-1 justify-end">
+            <p className={`text-xl font-bold ${s.cerradosGanados > 0 ? "text-green-600" : "text-slate-300"}`}>{s.cerradosGanados}</p>
+            {periodo !== "todo" && s.cerradosGanados > 0 && <TendenciaBadge actual={s.cerradosGanados} anterior={s.cerradosPeriodoAnterior} />}
           </div>
-        )}
+          <p className="text-xs text-slate-400">ganados</p>
+        </div>
       </div>
 
-      {/* Alertas del comercial */}
-      {(s.accionesVencidas > 0 || s.sinActividad7d > 0 || s.leadsCalientes > 0) && (
+      {/* Alertas inline (solo las críticas) */}
+      {(s.accionesVencidas > 0 || s.sinActividad7d > 0) && (
         <div className="flex gap-2 flex-wrap">
           {s.accionesVencidas > 0 && (
             <span className="text-xs px-2 py-1 bg-red-50 text-red-600 border border-red-200 rounded-lg font-medium">
@@ -651,32 +712,15 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
               ⏳ {s.sinActividad7d} {s.sinActividad7d === 1 ? "lead estancado" : "leads estancados"}
             </span>
           )}
-          {s.leadsCalientes > 0 && (
-            <span className="text-xs px-2 py-1 bg-orange-50 text-orange-600 border border-orange-200 rounded-lg font-medium">
-              🔥 {s.leadsCalientes} {s.leadsCalientes === 1 ? "lead caliente" : "leads calientes"}
-            </span>
-          )}
-          {s.topProducto && (
-            <span className="text-xs px-2 py-1 bg-indigo-50 text-indigo-600 border border-indigo-200 rounded-lg font-medium">
-              ★ {PRODUCTOS_NOMBRE[s.topProducto] ?? s.topProducto}
-            </span>
-          )}
         </div>
       )}
 
-      {/* Stats rápidas */}
-      <div className="grid grid-cols-3 gap-3">
-        <StatItem label="Tasa respuesta" value={`${s.tasaRespuesta}%`} color={s.tasaRespuesta >= 15 ? "text-green-600" : "text-slate-600"} />
-        <StatItem label="Conversión" value={`${s.tasaConversion}%`} color={s.tasaConversion > 0 ? "text-green-600" : "text-slate-400"} />
-        <StatItem label="Sin tocar 7d" value={s.sinActividad7d} color={s.sinActividad7d > 3 ? "text-red-600" : s.sinActividad7d > 0 ? "text-amber-600" : "text-green-600"} />
-      </div>
-
-      {/* Mini funnel */}
-      <div className="space-y-2">
+      {/* Mini funnel horizontal compacto */}
+      <div className="space-y-1.5">
         {funnel.map(step => (
-          <div key={step.label} className="flex items-center gap-3">
-            <span className="text-xs text-slate-500 w-32 text-right shrink-0">{step.label}</span>
-            <div className="flex-1 h-5 bg-slate-50 rounded overflow-hidden">
+          <div key={step.label} className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 w-24 text-right shrink-0">{step.label}</span>
+            <div className="flex-1 h-4 bg-slate-50 rounded overflow-hidden">
               <div className={`h-full rounded ${step.color} transition-all duration-500 flex items-center px-2`}
                 style={{ width: `${Math.max(4, Math.round((step.value / maxVal) * 100))}%` }}>
                 <span className="text-xs font-semibold text-white whitespace-nowrap drop-shadow">{step.value}</span>
@@ -686,37 +730,20 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
         ))}
       </div>
 
-      {/* Tiempos medios entre estados */}
-      {s.tiempoMedioEstados.length > 0 && (
-        <div className="border-t border-slate-100 pt-4">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Velocidad del pipeline</p>
-          <div className="grid grid-cols-2 gap-2">
-            {s.tiempoMedioEstados.map(t => {
-              const ETIQUETAS: Record<string, string> = {
-                nuevo: "Nuevo", mensaje_enviado: "Contactado", respondio: "Respondió",
-                cita_agendada: "Cita", cerrado_ganado: "Ganado",
-              };
-              const color = t.dias <= 3 ? "text-green-600" : t.dias <= 7 ? "text-amber-600" : "text-red-500";
-              return (
-                <div key={`${t.de}-${t.a}`} className="bg-slate-50 rounded-lg p-2.5 text-center">
-                  <p className={`text-sm font-bold ${color}`}>{t.dias}d</p>
-                  <p className="text-xs text-slate-400 leading-tight mt-0.5">
-                    {ETIQUETAS[t.de] ?? t.de} → {ETIQUETAS[t.a] ?? t.a}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* Stats clave: tasa respuesta + conversión */}
+      <div className="grid grid-cols-3 gap-2">
+        <StatItem label="Tasa respuesta" value={`${s.tasaRespuesta}%`} color={s.tasaRespuesta >= 15 ? "text-green-600" : "text-slate-500"} />
+        <StatItem label="Conversión" value={`${s.tasaConversion}%`} color={s.tasaConversion > 0 ? "text-green-600" : "text-slate-400"} />
+        <StatItem label="Sin tocar 7d" value={s.sinActividad7d} color={s.sinActividad7d > 3 ? "text-red-600" : s.sinActividad7d > 0 ? "text-amber-600" : "text-green-600"} />
+      </div>
 
-      {/* Objetivos del mes */}
-      <div className="border-t border-slate-100 pt-4 space-y-3">
+      {/* Objetivos */}
+      <div className="border-t border-slate-100 pt-3 space-y-2.5">
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Objetivos del mes</p>
         {/* Cierres */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-slate-600">Cierres ganados</span>
+            <span className="text-xs text-slate-600">Cierres</span>
             <div className="flex items-center gap-1.5">
               <span className={`text-xs font-semibold ${cierresAtrasado ? "text-red-600" : pctCierres >= 100 ? "text-green-600" : "text-slate-700"}`}>{s.cerradosGanados}</span>
               <span className="text-xs text-slate-400">de</span>
@@ -732,19 +759,18 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
                   {s.objetivoCierres}
                 </button>
               )}
-              {cierresAtrasado && <span className="text-xs text-red-500 font-medium">↓ ritmo bajo</span>}
+              {cierresAtrasado && <span className="text-xs text-red-500 font-medium">↓ bajo</span>}
             </div>
           </div>
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
             <div className={`h-full rounded-full transition-all duration-500 ${pctCierres >= 100 ? "bg-green-500" : cierresAtrasado ? "bg-red-400" : "bg-indigo-500"}`}
               style={{ width: `${pctCierres}%` }} />
           </div>
-          <p className="text-xs text-slate-400 mt-0.5 text-right">{pctCierres}%</p>
         </div>
         {/* Citas */}
         <div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-slate-600">Citas agendadas</span>
+            <span className="text-xs text-slate-600">Citas</span>
             <div className="flex items-center gap-1.5">
               <span className={`text-xs font-semibold ${citasAtrasado ? "text-red-600" : pctCitas >= 100 ? "text-green-600" : "text-slate-700"}`}>{s.citasAgendadas}</span>
               <span className="text-xs text-slate-400">de</span>
@@ -760,14 +786,13 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
                   {s.objetivoCitas}
                 </button>
               )}
-              {citasAtrasado && <span className="text-xs text-red-500 font-medium">↓ ritmo bajo</span>}
+              {citasAtrasado && <span className="text-xs text-red-500 font-medium">↓ bajo</span>}
             </div>
           </div>
-          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+          <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
             <div className={`h-full rounded-full transition-all duration-500 ${pctCitas >= 100 ? "bg-green-500" : citasAtrasado ? "bg-red-400" : "bg-indigo-500"}`}
               style={{ width: `${pctCitas}%` }} />
           </div>
-          <p className="text-xs text-slate-400 mt-0.5 text-right">{pctCitas}%</p>
         </div>
       </div>
     </div>
@@ -776,9 +801,9 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
 
 function StatItem({ label, value, color }: { label: string; value: string | number; color: string }) {
   return (
-    <div className="bg-slate-50 rounded-lg p-3 text-center">
-      <p className={`text-xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-slate-400 mt-0.5">{label}</p>
+    <div className="bg-slate-50 rounded-lg p-2.5 text-center">
+      <p className={`text-lg font-bold ${color}`}>{value}</p>
+      <p className="text-xs text-slate-400 mt-0.5 leading-tight">{label}</p>
     </div>
   );
 }
@@ -788,3 +813,6 @@ function TasaBadge({ valor }: { valor: number }) {
   const color = valor >= 20 ? "text-green-600 bg-green-50" : valor >= 10 ? "text-amber-600 bg-amber-50" : "text-red-600 bg-red-50";
   return <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${color}`}>{valor}%</span>;
 }
+
+// Keep TasaBadge exported-compatible (used in table)
+export { TasaBadge };

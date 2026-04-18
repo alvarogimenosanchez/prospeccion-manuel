@@ -597,6 +597,14 @@ export default function LeadDetailPage() {
     ? Math.floor((Date.now() - ultimaInteraccionFecha.getTime()) / (1000 * 60 * 60 * 24))
     : null;
 
+  // Días en estado actual
+  const diasEnEstado = (() => {
+    const historialOrdenado = [...stateHistory].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const ultimoCambio = historialOrdenado.find(h => h.estado_nuevo === lead.estado);
+    const fechaRef = ultimoCambio ? new Date(ultimoCambio.created_at) : new Date(lead.updated_at ?? lead.fecha_captacion ?? Date.now());
+    return Math.max(0, Math.floor((Date.now() - fechaRef.getTime()) / (1000 * 60 * 60 * 24)));
+  })();
+
   function generarMensaje(tipo: "primer_contacto" | "recordatorio_1" | "recordatorio_2") {
     const nombre = lead!.nombre || "Hola";
     const empresa = lead!.empresa || "";
@@ -844,6 +852,11 @@ export default function LeadDetailPage() {
               {lead.temperatura && <TemperaturaBadge temperatura={lead.temperatura as "caliente" | "templado" | "frio"} />}
               <PrioridadBadge prioridad={prioridadDeNivel(lead.nivel_interes)} />
               <FuenteBadge fuente={lead.fuente ?? null} />
+              {lead.fecha_captacion && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-slate-50 text-slate-500 border-slate-200">
+                  📅 {new Date(lead.fecha_captacion).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}
+                </span>
+              )}
               {diasSinContacto !== null && (
                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
                   diasSinContacto === 0 ? "bg-green-50 text-green-700 border-green-200" :
@@ -875,21 +888,80 @@ export default function LeadDetailPage() {
             </div>
           </div>
 
-          {/* Cambiar estado rápido */}
+          {/* Estado como stepper lineal */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Estado del lead</h3>
-            <div className="grid grid-cols-2 gap-1.5">
-              {ESTADOS.map(e => (
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Estado del lead</h3>
+              <span className="text-xs text-slate-400">
+                {diasEnEstado === 0 ? "Hoy" : diasEnEstado === 1 ? "1 día en este estado" : `${diasEnEstado} días en este estado`}
+              </span>
+            </div>
+            {/* Pipeline principal */}
+            <div className="flex items-center gap-0.5 mb-3 overflow-x-auto pb-1">
+              {[
+                { value: "nuevo", label: "Nuevo", color: "slate" },
+                { value: "enriquecido", label: "Enriq.", color: "blue" },
+                { value: "segmentado", label: "Segm.", color: "indigo" },
+                { value: "mensaje_enviado", label: "Enviado", color: "violet" },
+                { value: "respondio", label: "Respondió", color: "amber" },
+                { value: "cita_agendada", label: "Cita", color: "green" },
+                { value: "en_negociacion", label: "Negoc.", color: "emerald" },
+                { value: "cerrado_ganado", label: "Ganado", color: "green-dark" },
+              ].map((e, idx, arr) => {
+                const isActive = lead.estado === e.value;
+                const allValues = ["nuevo","enriquecido","segmentado","mensaje_enviado","respondio","cita_agendada","en_negociacion","cerrado_ganado"];
+                const currentIdx = allValues.indexOf(lead.estado);
+                const isPast = currentIdx > idx;
+                return (
+                  <div key={e.value} className="flex items-center flex-shrink-0">
+                    <button
+                      onClick={() => cambiarEstado(e.value)}
+                      title={ESTADOS.find(s => s.value === e.value)?.label ?? e.label}
+                      className={`text-xs px-2 py-1.5 rounded-lg font-medium transition-all border whitespace-nowrap ${
+                        isActive
+                          ? e.value === "cerrado_ganado"
+                            ? "bg-green-600 text-white border-green-600 ring-2 ring-green-400/40"
+                            : e.value === "respondio"
+                            ? "bg-amber-100 text-amber-700 border-amber-400 ring-2 ring-amber-300/40"
+                            : e.value === "cita_agendada" || e.value === "en_negociacion"
+                            ? "bg-green-100 text-green-700 border-green-400 ring-2 ring-green-300/40"
+                            : e.value === "mensaje_enviado"
+                            ? "bg-violet-100 text-violet-700 border-violet-400 ring-2 ring-violet-300/40"
+                            : e.value === "enriquecido"
+                            ? "bg-blue-100 text-blue-700 border-blue-400 ring-2 ring-blue-300/40"
+                            : e.value === "segmentado"
+                            ? "bg-indigo-100 text-indigo-700 border-indigo-400 ring-2 ring-indigo-300/40"
+                            : "bg-slate-200 text-slate-700 border-slate-400 ring-2 ring-slate-300/40"
+                          : isPast
+                          ? "bg-slate-50 text-slate-400 border-slate-200"
+                          : "border-slate-200 text-slate-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50"
+                      }`}
+                    >
+                      {isPast && !isActive ? <span className="opacity-60">{e.label}</span> : e.label}
+                    </button>
+                    {idx < arr.length - 1 && (
+                      <span className="text-slate-300 text-xs mx-0.5 flex-shrink-0">→</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {/* Estados negativos al final */}
+            <div className="flex gap-1.5 pt-2 border-t border-slate-100">
+              {[
+                { value: "cerrado_perdido", label: "Perdido" },
+                { value: "descartado", label: "Descartado" },
+              ].map(e => (
                 <button
                   key={e.value}
                   onClick={() => cambiarEstado(e.value)}
-                  className={`text-xs px-2 py-2 rounded-lg font-medium text-left transition-all border ${
+                  className={`text-xs px-2.5 py-1.5 rounded-lg font-medium transition-all border ${
                     lead.estado === e.value
-                      ? `${e.class} border-current ring-2 ring-offset-1 ring-current/30`
-                      : "border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                      ? "bg-red-100 text-red-600 border-red-400 ring-2 ring-red-300/40"
+                      : "border-slate-200 text-slate-400 hover:border-red-300 hover:text-red-500 hover:bg-red-50"
                   }`}
                 >
-                  {e.label}
+                  {e.value === "cerrado_perdido" ? "✗ Perdido" : "— Descartado"}
                 </button>
               ))}
             </div>
@@ -1057,7 +1129,13 @@ export default function LeadDetailPage() {
             {lead.telefono_whatsapp && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-400 w-20 flex-shrink-0">WhatsApp</span>
-                <a href={`https://wa.me/${lead.telefono_whatsapp.replace("+","")}`} target="_blank" rel="noopener noreferrer" className="text-sm text-green-600 hover:underline font-medium truncate">
+                <a
+                  href={`https://wa.me/${lead.telefono_whatsapp.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm text-green-700 hover:text-green-900 font-medium bg-green-50 hover:bg-green-100 border border-green-200 px-2.5 py-1 rounded-lg transition-colors truncate"
+                >
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                   {lead.telefono_whatsapp}
                 </a>
               </div>
@@ -1065,13 +1143,25 @@ export default function LeadDetailPage() {
             {lead.telefono && lead.telefono !== lead.telefono_whatsapp && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-400 w-20 flex-shrink-0">Teléfono</span>
-                <a href={`tel:${lead.telefono}`} className="text-sm text-slate-700 truncate">{lead.telefono}</a>
+                <a
+                  href={`tel:${lead.telefono}`}
+                  className="inline-flex items-center gap-1.5 text-sm text-blue-700 hover:text-blue-900 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors truncate"
+                >
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.67A2 2 0 012 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+                  {lead.telefono}
+                </a>
               </div>
             )}
             {lead.email && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-400 w-20 flex-shrink-0">Email</span>
-                <a href={`mailto:${lead.email}`} className="text-sm text-slate-700 hover:underline truncate">{lead.email}</a>
+                <a
+                  href={`mailto:${lead.email}`}
+                  className="inline-flex items-center gap-1.5 text-sm text-violet-700 hover:text-violet-900 bg-violet-50 hover:bg-violet-100 border border-violet-200 px-2.5 py-1 rounded-lg transition-colors truncate"
+                >
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                  {lead.email}
+                </a>
               </div>
             )}
             {lead.ciudad && (
@@ -1366,13 +1456,15 @@ export default function LeadDetailPage() {
                     >
                       {generandoMensajeIA ? "Generando..." : "✨ IA"}
                     </button>
-                    <button
-                      onClick={() => { setMensajeWhatsapp(generarMensaje("primer_contacto")); setMostrarEnvio(true); }}
+                    <a
+                      href={`https://wa.me/${lead.telefono_whatsapp!.replace(/\D/g, "")}?text=${encodeURIComponent(generarMensaje("primer_contacto"))}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors"
                     >
-                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
                       Escribir a {lead.nombre}
-                    </button>
+                    </a>
                   </div>
                 )}
               </div>
@@ -1456,23 +1548,50 @@ export default function LeadDetailPage() {
             <div className="border-t border-slate-100 px-3 pt-3 pb-1">
               <p className="text-xs text-slate-400 mb-2">Acción rápida</p>
               <div className="flex flex-wrap gap-1.5 mb-2">
-                <button onClick={() => accionRapida("llamada", "📞 Llamé, no cogió")}
+                <button
+                  onClick={async () => {
+                    await accionRapida("llamada", "📞 Llamé, no cogió");
+                    // Sugerir próxima acción: volver a llamar
+                    setAccionForm({ proxima_accion: "llamar", proxima_accion_fecha: "", proxima_accion_nota: "Reintentar llamada" });
+                    setEditandoAccion(true);
+                  }}
                   className="text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg hover:border-slate-400 transition-colors">
                   📞 No cogió
                 </button>
-                <button onClick={() => accionRapida("mensaje_voz", "🎙 Dejé mensaje de voz")}
+                <button
+                  onClick={async () => {
+                    await accionRapida("mensaje_voz", "🎙 Dejé mensaje de voz");
+                    setAccionForm({ proxima_accion: "esperar_respuesta", proxima_accion_fecha: "", proxima_accion_nota: "Esperando que devuelva la llamada" });
+                    setEditandoAccion(true);
+                  }}
                   className="text-xs px-2.5 py-1.5 bg-slate-50 border border-slate-200 text-slate-600 rounded-lg hover:border-slate-400 transition-colors">
                   🎙 Dejé voz
                 </button>
-                <button onClick={() => accionRapida("respondio", "✅ Respondió", "respondio")}
-                  className="text-xs px-2.5 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded-lg hover:border-green-400 transition-colors">
+                <button
+                  onClick={async () => {
+                    await accionRapida("respondio", "✅ Respondió", "respondio");
+                    // Respondió → siguiente acción lógica: agendar cita o enviar info
+                    setAccionForm({ proxima_accion: "reunion", proxima_accion_fecha: "", proxima_accion_nota: "Intentar agendar cita" });
+                    setEditandoAccion(true);
+                  }}
+                  className="text-xs px-2.5 py-1.5 bg-green-50 border border-green-200 text-green-700 rounded-lg hover:border-green-400 transition-colors font-medium">
                   ✅ Respondió
                 </button>
-                <button onClick={() => accionRapida("no_responde", "❌ No contesta (3+ intentos)")}
+                <button
+                  onClick={async () => {
+                    await accionRapida("no_responde", "❌ No contesta (3+ intentos)");
+                    setAccionForm({ proxima_accion: "whatsapp", proxima_accion_fecha: "", proxima_accion_nota: "Último intento por WhatsApp" });
+                    setEditandoAccion(true);
+                  }}
                   className="text-xs px-2.5 py-1.5 bg-red-50 border border-red-200 text-red-600 rounded-lg hover:border-red-400 transition-colors">
                   ❌ No contesta
                 </button>
-                <button onClick={() => accionRapida("reunion", "🤝 Reunión realizada")}
+                <button
+                  onClick={async () => {
+                    await accionRapida("reunion", "🤝 Reunión realizada", "en_negociacion");
+                    setAccionForm({ proxima_accion: "enviar_info", proxima_accion_fecha: "", proxima_accion_nota: "Enviar propuesta post-reunión" });
+                    setEditandoAccion(true);
+                  }}
                   className="text-xs px-2.5 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg hover:border-indigo-400 transition-colors">
                   🤝 Reunión hecha
                 </button>

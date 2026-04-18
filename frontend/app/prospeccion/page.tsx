@@ -46,10 +46,18 @@ const CAMPOS_LEAD: { key: keyof LeadImport; label: string }[] = [
 ];
 
 
+type HeaderStats = {
+  total: number;
+  sinContactar: number;
+  estaSemana: number;
+  respondieron: number;
+};
+
 export default function ProspeccionPage() {
   const [leads, setLeads] = useState<LeadNuevo[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
+  const [headerStats, setHeaderStats] = useState<HeaderStats | null>(null);
 
   // Filtros del listado
   const [filtroFuente, setFiltroFuente] = useState("scraping");
@@ -98,7 +106,31 @@ export default function ProspeccionPage() {
     setLoading(false);
   }, [filtroFuente, filtroEstado, filtroCiudad, filtroSector]);
 
-  useEffect(() => { cargarLeads(); }, [cargarLeads]);
+  const cargarHeaderStats = useCallback(async () => {
+    const semanaAtras = new Date();
+    semanaAtras.setDate(semanaAtras.getDate() - 7);
+
+    const [
+      { count: totalCount },
+      { count: sinContactarCount },
+      { count: estaSemanaCount },
+      { count: respondieronCount },
+    ] = await Promise.all([
+      supabase.from("leads").select("*", { count: "exact", head: true }),
+      supabase.from("leads").select("*", { count: "exact", head: true }).eq("estado", "nuevo"),
+      supabase.from("leads").select("*", { count: "exact", head: true }).gte("fecha_captacion", semanaAtras.toISOString()),
+      supabase.from("leads").select("*", { count: "exact", head: true }).eq("estado", "respondio"),
+    ]);
+
+    setHeaderStats({
+      total: totalCount ?? 0,
+      sinContactar: sinContactarCount ?? 0,
+      estaSemana: estaSemanaCount ?? 0,
+      respondieron: respondieronCount ?? 0,
+    });
+  }, []);
+
+  useEffect(() => { cargarLeads(); cargarHeaderStats(); }, [cargarLeads, cargarHeaderStats]);
 
   const toggleSeleccion = (id: string) => {
     setSeleccionados(prev => {
@@ -360,7 +392,6 @@ export default function ProspeccionPage() {
       notas: l.notas || null,
       fuente: "base_existente" as const,
       estado: "nuevo",
-      temperatura: "frio" as const,
       nivel_interes: 3,
       prioridad: "media" as const,
       fecha_captacion: new Date().toISOString(),
@@ -394,12 +425,30 @@ export default function ProspeccionPage() {
   return (
     <div className="space-y-6">
       {/* Cabecera */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-800">Prospección automática</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
-            {total} leads encontrados por scraping
-          </p>
+          {headerStats ? (
+            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+              <span className="text-sm text-slate-600">
+                <span className="font-semibold text-slate-800">{headerStats.total}</span> total
+              </span>
+              <span className="text-slate-300">|</span>
+              <span className="text-sm text-blue-600">
+                <span className="font-semibold">{headerStats.sinContactar}</span> sin contactar
+              </span>
+              <span className="text-slate-300">|</span>
+              <span className="text-sm text-slate-600">
+                <span className="font-semibold text-slate-800">{headerStats.estaSemana}</span> esta semana
+              </span>
+              <span className="text-slate-300">|</span>
+              <span className="text-sm text-red-600">
+                <span className="font-semibold">{headerStats.respondieron}</span> respondió
+              </span>
+            </div>
+          ) : (
+            <p className="text-sm text-slate-400 mt-0.5">Cargando estadísticas...</p>
+          )}
         </div>
         <button
           onClick={() => setMostrarConfig(!mostrarConfig)}
@@ -414,8 +463,13 @@ export default function ProspeccionPage() {
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Agente 1 — Prospector</p>
-            <p className="text-sm text-slate-700 mt-0.5">Buscar leads nuevos por zona y sector</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+              <span>🔍</span> Buscar nuevos leads
+            </p>
+            <p className="text-sm text-slate-700 mt-0.5">Scraping por zona y sector</p>
+            {estadoCampana === "completada" && (
+              <p className="text-xs text-green-600 mt-0.5">✓ Última ejecución: hoy</p>
+            )}
           </div>
           <button
             onClick={() => setMostrarConfig(true)}
@@ -427,8 +481,13 @@ export default function ProspeccionPage() {
 
         <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Agente 4 — Enriquecedor</p>
-            <p className="text-sm text-slate-700 mt-0.5">Buscar director/propietario en LinkedIn</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+              <span>👤</span> Enriquecer con LinkedIn
+            </p>
+            <p className="text-sm text-slate-700 mt-0.5">Buscar director/propietario</p>
+            {estadoEnriquecimiento === "completado" && (
+              <p className="text-xs text-green-600 mt-0.5">✓ Última ejecución: hoy</p>
+            )}
           </div>
           <button
             onClick={lanzarEnriquecimiento}
@@ -441,8 +500,13 @@ export default function ProspeccionPage() {
 
         <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Agente 2 — Seguimiento</p>
-            <p className="text-sm text-slate-700 mt-0.5">Recordatorios automáticos y leads fríos</p>
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
+              <span>🔄</span> Seguimiento automático
+            </p>
+            <p className="text-sm text-slate-700 mt-0.5">Recordatorios y leads fríos</p>
+            {estadoSeguimiento === "completado" && (
+              <p className="text-xs text-green-600 mt-0.5">✓ Última ejecución: hoy</p>
+            )}
           </div>
           <button
             onClick={lanzarSeguimiento}
@@ -675,9 +739,20 @@ export default function ProspeccionPage() {
 
           {/* Categorías */}
           <div>
-            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide mb-2 block">
-              Tipo de negocio a buscar
-            </label>
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">
+                Tipo de negocio a buscar
+              </label>
+              <button
+                onClick={() => {
+                  const todasSeleccionadas = CATEGORIAS.every(c => categoriasElegidas.includes(c.id));
+                  setCategoriasElegidas(todasSeleccionadas ? [] : CATEGORIAS.map(c => c.id));
+                }}
+                className="text-xs text-indigo-600 hover:underline"
+              >
+                {CATEGORIAS.every(c => categoriasElegidas.includes(c.id)) ? "Deseleccionar todos" : "Seleccionar todos"}
+              </button>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {CATEGORIAS.map(cat => (
                 <button
@@ -787,31 +862,63 @@ export default function ProspeccionPage() {
           </div>
 
           {/* Resumen y botón */}
-          <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-            <div className="text-sm text-slate-500">
-              <span className="font-medium text-slate-700">{ciudadesElegidas.length}</span> ciudades ×{" "}
-              <span className="font-medium text-slate-700">{categoriasElegidas.length}</span> categorías
-            </div>
-            <div className="flex items-center gap-3">
-              {mensajeCampana && (
-                <span className="text-sm text-slate-600">{mensajeCampana}</span>
-              )}
-              <button
-                onClick={lanzarCampana}
-                disabled={estadoCampana === "corriendo"}
-                className="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                {estadoCampana === "corriendo" ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-                    </svg>
-                    Buscando...
+          <div className="pt-2 border-t border-slate-100 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-sm text-slate-500">
+                <span className="font-medium text-slate-700">{ciudadesElegidas.length}</span> ciudades ×{" "}
+                <span className="font-medium text-slate-700">{categoriasElegidas.length}</span> categorías
+                {ciudadesElegidas.length > 0 && categoriasElegidas.length > 0 && (
+                  <span className="ml-2 text-slate-400">
+                    · ~{Math.max(1, Math.ceil(ciudadesElegidas.length * categoriasElegidas.length * paginasPorCiudad / 3))} min estimados
                   </span>
-                ) : "Lanzar campaña"}
-              </button>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                {mensajeCampana && (
+                  <span className="text-sm text-slate-600">{mensajeCampana}</span>
+                )}
+                <button
+                  onClick={lanzarCampana}
+                  disabled={estadoCampana === "corriendo"}
+                  className="px-5 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {estadoCampana === "corriendo" ? (
+                    <span className="flex items-center gap-2">
+                      <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                      </svg>
+                      Buscando...
+                    </span>
+                  ) : "Lanzar campaña"}
+                </button>
+              </div>
             </div>
+
+            {/* Historial reciente */}
+            {historialCampanas.length > 0 && (
+              <div className="border border-slate-100 rounded-lg overflow-hidden">
+                <p className="text-xs font-medium text-slate-400 px-3 py-1.5 bg-slate-50 uppercase tracking-wide">Últimas campañas</p>
+                <div className="divide-y divide-slate-50">
+                  {historialCampanas.slice(0, 3).map((h, i) => (
+                    <div key={i} className="flex items-center gap-3 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 transition-colors">
+                      <span className="font-medium text-slate-700 w-24 truncate">{h.zona}</span>
+                      <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">{h.categoria.replace(/_/g, " ")}</span>
+                      <span className="text-slate-400 ml-auto">{h.fecha}</span>
+                      <button
+                        onClick={() => {
+                          setZonaPersonalizada(h.zona);
+                          setCategoriasElegidas([h.categoria]);
+                        }}
+                        className="text-indigo-500 hover:underline"
+                      >
+                        Repetir
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

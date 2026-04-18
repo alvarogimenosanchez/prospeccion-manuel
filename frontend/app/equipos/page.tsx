@@ -15,6 +15,21 @@ type ComercialConCarga = Comercial & {
   porcentaje_carga: number;
 };
 
+type FormEquipo = {
+  nombre: string;
+  descripcion: string;
+  zona_geografica: string;
+  miembros_ids: string[];
+};
+
+type FormEditComercial = {
+  id: string;
+  nombre: string;
+  apellidos: string;
+  rol: "director" | "comercial";
+  max_leads_activos: number;
+};
+
 export default function EquiposPage() {
   const [equipos, setEquipos] = useState<TeamConMiembros[]>([]);
   const [comerciales, setComerciales] = useState<ComercialConCarga[]>([]);
@@ -22,13 +37,15 @@ export default function EquiposPage() {
   const [tab, setTab] = useState<"equipos" | "comerciales">("equipos");
   const [equipoSeleccionado, setEquipoSeleccionado] = useState<TeamConMiembros | null>(null);
   const [mostrarNuevoEquipo, setMostrarNuevoEquipo] = useState(false);
-  const [formEquipo, setFormEquipo] = useState({ nombre: "", descripcion: "", zona_geografica: "" });
+  const [formEquipo, setFormEquipo] = useState<FormEquipo>({ nombre: "", descripcion: "", zona_geografica: "", miembros_ids: [] });
   const [guardando, setGuardando] = useState(false);
   const [mostrarAnadirMiembro, setMostrarAnadirMiembro] = useState(false);
   const [comercialParaAnadir, setComercialParaAnadir] = useState("");
   const [rolParaAnadir, setRolParaAnadir] = useState<"lider" | "miembro">("miembro");
   const [miembroParaMover, setMiembroParaMover] = useState<(TeamMember & { comercial: Comercial }) | null>(null);
   const [equipoDestinoId, setEquipoDestinoId] = useState("");
+  const [comercialEditando, setComercialEditando] = useState<FormEditComercial | null>(null);
+  const [guardandoComercial, setGuardandoComercial] = useState(false);
 
   const cargarDatos = useCallback(async () => {
     setLoading(true);
@@ -81,13 +98,26 @@ export default function EquiposPage() {
   async function crearEquipo() {
     if (!formEquipo.nombre.trim()) return;
     setGuardando(true);
-    await supabase.from("teams").insert({
+
+    const { data: nuevoEquipo } = await supabase.from("teams").insert({
       nombre: formEquipo.nombre.trim(),
       descripcion: formEquipo.descripcion.trim() || null,
       zona_geografica: formEquipo.zona_geografica.trim() || null,
       activo: true,
-    });
-    setFormEquipo({ nombre: "", descripcion: "", zona_geografica: "" });
+    }).select().single();
+
+    // Añadir miembros seleccionados si hay alguno
+    if (nuevoEquipo && formEquipo.miembros_ids.length > 0) {
+      await supabase.from("team_members").insert(
+        formEquipo.miembros_ids.map((cid, idx) => ({
+          team_id: (nuevoEquipo as Team).id,
+          comercial_id: cid,
+          rol: idx === 0 ? "lider" : "miembro",
+        }))
+      );
+    }
+
+    setFormEquipo({ nombre: "", descripcion: "", zona_geografica: "", miembros_ids: [] });
     setMostrarNuevoEquipo(false);
     setGuardando(false);
     cargarDatos();
@@ -103,7 +133,6 @@ export default function EquiposPage() {
     setComercialParaAnadir("");
     setMostrarAnadirMiembro(false);
     cargarDatos().then(() => {
-      // Re-seleccionar el equipo actualizado
       setEquipoSeleccionado(prev =>
         prev ? equipos.find(e => e.id === prev.id) ?? null : null
       );
@@ -117,9 +146,7 @@ export default function EquiposPage() {
 
   async function moverMiembro() {
     if (!miembroParaMover || !equipoDestinoId) return;
-    // Quitar del equipo actual
     await supabase.from("team_members").delete().eq("id", miembroParaMover.id);
-    // Añadir al nuevo equipo (mismo rol)
     await supabase.from("team_members").insert({
       team_id: equipoDestinoId,
       comercial_id: miembroParaMover.comercial_id,
@@ -143,6 +170,27 @@ export default function EquiposPage() {
         ? { ...c, max_leads_activos: max, porcentaje_carga: Math.round((c.leads_activos / max) * 100) }
         : c
     ));
+  }
+
+  async function guardarComercial() {
+    if (!comercialEditando) return;
+    setGuardandoComercial(true);
+    await supabase.from("comerciales").update({
+      rol: comercialEditando.rol,
+      max_leads_activos: comercialEditando.max_leads_activos,
+    }).eq("id", comercialEditando.id);
+    setComercialEditando(null);
+    setGuardandoComercial(false);
+    cargarDatos();
+  }
+
+  function toggleMiembroEnForm(comercialId: string) {
+    setFormEquipo(prev => ({
+      ...prev,
+      miembros_ids: prev.miembros_ids.includes(comercialId)
+        ? prev.miembros_ids.filter(id => id !== comercialId)
+        : [...prev.miembros_ids, comercialId],
+    }));
   }
 
   const comercialesNoMiembros = comerciales.filter(
@@ -188,68 +236,121 @@ export default function EquiposPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Lista de equipos */}
           <div className="space-y-3">
-            {equipos.length === 0 && (
-              <div className="bg-white rounded-xl border border-dashed border-slate-300 p-8 text-center">
-                <p className="text-slate-400 text-sm mb-3">Aún no hay equipos</p>
-                <button onClick={() => setMostrarNuevoEquipo(true)} className="text-indigo-600 text-sm font-medium hover:underline">
-                  Crear el primer equipo →
-                </button>
-              </div>
-            )}
-            {equipos.map(eq => {
-              const seleccionado = equipoSeleccionado?.id === eq.id;
-              return (
-                <div
-                  key={eq.id}
-                  onClick={() => setEquipoSeleccionado(eq)}
-                  className={`bg-white rounded-xl border p-4 cursor-pointer transition-all ${
-                    seleccionado ? "border-indigo-400 ring-2 ring-indigo-100" : "border-slate-200 hover:border-slate-300"
-                  } ${!eq.activo ? "opacity-50" : ""}`}
-                >
-                  <div className="flex items-start justify-between mb-2">
-                    <div>
-                      <p className="font-semibold text-slate-800 text-sm">{eq.nombre}</p>
-                      {eq.zona_geografica && (
-                        <p className="text-xs text-slate-400 mt-0.5">📍 {eq.zona_geografica}</p>
-                      )}
-                      {eq.descripcion && (
-                        <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[180px]">{eq.descripcion}</p>
-                      )}
-                    </div>
-                    <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
-                      {eq.miembros.length} {eq.miembros.length === 1 ? "miembro" : "miembros"}
-                    </span>
+            {equipos.length === 0 ? (
+              /* Empty state útil con guía de primeros pasos */
+              <div className="bg-white rounded-xl border border-dashed border-slate-300 p-6 space-y-5">
+                <div className="text-center">
+                  <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
                   </div>
+                  <p className="text-sm font-semibold text-slate-700">Aún no hay equipos</p>
+                  <p className="text-xs text-slate-400 mt-1">Organiza tu fuerza comercial en grupos por zona, producto o estrategia</p>
+                </div>
 
-                  <div className="grid grid-cols-4 gap-1 text-center mt-3">
-                    <div className="bg-slate-50 rounded py-1">
-                      <p className="text-sm font-bold text-slate-700">{eq.stats.total}</p>
-                      <p className="text-xs text-slate-400">leads</p>
-                    </div>
-                    <div className="bg-red-50 rounded py-1">
-                      <p className="text-sm font-bold text-red-600">{eq.stats.calientes}</p>
-                      <p className="text-xs text-slate-400">calientes</p>
-                    </div>
-                    <div className="bg-indigo-50 rounded py-1">
-                      <p className="text-sm font-bold text-indigo-600">{eq.stats.enProceso}</p>
-                      <p className="text-xs text-slate-400">proceso</p>
-                    </div>
-                    <div className="bg-emerald-50 rounded py-1">
-                      <p className="text-sm font-bold text-emerald-600">{eq.stats.ganados}</p>
-                      <p className="text-xs text-slate-400">ganados</p>
-                    </div>
+                <div className="space-y-2.5">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Para qué sirven los equipos</p>
+                  <div className="space-y-2">
+                    {[
+                      { icon: "📍", text: "Asignar comerciales a una zona geográfica" },
+                      { icon: "🎯", text: "Distribuir leads por grupo de trabajo" },
+                      { icon: "📊", text: "Ver métricas y carga por equipo" },
+                      { icon: "🏆", text: "Comparar rendimiento entre equipos" },
+                    ].map(({ icon, text }) => (
+                      <div key={text} className="flex items-start gap-2">
+                        <span className="text-sm flex-shrink-0">{icon}</span>
+                        <p className="text-xs text-slate-500">{text}</p>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              );
-            })}
+
+                <div className="space-y-2.5">
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Primeros pasos</p>
+                  <div className="space-y-1.5">
+                    {[
+                      { n: "1", text: `Tienes ${comerciales.length} comercial${comerciales.length !== 1 ? "es" : ""} activo${comerciales.length !== 1 ? "s" : ""}` },
+                      { n: "2", text: "Crea un equipo y asigna quién lo integra" },
+                      { n: "3", text: "Distribuye leads desde la lista de prospectos" },
+                    ].map(({ n, text }) => (
+                      <div key={n} className="flex items-start gap-2.5">
+                        <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center flex-shrink-0">{n}</span>
+                        <p className="text-xs text-slate-500 pt-0.5">{text}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setMostrarNuevoEquipo(true)}
+                  className="w-full py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-lg hover:bg-indigo-700 transition-colors"
+                >
+                  Crear el primer equipo
+                </button>
+              </div>
+            ) : (
+              equipos.map(eq => {
+                const seleccionado = equipoSeleccionado?.id === eq.id;
+                return (
+                  <div
+                    key={eq.id}
+                    onClick={() => setEquipoSeleccionado(eq)}
+                    className={`bg-white rounded-xl border p-4 cursor-pointer transition-all ${
+                      seleccionado ? "border-indigo-400 ring-2 ring-indigo-100" : "border-slate-200 hover:border-slate-300"
+                    } ${!eq.activo ? "opacity-50" : ""}`}
+                  >
+                    <div className="flex items-start justify-between mb-2">
+                      <div>
+                        <p className="font-semibold text-slate-800 text-sm">{eq.nombre}</p>
+                        {eq.zona_geografica && (
+                          <p className="text-xs text-slate-400 mt-0.5">📍 {eq.zona_geografica}</p>
+                        )}
+                        {eq.descripcion && (
+                          <p className="text-xs text-slate-400 mt-0.5 truncate max-w-[180px]">{eq.descripcion}</p>
+                        )}
+                      </div>
+                      <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+                        {eq.miembros.length} {eq.miembros.length === 1 ? "miembro" : "miembros"}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-1 text-center mt-3">
+                      <div className="bg-slate-50 rounded py-1">
+                        <p className="text-sm font-bold text-slate-700">{eq.stats.total}</p>
+                        <p className="text-xs text-slate-400">leads</p>
+                      </div>
+                      <div className="bg-red-50 rounded py-1">
+                        <p className="text-sm font-bold text-red-600">{eq.stats.calientes}</p>
+                        <p className="text-xs text-slate-400">calientes</p>
+                      </div>
+                      <div className="bg-indigo-50 rounded py-1">
+                        <p className="text-sm font-bold text-indigo-600">{eq.stats.enProceso}</p>
+                        <p className="text-xs text-slate-400">proceso</p>
+                      </div>
+                      <div className="bg-emerald-50 rounded py-1">
+                        <p className="text-sm font-bold text-emerald-600">{eq.stats.ganados}</p>
+                        <p className="text-xs text-slate-400">ganados</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
 
           {/* Panel detalle del equipo */}
           <div className="lg:col-span-2">
             {!equipoSeleccionado ? (
-              <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
-                <p className="text-slate-400 text-sm">Selecciona un equipo para gestionar sus miembros</p>
-              </div>
+              equipos.length === 0 ? (
+                <div className="bg-white rounded-xl border border-slate-100 p-12 text-center">
+                  <p className="text-slate-300 text-sm">El panel de miembros aparecerá aquí</p>
+                </div>
+              ) : (
+                <div className="bg-white rounded-xl border border-slate-200 p-12 text-center">
+                  <p className="text-slate-400 text-sm">Selecciona un equipo para gestionar sus miembros</p>
+                </div>
+              )
             ) : (
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                 <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
@@ -308,7 +409,6 @@ export default function EquiposPage() {
                             {m.comercial.email && (
                               <p className="text-xs text-slate-400 truncate">{m.comercial.email}</p>
                             )}
-                            {/* Barra de capacidad */}
                             {carga && (
                               <div className="flex items-center gap-2 mt-1.5">
                                 <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden">
@@ -396,9 +496,9 @@ export default function EquiposPage() {
           </div>
         </div>
       ) : (
-        /* Tab comerciales: carga de trabajo */
+        /* Tab comerciales: tabla con datos reales */
         <div className="space-y-4">
-          {/* Resumen de saturación */}
+          {/* Aviso de saturación */}
           {(() => {
             const saturados = comerciales.filter(c => c.porcentaje_carga >= 90);
             const aviso = comerciales.filter(c => c.porcentaje_carga >= 70 && c.porcentaje_carga < 90);
@@ -424,88 +524,121 @@ export default function EquiposPage() {
             );
           })()}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {comerciales.map(c => {
-              const pct = c.porcentaje_carga;
-              const colorBarra = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-emerald-500";
-              const colorTexto = pct >= 90 ? "text-red-600" : pct >= 70 ? "text-amber-600" : "text-emerald-600";
-              const iniciales = [c.nombre, c.apellidos].filter(Boolean).join(" ")
-                .split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+          {/* Tabla de comerciales */}
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-700">{comerciales.length} comerciales activos</p>
+              <p className="text-xs text-slate-400">Carga calculada sobre leads activos (excluye cerrados/descartados)</p>
+            </div>
 
-              // Equipos a los que pertenece
-              const misEquipos = equipos.filter(e => e.miembros.some(m => m.comercial_id === c.id));
+            {comerciales.length === 0 ? (
+              <div className="py-16 text-center">
+                <p className="text-slate-400 text-sm">No hay comerciales activos</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-50">
+                {comerciales.map(c => {
+                  const pct = c.porcentaje_carga;
+                  const colorBarra = pct >= 90 ? "bg-red-500" : pct >= 70 ? "bg-amber-500" : "bg-emerald-500";
+                  const colorPct = pct >= 90 ? "text-red-600" : pct >= 70 ? "text-amber-600" : "text-emerald-600";
+                  const iniciales = [c.nombre, c.apellidos].filter(Boolean).join(" ")
+                    .split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+                  const misEquipos = equipos.filter(e => e.miembros.some(m => m.comercial_id === c.id));
 
-              return (
-                <div key={c.id} className="bg-white rounded-xl border border-slate-200 p-5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                      c.rol === "director" ? "bg-amber-100 text-amber-700" : "bg-indigo-100 text-indigo-700"
-                    }`}>
-                      {iniciales}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <Link href={`/desempeno/${c.id}`} className="font-semibold text-slate-800 text-sm truncate hover:text-indigo-600 hover:underline">
-                          {c.nombre} {c.apellidos ?? ""}
-                        </Link>
-                        {c.rol === "director" && (
-                          <span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded font-medium flex-shrink-0">Director</span>
-                        )}
+                  return (
+                    <div key={c.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors">
+                      {/* Avatar */}
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
+                        c.rol === "director" ? "bg-amber-100 text-amber-700" : "bg-indigo-100 text-indigo-700"
+                      }`}>
+                        {iniciales}
                       </div>
-                      {c.email && <p className="text-xs text-slate-400 truncate">{c.email}</p>}
-                    </div>
-                  </div>
 
-                  {/* Barra de capacidad */}
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-xs text-slate-500">Carga de trabajo</span>
-                      <span className={`text-xs font-bold ${colorTexto}`}>{pct}%</span>
-                    </div>
-                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${colorBarra}`}
-                        style={{ width: `${Math.min(100, pct)}%` }}
-                      />
-                    </div>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-xs text-slate-400">{c.leads_activos} leads activos</span>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-slate-400">máx.</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={500}
-                          value={c.max_leads_activos}
-                          onChange={e => actualizarMaxLeads(c.id, parseInt(e.target.value) || 50)}
-                          className="w-14 text-xs text-right border border-slate-200 rounded px-1 py-0.5 focus:outline-none focus:border-indigo-300"
-                          onClick={e => e.stopPropagation()}
-                        />
+                      {/* Nombre y datos */}
+                      <div className="flex-1 min-w-0 grid grid-cols-1 md:grid-cols-4 gap-x-4 gap-y-1 items-center">
+                        {/* Columna 1: Nombre + rol */}
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Link
+                              href={`/desempeno/${c.id}`}
+                              className="text-sm font-semibold text-slate-800 hover:text-indigo-600 hover:underline truncate"
+                            >
+                              {c.nombre} {c.apellidos ?? ""}
+                            </Link>
+                            <span className={`text-xs px-2 py-0.5 rounded font-medium flex-shrink-0 ${
+                              c.rol === "director"
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-slate-100 text-slate-500"
+                            }`}>
+                              {c.rol === "director" ? "Director" : "Comercial"}
+                            </span>
+                          </div>
+                          {c.email && <p className="text-xs text-slate-400 truncate">{c.email}</p>}
+                        </div>
+
+                        {/* Columna 2: Leads activos */}
+                        <div>
+                          <p className="text-xs text-slate-400 mb-0.5">Leads activos</p>
+                          <p className="text-sm font-bold text-slate-700">
+                            {c.leads_activos}
+                            <span className="text-xs font-normal text-slate-400"> / {c.max_leads_activos} máx.</span>
+                          </p>
+                        </div>
+
+                        {/* Columna 3: Barra de carga */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-xs text-slate-400">Carga</p>
+                            <span className={`text-xs font-bold ${colorPct}`}>{pct}%</span>
+                          </div>
+                          <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-500 ${colorBarra}`}
+                              style={{ width: `${Math.min(100, pct)}%` }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Columna 4: Equipos */}
+                        <div>
+                          <p className="text-xs text-slate-400 mb-1">Equipos</p>
+                          {misEquipos.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {misEquipos.map(e => (
+                                <span key={e.id} className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">
+                                  {e.nombre}
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-slate-300">Sin equipo</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </div>
 
-                  {/* Equipos */}
-                  {misEquipos.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {misEquipos.map(e => (
-                        <span key={e.id} className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">
-                          {e.nombre}
-                        </span>
-                      ))}
+                      {/* Botón editar */}
+                      <button
+                        onClick={() => setComercialEditando({
+                          id: c.id,
+                          nombre: c.nombre,
+                          apellidos: c.apellidos ?? "",
+                          rol: c.rol,
+                          max_leads_activos: c.max_leads_activos,
+                        })}
+                        className="flex-shrink-0 text-xs text-slate-400 hover:text-indigo-600 border border-slate-200 hover:border-indigo-300 px-3 py-1.5 rounded-lg transition-colors font-medium"
+                      >
+                        Editar
+                      </button>
                     </div>
-                  )}
-                  {misEquipos.length === 0 && (
-                    <p className="text-xs text-slate-300">Sin equipo asignado</p>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Modal mover miembro a otro equipo */}
+      {/* Modal mover miembro */}
       {miembroParaMover && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
@@ -544,15 +677,15 @@ export default function EquiposPage() {
         </div>
       )}
 
-      {/* Modal nuevo equipo */}
+      {/* Modal nuevo equipo — con selección de miembros */}
       {mostrarNuevoEquipo && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between flex-shrink-0">
               <h2 className="text-base font-bold text-slate-800">Nuevo equipo</h2>
               <button onClick={() => setMostrarNuevoEquipo(false)} className="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
               <div>
                 <label className="block text-xs text-slate-500 mb-1">Nombre del equipo *</label>
                 <input
@@ -582,16 +715,156 @@ export default function EquiposPage() {
                   className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300 resize-none"
                 />
               </div>
+
+              {/* Selección de miembros */}
+              {comerciales.length > 0 && (
+                <div>
+                  <label className="block text-xs text-slate-500 mb-2">
+                    Miembros iniciales
+                    {formEquipo.miembros_ids.length > 0 && (
+                      <span className="ml-1.5 bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded text-xs font-semibold">
+                        {formEquipo.miembros_ids.length} seleccionado{formEquipo.miembros_ids.length > 1 ? "s" : ""}
+                      </span>
+                    )}
+                  </label>
+                  <div className="space-y-1.5">
+                    {comerciales.map((c, idx) => {
+                      const selected = formEquipo.miembros_ids.includes(c.id);
+                      const isFirst = formEquipo.miembros_ids[0] === c.id;
+                      const iniciales = [c.nombre, c.apellidos].filter(Boolean).join(" ")
+                        .split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => toggleMiembroEnForm(c.id)}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all ${
+                            selected
+                              ? "border-indigo-300 bg-indigo-50"
+                              : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                          }`}
+                        >
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
+                            c.rol === "director" ? "bg-amber-100 text-amber-700" : "bg-indigo-100 text-indigo-700"
+                          }`}>
+                            {iniciales}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-slate-700 truncate">
+                              {c.nombre} {c.apellidos ?? ""}
+                            </p>
+                            <p className="text-xs text-slate-400">
+                              {c.rol === "director" ? "Director" : "Comercial"} · {c.leads_activos} leads activos
+                            </p>
+                          </div>
+                          {selected && (
+                            <span className={`text-xs font-semibold flex-shrink-0 ${
+                              isFirst ? "text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded" : "text-indigo-500"
+                            }`}>
+                              {isFirst ? "Líder" : "Miembro"}
+                            </span>
+                          )}
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
+                            selected ? "bg-indigo-600 border-indigo-600" : "border-slate-300"
+                          }`}>
+                            {selected && (
+                              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {formEquipo.miembros_ids.length > 0 && (
+                    <p className="text-xs text-slate-400 mt-2">
+                      El primero seleccionado ({comerciales.find(c => c.id === formEquipo.miembros_ids[0])?.nombre}) será asignado como líder.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
-            <div className="px-6 pb-6 flex gap-3">
+            <div className="px-6 pb-6 flex gap-3 flex-shrink-0 border-t border-slate-100 pt-4">
               <button
                 onClick={crearEquipo}
                 disabled={!formEquipo.nombre.trim() || guardando}
                 className="flex-1 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
               >
-                {guardando ? "Creando..." : "Crear equipo"}
+                {guardando ? "Creando..." : `Crear equipo${formEquipo.miembros_ids.length > 0 ? ` con ${formEquipo.miembros_ids.length} miembro${formEquipo.miembros_ids.length > 1 ? "s" : ""}` : ""}`}
               </button>
-              <button onClick={() => setMostrarNuevoEquipo(false)} className="px-5 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50">
+              <button
+                onClick={() => { setMostrarNuevoEquipo(false); setFormEquipo({ nombre: "", descripcion: "", zona_geografica: "", miembros_ids: [] }); }}
+                className="px-5 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal editar comercial */}
+      {comercialEditando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-800">Editar comercial</h2>
+              <button onClick={() => setComercialEditando(null)} className="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">{comercialEditando.nombre} {comercialEditando.apellidos}</p>
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-500 mb-1.5">Rol</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["comercial", "director"] as const).map(r => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => setComercialEditando(prev => prev ? { ...prev, rol: r } : null)}
+                      className={`py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                        comercialEditando.rol === r
+                          ? r === "director"
+                            ? "bg-amber-50 border-amber-300 text-amber-700"
+                            : "bg-indigo-50 border-indigo-300 text-indigo-700"
+                          : "border-slate-200 text-slate-500 hover:border-slate-300"
+                      }`}
+                    >
+                      {r === "director" ? "Director" : "Comercial"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-500 mb-1.5">Capacidad máxima de leads activos</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={5}
+                    max={200}
+                    step={5}
+                    value={comercialEditando.max_leads_activos}
+                    onChange={e => setComercialEditando(prev => prev ? { ...prev, max_leads_activos: parseInt(e.target.value) } : null)}
+                    className="flex-1 accent-indigo-600"
+                  />
+                  <span className="text-sm font-bold text-slate-700 w-10 text-right">{comercialEditando.max_leads_activos}</span>
+                </div>
+                <p className="text-xs text-slate-400 mt-1">Define cuántos leads activos puede gestionar simultáneamente</p>
+              </div>
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button
+                onClick={guardarComercial}
+                disabled={guardandoComercial}
+                className="flex-1 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                {guardandoComercial ? "Guardando..." : "Guardar cambios"}
+              </button>
+              <button onClick={() => setComercialEditando(null)} className="px-5 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50">
                 Cancelar
               </button>
             </div>

@@ -9,6 +9,26 @@ type ClienteConComercial = Cliente & {
   comerciales: { nombre: string; apellidos: string | null } | null;
 };
 
+const PRODUCTOS: { value: string; label: string }[] = [
+  { value: "contigo_futuro",   label: "Contigo Futuro" },
+  { value: "sialp",            label: "SIALP" },
+  { value: "contigo_autonomo", label: "Contigo Autónomo" },
+  { value: "contigo_familia",  label: "Contigo Familia" },
+  { value: "contigo_pyme",     label: "Contigo Pyme" },
+  { value: "contigo_senior",   label: "Contigo Senior" },
+  { value: "liderplus",        label: "LiderPlus" },
+  { value: "sanitas_salud",    label: "Sanitas Salud" },
+  { value: "mihogar",          label: "MiHogar" },
+  { value: "hipotecas",        label: "Hipoteca" },
+  { value: "otro",             label: "Otro" },
+];
+
+function productoLabel(value: string | null): string {
+  if (!value) return "—";
+  const p = PRODUCTOS.find(p => p.value === value);
+  return p ? p.label : value;
+}
+
 type FormData = {
   nombre: string;
   apellidos: string;
@@ -55,6 +75,7 @@ function badgeRenovacion(dias: number) {
 export default function ClientesPage() {
   const [clientes, setClientes] = useState<ClienteConComercial[]>([]);
   const [comerciales, setComerciales] = useState<{ id: string; nombre: string; apellidos: string | null }[]>([]);
+  const [comercialLogueadoId, setComercialLogueadoId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<"todos" | "activo" | "renovacion_proxima" | "vencida">("todos");
   const [busqueda, setBusqueda] = useState("");
@@ -65,7 +86,19 @@ export default function ClientesPage() {
 
   useEffect(() => {
     cargar();
+    obtenerComercialLogueado();
   }, []);
+
+  async function obtenerComercialLogueado() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.email) return;
+    const { data } = await supabase
+      .from("comerciales")
+      .select("id")
+      .eq("email", user.email)
+      .single();
+    if (data?.id) setComercialLogueadoId(data.id);
+  }
 
   async function cargar() {
     setLoading(true);
@@ -83,7 +116,7 @@ export default function ClientesPage() {
 
   function abrirNuevo() {
     setEditando(null);
-    setForm(FORM_VACIO);
+    setForm({ ...FORM_VACIO, comercial_asignado: comercialLogueadoId ?? "" });
     setModal("nuevo");
   }
 
@@ -262,7 +295,11 @@ export default function ClientesPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 hidden md:table-cell">
-                      <span className="text-slate-700">{c.producto ?? <span className="text-slate-300">—</span>}</span>
+                      {c.producto ? (
+                        <span className="text-slate-700">{productoLabel(c.producto)}</span>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 hidden lg:table-cell text-slate-600 text-xs">
                       {c.comerciales ? `${c.comerciales.nombre} ${c.comerciales.apellidos ?? ""}`.trim() : <span className="text-slate-300">—</span>}
@@ -390,13 +427,16 @@ export default function ClientesPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-slate-600 block mb-1">Producto / servicio</label>
-                  <input
-                    type="text"
+                  <select
                     value={form.producto}
                     onChange={e => setForm(f => ({ ...f, producto: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300"
-                    placeholder="Seguro de vida, CRM..."
-                  />
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                  >
+                    <option value="">Seleccionar producto</option>
+                    {PRODUCTOS.map(p => (
+                      <option key={p.value} value={p.value}>{p.label}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="text-xs font-medium text-slate-600 block mb-1">Valor contrato (€)</label>
