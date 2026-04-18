@@ -67,26 +67,6 @@ function LeadsContent() {
     "cerrado_ganado", "cerrado_perdido", "descartado"
   ];
 
-  // Agrupar por prioridad
-  const alta = leads.filter((l) => l.prioridad === "alta");
-  const media = leads.filter((l) => l.prioridad === "media");
-  const baja = leads.filter((l) => l.prioridad === "baja");
-  const sinPrioridad = leads.filter((l) => !l.prioridad);
-
-  const grupos =
-    prioridad === "alta"
-      ? [{ titulo: "Alta prioridad", leads: alta, color: "text-red-600" }]
-      : prioridad === "media"
-      ? [{ titulo: "Media prioridad", leads: media, color: "text-amber-600" }]
-      : prioridad === "baja"
-      ? [{ titulo: "Baja prioridad", leads: baja, color: "text-slate-500" }]
-      : [
-          { titulo: "Alta prioridad", leads: alta, color: "text-red-600" },
-          { titulo: "Media prioridad", leads: media, color: "text-amber-600" },
-          { titulo: "Baja prioridad", leads: baja, color: "text-slate-500" },
-          { titulo: "Sin prioridad", leads: sinPrioridad, color: "text-slate-400" },
-        ];
-
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -123,35 +103,21 @@ function LeadsContent() {
           <p className="text-slate-400 text-sm">No hay leads con estos filtros.</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {grupos.map(({ titulo, leads: grupoLeads, color }) => {
-            if (grupoLeads.length === 0) return null;
-            return (
-              <div key={titulo} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                {/* Header del grupo */}
-                <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
-                  <div className="flex items-center gap-2">
-                    <h3 className={`text-sm font-semibold ${color}`}>{titulo}</h3>
-                    <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
-                      {grupoLeads.length}
-                    </span>
-                  </div>
-                  {/* Cabeceras de columna */}
-                  <div className="hidden md:flex items-center gap-4 text-xs text-slate-400 pr-6">
-                    <span className="w-28 hidden lg:block">Ciudad / Fuente</span>
-                    <span className="w-36 hidden lg:block">Productos</span>
-                    <span className="w-32 hidden sm:block">Interés</span>
-                    <span className="w-16 text-center">Prioridad</span>
-                    <span className="w-28 text-right">Actividad</span>
-                  </div>
-                </div>
-                {/* Filas */}
-                {grupoLeads.map((lead) => (
-                  <LeadRow key={lead.id} lead={lead} />
-                ))}
-              </div>
-            );
-          })}
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          {/* Cabeceras */}
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
+            <span className="text-xs text-slate-400 font-medium">Nombre / Empresa</span>
+            <div className="hidden md:flex items-center gap-4 text-xs text-slate-400 pr-6">
+              <span className="w-28 hidden lg:block">Ciudad / Fuente</span>
+              <span className="w-36 hidden lg:block">Productos</span>
+              <span className="w-32 hidden sm:block">Interés</span>
+              <span className="w-16 text-center">Prioridad</span>
+              <span className="w-28 text-right">Actividad</span>
+            </div>
+          </div>
+          {leads.map((lead) => (
+            <LeadRow key={lead.id} lead={lead} />
+          ))}
         </div>
       )}
     </div>
