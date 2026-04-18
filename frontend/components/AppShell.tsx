@@ -52,8 +52,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Main content */}
-      <main className="flex-1 min-w-0 md:ml-56 pt-12 md:pt-0 min-h-screen">
-        <div className="w-full px-4 sm:px-6 py-6 max-w-[1400px]">
+      <main
+        className="flex-1 min-w-0 md:ml-56 pt-12 md:pt-0 min-h-screen"
+        style={{ minWidth: 0 }}
+      >
+        <div style={{ width: "100%", padding: "24px 16px", maxWidth: 1400 }}>
           {children}
         </div>
       </main>
