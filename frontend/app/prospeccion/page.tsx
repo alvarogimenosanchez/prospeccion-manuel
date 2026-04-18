@@ -66,6 +66,23 @@ export default function ProspeccionPage() {
   const [filtroSector, setFiltroSector] = useState("");
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
 
+  // Comercial del usuario logueado
+  const [comercialId, setComercialId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function obtenerComercial() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) return;
+      const { data } = await supabase
+        .from("comerciales")
+        .select("id")
+        .eq("email", user.email)
+        .single();
+      setComercialId(data?.id ?? null);
+    }
+    obtenerComercial();
+  }, []);
+
   // Configuración de campaña
   const [ciudadesElegidas, setCiudadesElegidas] = useState<string[]>(["Madrid"]);
   const [zonaPersonalizada, setZonaPersonalizada] = useState("");
@@ -396,6 +413,7 @@ export default function ProspeccionPage() {
       nivel_interes: 3,
       prioridad: "media" as const,
       fecha_captacion: new Date().toISOString(),
+      ...(comercialId ? { comercial_asignado: comercialId } : {}),
     }));
 
     // Insertar en lotes de 100
@@ -410,6 +428,7 @@ export default function ProspeccionPage() {
     setImportando(false);
     setPreview([]);
     setFilasBruto([]);
+    setFiltroFuente("base_existente");
     cargarLeads();
   }
 
@@ -453,7 +472,8 @@ export default function ProspeccionPage() {
         </div>
         <button
           onClick={() => setMostrarConfig(!mostrarConfig)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors"
+          style={{ background: "#ea650d" }}
         >
           <span>🔍</span>
           Nueva campaña
@@ -474,7 +494,8 @@ export default function ProspeccionPage() {
           </div>
           <button
             onClick={() => setMostrarConfig(true)}
-            className="flex-shrink-0 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+            className="flex-shrink-0 px-3 py-1.5 text-white text-xs font-medium rounded-lg transition-colors"
+            style={{ background: "#ea650d" }}
           >
             Lanzar
           </button>
@@ -538,7 +559,7 @@ export default function ProspeccionPage() {
             {/* Drop / selección de archivo */}
             {filasBruto.length === 0 && (
               <div
-                className="border-2 border-dashed border-slate-200 rounded-xl py-10 text-center cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30 transition-colors"
+                className="border-2 border-dashed border-slate-200 rounded-xl py-10 text-center cursor-pointer hover:border-orange-300 hover:bg-orange-50/30 transition-colors"
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={e => e.preventDefault()}
                 onDrop={e => {
@@ -565,7 +586,7 @@ export default function ProspeccionPage() {
               <div className="flex items-center justify-center pt-1">
                 <button
                   onClick={e => { e.stopPropagation(); descargarPlantilla(); }}
-                  className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-orange-600 transition-colors"
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
@@ -599,7 +620,7 @@ export default function ProspeccionPage() {
                       <select
                         value={mapeo[campo.key] ?? ""}
                         onChange={e => setMapeo(m => ({ ...m, [campo.key]: e.target.value }))}
-                        className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                        className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-orange-400"
                       >
                         <option value="">— no mapear —</option>
                         {columnasDetectadas.map(c => (
@@ -617,7 +638,8 @@ export default function ProspeccionPage() {
                   <button
                     onClick={aplicarMapeo}
                     disabled={!mapeo["nombre"] && !mapeo["empresa"] && !mapeo["telefono"]}
-                    className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="px-4 py-2 text-white text-sm font-medium rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    style={{ background: "#ea650d" }}
                   >
                     Previsualizar →
                   </button>
@@ -715,7 +737,7 @@ export default function ProspeccionPage() {
                 value={zonaPersonalizada}
                 onChange={e => setZonaPersonalizada(e.target.value)}
                 placeholder="Escribe barrios, CP o municipios separados por coma — ej: Salamanca, Retiro, 28001, Pozuelo"
-                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-slate-400"
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-slate-400"
               />
               <p className="text-xs text-slate-400 mt-1">Puedes combinar barrios, códigos postales y municipios con las ciudades de abajo</p>
             </div>
@@ -727,9 +749,10 @@ export default function ProspeccionPage() {
                   onClick={() => toggleCiudad(c)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                     ciudadesElegidas.includes(c)
-                      ? "bg-indigo-600 text-white border-indigo-600"
-                      : "bg-white text-slate-600 border-slate-200 hover:border-indigo-300"
+                      ? "text-white border-transparent"
+                      : "bg-white text-slate-600 border-slate-200 hover:border-orange-300"
                   }`}
+                  style={ciudadesElegidas.includes(c) ? { background: "#ea650d" } : undefined}
                 >
                   {c}
                 </button>
@@ -748,7 +771,8 @@ export default function ProspeccionPage() {
                   const todasSeleccionadas = CATEGORIAS.every(c => categoriasElegidas.includes(c.id));
                   setCategoriasElegidas(todasSeleccionadas ? [] : CATEGORIAS.map(c => c.id));
                 }}
-                className="text-xs text-indigo-600 hover:underline"
+                className="text-xs hover:underline"
+                style={{ color: "#ea650d" }}
               >
                 {CATEGORIAS.every(c => categoriasElegidas.includes(c.id)) ? "Deseleccionar todos" : "Seleccionar todos"}
               </button>
@@ -760,9 +784,10 @@ export default function ProspeccionPage() {
                   onClick={() => toggleCategoria(cat.id)}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors text-left ${
                     categoriasElegidas.includes(cat.id)
-                      ? "bg-indigo-50 border-indigo-400 text-indigo-700"
+                      ? "border-orange-400 text-orange-700"
                       : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
                   }`}
+                  style={categoriasElegidas.includes(cat.id) ? { background: "#fff5f0" } : undefined}
                 >
                   <span>{cat.icon}</span>
                   <span className="font-medium">{cat.label}</span>
@@ -783,9 +808,10 @@ export default function ProspeccionPage() {
                   onClick={() => setPaginasPorCiudad(n)}
                   className={`w-9 h-9 rounded-lg text-sm font-medium border transition-colors ${
                     paginasPorCiudad === n
-                      ? "bg-indigo-600 text-white border-indigo-600"
+                      ? "text-white border-transparent"
                       : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                   }`}
+                  style={paginasPorCiudad === n ? { background: "#ea650d" } : undefined}
                 >
                   {n}
                 </button>
@@ -803,7 +829,7 @@ export default function ProspeccionPage() {
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <div
                   onClick={() => setSoloConTelefono(!soloConTelefono)}
-                  className={`w-9 h-5 rounded-full transition-colors relative ${soloConTelefono ? "bg-indigo-600" : "bg-slate-200"}`}
+                  className={`w-9 h-5 rounded-full transition-colors relative ${soloConTelefono ? "bg-orange-500" : "bg-slate-200"}`}
                 >
                   <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${soloConTelefono ? "translate-x-4" : "translate-x-0.5"}`} />
                 </div>
@@ -812,7 +838,7 @@ export default function ProspeccionPage() {
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <div
                   onClick={() => setSoloConWeb(!soloConWeb)}
-                  className={`w-9 h-5 rounded-full transition-colors relative ${soloConWeb ? "bg-indigo-600" : "bg-slate-200"}`}
+                  className={`w-9 h-5 rounded-full transition-colors relative ${soloConWeb ? "bg-orange-500" : "bg-slate-200"}`}
                 >
                   <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${soloConWeb ? "translate-x-4" : "translate-x-0.5"}`} />
                 </div>
@@ -848,9 +874,10 @@ export default function ProspeccionPage() {
                       onClick={() => setMaxAnosAbierto(y)}
                       className={`px-2.5 py-1 rounded text-xs font-medium border transition-colors ${
                         maxAnosAbierto === y
-                          ? "bg-indigo-600 text-white border-indigo-600"
+                          ? "text-white border-transparent"
                           : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                       }`}
+                      style={maxAnosAbierto === y ? { background: "#ea650d" } : undefined}
                     >
                       {y === 0 ? "Sin filtro" : `≤${y}a`}
                     </button>
@@ -910,7 +937,7 @@ export default function ProspeccionPage() {
                           setZonaPersonalizada(h.zona);
                           setCategoriasElegidas([h.categoria]);
                         }}
-                        className="text-indigo-500 hover:underline"
+                        className="hover:underline" style={{ color: "#ea650d" }}
                       >
                         Repetir
                       </button>
@@ -947,7 +974,7 @@ export default function ProspeccionPage() {
                     setCategoriasElegidas([h.categoria]);
                     setMostrarConfig(true);
                   }}
-                  className="text-xs text-indigo-600 hover:underline"
+                  className="text-xs hover:underline" style={{ color: "#ea650d" }}
                 >
                   Repetir
                 </button>
@@ -962,7 +989,7 @@ export default function ProspeccionPage() {
         <select
           value={filtroFuente}
           onChange={e => setFiltroFuente(e.target.value)}
-          className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
         >
           <option value="">Todas las fuentes</option>
           <option value="scraping">Scraping</option>
@@ -976,7 +1003,7 @@ export default function ProspeccionPage() {
         <select
           value={filtroEstado}
           onChange={e => setFiltroEstado(e.target.value)}
-          className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+          className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
         >
           <option value="">Todos los estados</option>
           <option value="nuevo">Nuevos (sin contactar)</option>
@@ -990,7 +1017,7 @@ export default function ProspeccionPage() {
           placeholder="Ciudad..."
           value={filtroCiudad}
           onChange={e => setFiltroCiudad(e.target.value)}
-          className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-32"
+          className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400 w-32"
         />
 
         <input
@@ -998,20 +1025,21 @@ export default function ProspeccionPage() {
           placeholder="Sector..."
           value={filtroSector}
           onChange={e => setFiltroSector(e.target.value)}
-          className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 w-36"
+          className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400 w-36"
         />
       </div>
 
       {/* Acciones sobre seleccionados */}
       {seleccionados.size > 0 && (
-        <div className="flex items-center gap-3 bg-indigo-50 border border-indigo-200 rounded-xl px-4 py-3">
-          <span className="text-sm font-medium text-indigo-700">
+        <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{ background: "#fff5f0", border: "1px solid #f5a677" }}>
+          <span className="text-sm font-medium" style={{ color: "#c2530b" }}>
             {seleccionados.size} seleccionados
           </span>
           <div className="flex items-center gap-2 ml-auto">
             <button
               onClick={marcarContactado}
-              className="px-4 py-1.5 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+              className="px-4 py-1.5 text-white text-sm font-medium rounded-lg transition-colors"
+              style={{ background: "#ea650d" }}
             >
               Marcar como contactados
             </button>
@@ -1052,7 +1080,7 @@ export default function ProspeccionPage() {
             <p className="text-slate-400 text-sm">No hay leads con estos filtros</p>
             <button
               onClick={() => setMostrarConfig(true)}
-              className="text-sm text-indigo-600 hover:underline"
+              className="text-sm hover:underline" style={{ color: "#ea650d" }}
             >
               Lanzar una campaña de scraping
             </button>
@@ -1063,7 +1091,7 @@ export default function ProspeccionPage() {
               <div
                 key={lead.id}
                 className={`grid grid-cols-[auto_2fr_1fr_1fr_1fr_1fr_auto] gap-4 px-4 py-3 items-center hover:bg-slate-50 transition-colors ${
-                  seleccionados.has(lead.id) ? "bg-indigo-50" : ""
+                  seleccionados.has(lead.id) ? "bg-orange-50" : ""
                 }`}
               >
                 {/* Checkbox */}
@@ -1078,7 +1106,7 @@ export default function ProspeccionPage() {
 
                 {/* Empresa / Nombre */}
                 <div>
-                  <Link href={`/leads/${lead.id}`} className="font-medium text-slate-800 hover:text-indigo-600 text-sm transition-colors">
+                  <Link href={`/leads/${lead.id}`} className="font-medium text-slate-800 text-sm transition-colors hover:opacity-70">
                     {lead.empresa || `${lead.nombre} ${lead.apellidos ?? ""}`.trim()}
                   </Link>
                   {lead.telefono_whatsapp && (
