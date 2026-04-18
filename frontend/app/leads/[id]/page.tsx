@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { format } from "date-fns";
@@ -182,10 +182,12 @@ function getUrgenciaAccion(fecha: string | null): { label: string; colorClass: s
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const citasRef = useRef<HTMLDivElement>(null);
 
   const [lead, setLead] = useState<Lead | null>(null);
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
   const [nota, setNota] = useState("");
   const [currentComercialId, setCurrentComercialId] = useState<string | null>(null);
   const [plantillasWA, setPlantillasWA] = useState<{ id: string; titulo: string; contenido: string }[]>([]);
@@ -287,6 +289,20 @@ export default function LeadDetailPage() {
     cargar();
     cargarComerciales();
   }, [id, cargarComerciales]);
+
+  // Auto-scroll al final del chat cuando cargan las interacciones
+  useEffect(() => {
+    if (interactions.length > 0) {
+      chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [interactions]);
+
+  // Si viene con ?tab=agenda, hacer scroll al panel de citas
+  useEffect(() => {
+    if (!loading && typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab") === "agenda") {
+      setTimeout(() => citasRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+    }
+  }, [loading]);
 
   function abrirEdicion() {
     if (!lead) return;
@@ -757,7 +773,7 @@ export default function LeadDetailPage() {
             </div>
             <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
               <button onClick={guardarPostCita} disabled={guardandoPostCita}
-                className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}
+                className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}>
                 {guardandoPostCita ? "Guardando..." : "Guardar resultado"}
               </button>
               <button onClick={() => setCitaParaRegistrar(null)}
@@ -1293,7 +1309,7 @@ export default function LeadDetailPage() {
           })()}
 
           {/* Citas */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <div ref={citasRef} className="bg-white rounded-xl border border-slate-200 p-5">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Citas</h3>
               <button
@@ -1582,6 +1598,7 @@ export default function LeadDetailPage() {
                       : <StateChangeBubble key={`s-${item.data.id}`} change={item.data} />
                   )
               )}
+              <div ref={chatBottomRef} />
             </div>
             {/* Acciones rápidas */}
             <div className="border-t border-slate-100 px-3 pt-3 pb-1">
@@ -1636,13 +1653,18 @@ export default function LeadDetailPage() {
                 </button>
               </div>
             </div>
-            <div className="px-3 pb-3 flex gap-2">
-              <input type="text" value={nota} onChange={(e) => setNota(e.target.value)} onKeyDown={(e) => e.key === "Enter" && guardarNota()}
-                placeholder="Añadir nota del comercial..."
-                className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" />
+            <div className="px-3 pb-3 space-y-2">
+              <textarea
+                value={nota}
+                onChange={(e) => setNota(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) guardarNota(); }}
+                placeholder="Añadir nota del comercial... (Cmd+Enter para guardar)"
+                rows={2}
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300 resize-none"
+              />
               <button onClick={guardarNota} disabled={!nota.trim() || guardando}
-                className="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 disabled:opacity-40 transition-colors">
-                {guardando ? "..." : "Guardar"}
+                className="w-full py-2 bg-orange-600 text-white text-sm font-medium rounded-lg hover:bg-orange-700 disabled:opacity-40 transition-colors">
+                {guardando ? "Guardando..." : "💾 Guardar nota"}
               </button>
             </div>
           </div>
