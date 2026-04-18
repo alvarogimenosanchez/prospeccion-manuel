@@ -629,7 +629,7 @@ export default function HoyPage() {
 
         {/* ── Sección 6: Citas de hoy ── */}
         {seccionesData.citasHoy.length > 0 && (
-          <SeccionCard color="purple" titulo="Citas de hoy" emoji="📅" count={seccionesData.citasHoy.length}>
+          <SeccionCard color="teal" titulo="Citas de hoy" emoji="📅" count={seccionesData.citasHoy.length}>
             {seccionesData.citasHoy.map(cita => {
               const lead = cita.leads;
               const hora = format(new Date(cita.fecha_hora), "HH:mm");
@@ -697,7 +697,7 @@ const SECTION_COLORS: Record<string, { header: string; border: string; badge: st
   amber:  { header: "bg-amber-50 border-amber-200",   border: "border-amber-200",  badge: "bg-amber-100 text-amber-700"  },
   green:  { header: "bg-green-50 border-green-200",   border: "border-green-200",  badge: "bg-green-100 text-green-700"  },
   blue:   { header: "bg-blue-50 border-blue-200",     border: "border-blue-200",   badge: "bg-blue-100 text-blue-700"    },
-  purple: { header: "bg-purple-50 border-purple-200", border: "border-purple-200", badge: "bg-purple-100 text-purple-700" },
+  teal:   { header: "bg-teal-50 border-teal-200",     border: "border-teal-200",   badge: "bg-teal-100 text-teal-700"    },
 };
 
 function SeccionCard({ color, titulo, emoji, count, children }: {
