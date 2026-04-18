@@ -324,7 +324,7 @@ export default function ClientesPage() {
                         onChange={e => cambiarEstado(c.id, e.target.value as Cliente["estado"])}
                         className={`text-xs font-medium rounded-full px-2 py-0.5 border cursor-pointer focus:outline-none ${
                           c.estado === "activo" ? "bg-green-50 text-green-700 border-green-200" :
-                          c.estado === "renovado" ? "border-orange-200" :
+                          c.estado === "renovado" ? "bg-orange-50 text-orange-700 border-orange-200" :
                           c.estado === "pausado" ? "bg-amber-50 text-amber-700 border-amber-200" :
                           "bg-slate-100 text-slate-500 border-slate-200"
                         }`}
