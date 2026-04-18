@@ -35,6 +35,7 @@ type Stats = {
 
 type CitaResumen = {
   id: string;
+  lead_id: string;
   tipo: string;
   estado: string;
   fecha_hora: string;
@@ -70,7 +71,7 @@ export default function FichaComercialPage() {
         .order("nivel_interes", { ascending: false })
         .limit(20),
       supabase.from("appointments")
-        .select("id, tipo, estado, fecha_hora, lead:leads(nombre, apellidos)")
+        .select("id, lead_id, tipo, estado, fecha_hora, lead:leads(nombre, apellidos)")
         .eq("comercial_id", id)
         .order("fecha_hora", { ascending: false })
         .limit(10),
@@ -79,9 +80,10 @@ export default function FichaComercialPage() {
     setComercial(comRes.data as Comercial);
     setLeadsActivos((leadsRes.data as LeadDashboard[]) ?? []);
 
-    const citasRaw = ((citasRes.data ?? []) as unknown[]) as { id: string; tipo: string; estado: string; fecha_hora: string; lead: { nombre: string; apellidos: string | null } | null }[];
+    const citasRaw = ((citasRes.data ?? []) as unknown[]) as { id: string; lead_id: string; tipo: string; estado: string; fecha_hora: string; lead: { nombre: string; apellidos: string | null } | null }[];
     setCitas(citasRaw.map(c => ({
       id: c.id,
+      lead_id: c.lead_id,
       tipo: c.tipo,
       estado: c.estado,
       fecha_hora: c.fecha_hora,
@@ -282,7 +284,9 @@ export default function FichaComercialPage() {
                   </p>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">{c.lead_nombre}</p>
+                  <Link href={`/leads/${c.lead_id}`} className="text-sm font-medium text-slate-800 truncate block hover:underline transition-colors" onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "")}>
+                    {c.lead_nombre}
+                  </Link>
                   <p className="text-xs text-slate-400 capitalize">{c.tipo.replace("_", " ")}</p>
                 </div>
                 <span className={`text-xs font-medium capitalize ${ESTADO_COLOR[c.estado] ?? "text-slate-500"}`}>
