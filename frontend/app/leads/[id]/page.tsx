@@ -25,6 +25,37 @@ const PRODUCTOS_NOMBRE: Record<string, string> = {
   hipotecas: "Hipoteca",
 };
 
+function templateProducto(producto: string, nombre: string, empresa: string, ciudad: string, tipoLead: string): string {
+  const n = nombre || "Hola";
+  const emp = empresa ? ` en ${empresa}` : "";
+  const ciu = ciudad || "tu zona";
+  const esDir = tipoLead === "empresa" || tipoLead === "pyme";
+  switch (producto) {
+    case "contigo_autonomo":
+      return `Hola ${n}, soy Manuel de Nationale-Nederlanden en ${ciu}.\n\nVi que eres autónomo${emp}. Una pregunta directa: si mañana te pones enfermo y no puedes trabajar, ¿cuánto cobrarías?\n\nContigo Autónomo cubre desde el primer día de baja con entre 10€ y 200€ diarios. Desde menos de 5€/mes.\n\n¿Tienes 10 minutos esta semana para que te explique cómo funciona?`;
+    case "contigo_pyme":
+      return `Hola ${n}, soy Manuel de Nationale-Nederlanden.\n\n¿${empresa || "Tu empresa"} tiene seguro colectivo para el equipo? Es el beneficio laboral más valorado — mejora la retención y apenas tiene coste.\n\nContigo Pyme cubre vida + accidente para toda la plantilla, sin reconocimiento médico.\n\n¿Puedo enviarte una propuesta sin compromiso?`;
+    case "contigo_familia":
+      return `Hola ${n}, soy Manuel de Nationale-Nederlanden en ${ciu}.\n\nContigo Familia protege a los tuyos si algo te pasara: cubre capital por fallecimiento, invalidez y enfermedades graves. Lo más habitual: cubrir la hipoteca + 2-3 años de gastos familiares.\n\n¿Te preparo una simulación personalizada?`;
+    case "contigo_futuro":
+      return `Hola ${n}, soy Manuel de Nationale-Nederlanden.\n\nContigo Futuro es un plan de ahorro a largo plazo para complementar la pensión pública — fiscalmente eficiente y con parte de rentabilidad garantizada.\n\nMuchos clientes lo usan para la jubilación o para la educación de sus hijos.\n\n¿Te cuento cómo funciona en 10 minutos?`;
+    case "sialp":
+      return `Hola ${n}, soy Manuel de Nationale-Nederlanden.\n\nEl SIALP tiene una ventaja fiscal única: si mantienes el ahorro 5 años, los intereses quedan exentos de tributar. Hasta 5.000€/año.\n\nEs el complemento perfecto al plan de pensiones, con más flexibilidad de rescate.\n\n¿Tienes un momento para que te explique los detalles?`;
+    case "contigo_senior":
+      return `Hola ${n}, soy Manuel de Nationale-Nederlanden en ${ciu}.\n\nContigo Senior es un seguro diseñado para mayores de 55 años: sin reconocimiento médico, cubre fallecimiento, gastos de sepelio y asistencia en viaje.\n\nMuchos de mis clientes lo contratan para no dejar ese peso a su familia.\n\n¿Le doy más información?`;
+    case "liderplus":
+      return `Hola ${n}, soy Manuel de Nationale-Nederlanden.\n\nLiderPlus es protección integral para directivos: vida, invalidez permanente, accidente en cualquier parte del mundo y asistencia jurídica. Prestaciones muy superiores a los seguros colectivos convencionales.\n\n¿Le preparo una propuesta personalizada?`;
+    case "sanitas_salud":
+      return `Hola ${n}, soy Manuel de Nationale-Nederlanden.\n\nSanitas Salud: acceso a más de 40.000 especialistas, sin listas de espera. ${esDir ? "Para empresas es gasto deducible fiscalmente y un beneficio muy valorado por el equipo." : "Para autónomos es gasto deducible — tú y tu familia cubiertos desde el primer día."}\n\n¿Te hago una comparativa con tu seguro actual?`;
+    case "mihogar":
+      return `Hola ${n}, soy Manuel de Nationale-Nederlanden.\n\nMiHogar cubre daños, robo, responsabilidad civil y asistencia en el hogar 24h. Muy competitivo en ${ciu}.\n\n¿Tienes ya seguro de hogar? ¿Te interesa una comparativa sin compromiso?`;
+    case "hipotecas":
+      return `Hola ${n}, soy Manuel de Nationale-Nederlanden en ${ciu}.\n\nQuería comentarte una oportunidad de colaboración: si tienes clientes que necesitan hipoteca, puedo ayudarles a conseguir las mejores condiciones y tú generas una comisión por derivación sin esfuerzo extra.\n\n¿Tienes 15 minutos para hablarlo?`;
+    default:
+      return `Hola ${n}, soy Manuel de Nationale-Nederlanden en ${ciu}. Me gustaría presentarte opciones de protección financiera adaptadas a tu situación. ¿Tienes 10 minutos esta semana?`;
+  }
+}
+
 const ESTADOS = [
   { value: "nuevo", label: "Nuevo", class: "bg-slate-100 text-slate-600" },
   { value: "enriquecido", label: "Enriquecido", class: "bg-blue-100 text-blue-600" },
@@ -207,6 +238,7 @@ export default function LeadDetailPage() {
   const [loading, setLoading] = useState(true);
   const [mensajeWhatsapp, setMensajeWhatsapp] = useState("");
   const [mostrarEnvio, setMostrarEnvio] = useState(false);
+  const [productoActivoMsg, setProductoActivoMsg] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
   const [enviandoWhatsapp, setEnviandoWhatsapp] = useState(false);
   const [enviadoOk, setEnviadoOk] = useState(false);
@@ -1259,10 +1291,11 @@ export default function LeadDetailPage() {
                     </div>
                     <button
                       onClick={() => {
-                        const msg = `Hola ${lead.nombre}, te escribo sobre ${PRODUCTOS_NOMBRE[p] ?? p}. `;
+                        const msg = templateProducto(p, lead.nombre || "", lead.empresa || "", lead.ciudad || "", lead.tipo_lead || "");
                         setMensajeWhatsapp(msg);
+                        setProductoActivoMsg(p);
                         setMostrarEnvio(true);
-                        document.querySelector("[data-mensaje-panel]")?.scrollIntoView({ behavior: "smooth" });
+                        setTimeout(() => document.querySelector("[data-mensaje-panel]")?.scrollIntoView({ behavior: "smooth" }), 50);
                       }}
                       className="text-xs border px-2 py-0.5 rounded-lg flex-shrink-0 transition-colors"
                       style={{ color: "#ea650d", borderColor: "#f5a677" }}
@@ -1535,13 +1568,39 @@ export default function LeadDetailPage() {
 
               {mostrarEnvio && (
                 <div className="p-4 space-y-3">
+
+                  {/* Selector de producto */}
+                  {lead.productos_recomendados && lead.productos_recomendados.length > 0 && (
+                    <div>
+                      <p className="text-xs text-slate-400 mb-1.5 font-medium">Plantilla por producto</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {lead.productos_recomendados.map((p) => (
+                          <button
+                            key={p}
+                            onClick={() => {
+                              const msg = templateProducto(p, lead.nombre || "", lead.empresa || "", lead.ciudad || "", lead.tipo_lead || "");
+                              setMensajeWhatsapp(msg);
+                              setProductoActivoMsg(p);
+                            }}
+                            className="px-2.5 py-1 text-xs font-medium rounded-lg border transition-all"
+                            style={productoActivoMsg === p
+                              ? { background: "#ea650d", color: "#fff", borderColor: "#ea650d" }
+                              : { background: "#fff5f0", color: "#ea650d", borderColor: "#f5a677" }}
+                          >
+                            {PRODUCTOS_NOMBRE[p] ?? p}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex gap-2 flex-wrap">
                     {[
                       { key: "primer_contacto", label: "Primer contacto" },
                       { key: "recordatorio_1", label: "Recordatorio 1" },
                       { key: "recordatorio_2", label: "Recordatorio 2" },
                     ].map(({ key, label }) => (
-                      <button key={key} onClick={() => setMensajeWhatsapp(generarMensaje(key as "primer_contacto" | "recordatorio_1" | "recordatorio_2"))}
+                      <button key={key} onClick={() => { setMensajeWhatsapp(generarMensaje(key as "primer_contacto" | "recordatorio_1" | "recordatorio_2")); setProductoActivoMsg(null); }}
                         className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:border-orange-300 transition-colors">
                         {label}
                       </button>
@@ -1549,7 +1608,7 @@ export default function LeadDetailPage() {
                     {/* Templates de sector */}
                     {getSectorIntel(lead.sector, lead.tipo_lead)?.templatesMensaje.map((t) => (
                       <button key={t.label}
-                        onClick={() => setMensajeWhatsapp(t.texto(lead.nombre || "", lead.empresa || "", lead.ciudad || "tu zona"))}
+                        onClick={() => { setMensajeWhatsapp(t.texto(lead.nombre || "", lead.empresa || "", lead.ciudad || "tu zona")); setProductoActivoMsg(null); }}
                         className="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors" style={{ borderColor: "#f5a677", color: "#ea650d", background: "#fff5f0" }}>
                         ✦ {t.label}
                       </button>
@@ -1557,7 +1616,7 @@ export default function LeadDetailPage() {
                     {/* Plantillas personales de /ajustes */}
                     {plantillasWA.map((p) => (
                       <button key={p.id}
-                        onClick={() => setMensajeWhatsapp(aplicarVariablesPlantilla(p.contenido))}
+                        onClick={() => { setMensajeWhatsapp(aplicarVariablesPlantilla(p.contenido)); setProductoActivoMsg(null); }}
                         className="px-3 py-1.5 text-xs font-medium rounded-lg border border-orange-200 transition-colors hover:border-orange-400" style={{ color: "#ea650d", background: "#fff5f0" }}
                         title={p.titulo}>
                         📋 {p.titulo}
