@@ -14,6 +14,7 @@ function NavIcon({ name }: { name: string }) {
     users:      ["M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2", "M9 11a4 4 0 100-8 4 4 0 000 8z", "M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"],
     pipeline:   ["M3 3h4v18H3z", "M10 8h4v13h-4z", "M17 5h4v16h-4z"],
     message:    "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z",
+    chat:       ["M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z", "M8 10h.01M12 10h.01M16 10h.01"],
     calendar:   ["M8 2v4M16 2v4M3 10h18", "M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z"],
     search:     ["M21 21l-6-6", "M11 19a8 8 0 100-16 8 8 0 000 16z"],
     map:        ["M12 2a7 7 0 017 7c0 5.25-7 13-7 13S5 14.25 5 9a7 7 0 017-7z", "M12 11a2 2 0 100-4 2 2 0 000 4z"],
@@ -21,6 +22,7 @@ function NavIcon({ name }: { name: string }) {
     trending:   ["M23 6l-9.5 9.5-5-5L1 18", "M17 6h6v6"],
     briefcase:  ["M20 7H4a2 2 0 00-2 2v10a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z", "M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"],
     team:       ["M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2", "M9 11a4 4 0 100-8 4 4 0 000 8z", "M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"],
+    bookmark:   ["M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z"],
     logout:     ["M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4", "M16 17l5-5-5-5M21 12H9"],
   };
 
@@ -48,8 +50,10 @@ const NAV_GROUPS = [
   {
     label: "Comunicación",
     items: [
-      { href: "/mensajes", label: "Mensajes",     icon: "message"   },
-      { href: "/agenda",   label: "Agenda",       icon: "calendar"  },
+      { href: "/mensajes",           label: "Mensajes WA",     icon: "message"   },
+      { href: "/mensajes-internos",  label: "Chat interno",    icon: "chat"      },
+      { href: "/agenda",             label: "Agenda",          icon: "calendar"  },
+      { href: "/recursos",           label: "Acceso rápido",   icon: "bookmark"  },
     ],
   },
   {
