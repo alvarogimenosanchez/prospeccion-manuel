@@ -149,7 +149,8 @@ export default function EquipoPage() {
         </div>
         <button
           onClick={() => setMostrarNuevo(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors"
+          style={{ background: "#ea650d" }}
         >
           + Añadir comercial
         </button>
@@ -175,11 +176,12 @@ export default function EquipoPage() {
               return (
                 <div
                   key={c.id}
-                  className={`bg-white rounded-xl border p-4 transition-all cursor-pointer ${seleccionado ? "border-indigo-400 ring-2 ring-indigo-100" : "border-slate-200 hover:border-slate-300"}`}
+                  className={`bg-white rounded-xl border p-4 transition-all cursor-pointer ${seleccionado ? "ring-2" : "border-slate-200 hover:border-slate-300"}`}
+                  style={seleccionado ? { borderColor: "#ea650d", ringColor: "#fff5f0" } : undefined}
                   onClick={() => verLeads(c)}
                 >
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm flex-shrink-0">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0" style={{ background: "#fff5f0", color: "#ea650d" }}>
                       {iniciales}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -189,7 +191,9 @@ export default function EquipoPage() {
                     <div className="flex gap-1 flex-shrink-0">
                       <button
                         onClick={e => { e.stopPropagation(); setEditandoComercial({ ...c }); }}
-                        className="text-xs text-slate-400 hover:text-indigo-600 px-1.5 py-1 rounded hover:bg-indigo-50 transition-colors"
+                        className="text-xs text-slate-400 px-1.5 py-1 rounded hover:bg-orange-50 transition-colors"
+                        onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")}
+                        onMouseLeave={e => (e.currentTarget.style.color = "")}
                       >
                         Editar
                       </button>
@@ -205,8 +209,8 @@ export default function EquipoPage() {
                       <p className="text-sm font-bold text-red-600">{s.calientes}</p>
                       <p className="text-xs text-slate-400">calientes</p>
                     </div>
-                    <div className="bg-indigo-50 rounded-lg py-1.5">
-                      <p className="text-sm font-bold text-indigo-600">{s.enProceso}</p>
+                    <div className="rounded-lg py-1.5" style={{ background: "#fff5f0" }}>
+                      <p className="text-sm font-bold" style={{ color: "#ea650d" }}>{s.enProceso}</p>
                       <p className="text-xs text-slate-400">en proceso</p>
                     </div>
                     <div className="bg-emerald-50 rounded-lg py-1.5">
@@ -216,7 +220,7 @@ export default function EquipoPage() {
                   </div>
 
                   {seleccionado && (
-                    <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-indigo-600 text-center font-medium">
+                    <div className="mt-2 pt-2 border-t border-slate-100 text-xs text-center font-medium" style={{ color: "#ea650d" }}>
                       Ver leads →
                     </div>
                   )}
@@ -234,7 +238,7 @@ export default function EquipoPage() {
                   {inactivos.map(c => (
                     <div key={c.id} className="bg-white rounded-xl border border-slate-200 p-3 opacity-60 flex items-center justify-between">
                       <p className="text-sm text-slate-600">{c.nombre} {c.apellidos ?? ""}</p>
-                      <button onClick={() => toggleActivo(c)} className="text-xs text-indigo-600 hover:underline">Reactivar</button>
+                      <button onClick={() => toggleActivo(c)} className="text-xs hover:underline" style={{ color: "#ea650d" }}>Reactivar</button>
                     </div>
                   ))}
                 </div>
@@ -275,7 +279,7 @@ export default function EquipoPage() {
                       <div key={lead.id} className="flex items-center gap-3 px-5 py-3 border-b border-slate-50 hover:bg-slate-50 group">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <Link href={`/leads/${lead.id}`} className="text-sm font-medium text-slate-800 hover:text-indigo-600 truncate">
+                            <Link href={`/leads/${lead.id}`} className="text-sm font-medium text-slate-800 truncate hover:opacity-70">
                               {[lead.nombre, lead.apellidos].filter(Boolean).join(" ") || "Sin nombre"}
                             </Link>
                             <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium flex-shrink-0 ${TEMP_COLOR[lead.temperatura] ?? "bg-slate-100 text-slate-500"}`}>
@@ -295,7 +299,7 @@ export default function EquipoPage() {
                         <select
                           defaultValue=""
                           onChange={e => { if (e.target.value) reasignarLead(lead.id, e.target.value); }}
-                          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-500 bg-white opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 focus:border-indigo-300 focus:outline-none"
+                          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-500 bg-white opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 focus:border-orange-300 focus:outline-none"
                           onClick={e => e.stopPropagation()}
                         >
                           <option value="" disabled>Reasignar →</option>
@@ -329,7 +333,7 @@ export default function EquipoPage() {
                     value={formNuevo.nombre}
                     onChange={e => setFormNuevo(p => ({ ...p, nombre: e.target.value }))}
                     placeholder="Nombre"
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300"
                   />
                 </div>
                 <div>
@@ -338,7 +342,7 @@ export default function EquipoPage() {
                     value={formNuevo.apellidos}
                     onChange={e => setFormNuevo(p => ({ ...p, apellidos: e.target.value }))}
                     placeholder="Apellidos"
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300"
                   />
                 </div>
                 <div>
@@ -348,7 +352,7 @@ export default function EquipoPage() {
                     value={formNuevo.email}
                     onChange={e => setFormNuevo(p => ({ ...p, email: e.target.value }))}
                     placeholder="email@ejemplo.com"
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300"
                   />
                 </div>
                 <div>
@@ -357,7 +361,7 @@ export default function EquipoPage() {
                     value={formNuevo.telefono}
                     onChange={e => setFormNuevo(p => ({ ...p, telefono: e.target.value }))}
                     placeholder="+34 600 000 000"
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300"
                   />
                 </div>
               </div>
@@ -366,7 +370,8 @@ export default function EquipoPage() {
               <button
                 onClick={crearComercial}
                 disabled={!formNuevo.nombre.trim() || guardandoNuevo}
-                className="flex-1 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors"
+                style={{ background: "#ea650d" }}
               >
                 {guardandoNuevo ? "Guardando..." : "Crear comercial"}
               </button>
@@ -393,7 +398,7 @@ export default function EquipoPage() {
                   <input
                     value={editandoComercial.nombre}
                     onChange={e => setEditandoComercial(p => p ? ({ ...p, nombre: e.target.value }) : p)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300"
                   />
                 </div>
                 <div>
@@ -401,7 +406,7 @@ export default function EquipoPage() {
                   <input
                     value={editandoComercial.apellidos ?? ""}
                     onChange={e => setEditandoComercial(p => p ? ({ ...p, apellidos: e.target.value }) : p)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300"
                   />
                 </div>
                 <div>
@@ -410,7 +415,7 @@ export default function EquipoPage() {
                     type="email"
                     value={editandoComercial.email ?? ""}
                     onChange={e => setEditandoComercial(p => p ? ({ ...p, email: e.target.value }) : p)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300"
                   />
                 </div>
                 <div>
@@ -418,7 +423,7 @@ export default function EquipoPage() {
                   <input
                     value={editandoComercial.telefono ?? ""}
                     onChange={e => setEditandoComercial(p => p ? ({ ...p, telefono: e.target.value }) : p)}
-                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300"
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300"
                   />
                 </div>
               </div>
@@ -437,7 +442,8 @@ export default function EquipoPage() {
               <button
                 onClick={guardarEdicionComercial}
                 disabled={!editandoComercial.nombre.trim() || guardandoEdicion}
-                className="flex-1 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors"
+                style={{ background: "#ea650d" }}
               >
                 {guardandoEdicion ? "Guardando..." : "Guardar cambios"}
               </button>
