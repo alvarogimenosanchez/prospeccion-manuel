@@ -849,7 +849,7 @@ export default function EquiposPage() {
                     step={5}
                     value={comercialEditando.max_leads_activos}
                     onChange={e => setComercialEditando(prev => prev ? { ...prev, max_leads_activos: parseInt(e.target.value) } : null)}
-                    className="flex-1 accent-indigo-600"
+                    className="flex-1 accent-orange-600"
                   />
                   <span className="text-sm font-bold text-slate-700 w-10 text-right">{comercialEditando.max_leads_activos}</span>
                 </div>

@@ -927,7 +927,7 @@ export default function LeadDetailPage() {
               {[
                 { value: "nuevo", label: "Nuevo", color: "slate" },
                 { value: "enriquecido", label: "Enriq.", color: "blue" },
-                { value: "segmentado", label: "Segm.", color: "indigo" },
+                { value: "segmentado", label: "Segm.", color: "orange" },
                 { value: "mensaje_enviado", label: "Enviado", color: "violet" },
                 { value: "respondio", label: "Respondió", color: "amber" },
                 { value: "cita_agendada", label: "Cita", color: "green" },

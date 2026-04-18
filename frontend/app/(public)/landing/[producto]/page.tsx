@@ -33,7 +33,7 @@ const LANDINGS: Record<string, LandingContent> = {
       "Chat médico y asesoría legal 24h incluidos sin coste extra",
     ],
     precio: "Desde 5,25€/mes",
-    color: "indigo",
+    color: "orange",
     icono: "🧑‍💼",
     cta: "Quiero saber cuánto me costaría",
     testimonios: [
@@ -187,7 +187,7 @@ export default function LandingPage({ params }: { params: { producto: string } }
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="text-center">
           <p className="text-slate-500 text-lg">Página no encontrada</p>
-          <Link href="/captacion" className="mt-4 inline-block text-indigo-600 hover:underline">Ver todos los productos →</Link>
+          <Link href="/captacion" className="mt-4 inline-block hover:underline" style={{ color: "#ea650d" }}>Ver todos los productos →</Link>
         </div>
       </div>
     );
@@ -268,7 +268,7 @@ export default function LandingPage({ params }: { params: { producto: string } }
                   value={form.nombre}
                   onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))}
                   placeholder="Nombre y apellidos"
-                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-800 text-sm"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-orange-400 focus:outline-none text-slate-800 text-sm"
                 />
               </div>
               <div>
@@ -284,7 +284,7 @@ export default function LandingPage({ params }: { params: { producto: string } }
                       setForm(p => ({ ...p, telefono: val }));
                     }}
                     placeholder="600 000 000"
-                    className="flex-1 px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-800 text-sm"
+                    className="flex-1 px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-orange-400 focus:outline-none text-slate-800 text-sm"
                   />
                 </div>
               </div>
@@ -293,7 +293,7 @@ export default function LandingPage({ params }: { params: { producto: string } }
                 <select
                   value={form.ciudad}
                   onChange={e => setForm(p => ({ ...p, ciudad: e.target.value }))}
-                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-indigo-400 focus:outline-none text-slate-800 text-sm bg-white appearance-none"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 focus:border-orange-400 focus:outline-none text-slate-800 text-sm bg-white appearance-none"
                 >
                   <option value="">Seleccionar ciudad...</option>
                   {CIUDADES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -428,7 +428,7 @@ export default function LandingPage({ params }: { params: { producto: string } }
       <footer className="border-t border-slate-100 py-8 bg-white">
         <div className="max-w-3xl mx-auto px-6 text-center">
           <div className="flex items-center justify-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-sm font-bold">M</div>
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold" style={{ background: "#ea650d" }}>M</div>
             <span className="font-semibold text-slate-700">Manuel García</span>
           </div>
           <p className="text-sm text-slate-400">Asesor Financiero · Nationale-Nederlanden</p>
