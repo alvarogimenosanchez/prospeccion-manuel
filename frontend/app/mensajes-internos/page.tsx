@@ -88,11 +88,11 @@ export default function MensajesInternosPage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
       setUser(data.user ?? null);
-      if (data.user) {
+      if (data.user?.email) {
         supabase
           .from("comerciales")
           .select("id, nombre, email")
-          .eq("user_id", data.user.id)
+          .eq("email", data.user.email)
           .single()
           .then(({ data: c }) => {
             if (c) setMiComercialId(c.id);

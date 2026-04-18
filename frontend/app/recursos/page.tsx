@@ -74,11 +74,11 @@ export default function RecursosPage() {
   // ── Load comercial ──────────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
-      if (data.user) {
+      if (data.user?.email) {
         supabase
           .from("comerciales")
           .select("id")
-          .eq("user_id", data.user.id)
+          .eq("email", data.user.email)
           .single()
           .then(({ data: c }) => {
             if (c) setMiComercialId(c.id);
