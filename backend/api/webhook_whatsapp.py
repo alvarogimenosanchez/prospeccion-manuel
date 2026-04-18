@@ -7,6 +7,8 @@ Actualiza Supabase con interacciones y scoring (Agente 6)
 from __future__ import annotations
 import os
 import json
+import hmac
+import hashlib
 from datetime import datetime, timezone
 
 import httpx
@@ -44,6 +46,27 @@ supabase: Client = create_client(
 
 WASSENGER_API_KEY = os.environ.get("WASSENGER_API_KEY", "")
 WASSENGER_DEVICE_ID = os.environ.get("WASSENGER_DEVICE_ID", "")  # ID del número en Wassenger
+WASSENGER_WEBHOOK_SECRET = os.environ.get("WASSENGER_WEBHOOK_SECRET", "")
+
+
+def _verify_wassenger_signature(body: bytes, signature_header: str | None) -> bool:
+    """
+    Verifica la firma HMAC-SHA256 del webhook de Wassenger.
+    Wassenger envía el header X-Webhook-Signature con el HMAC del body.
+    Si no hay secreto configurado, se omite la verificación (modo desarrollo).
+    """
+    if not WASSENGER_WEBHOOK_SECRET:
+        return True  # Sin secreto configurado → aceptar (dev/staging)
+    if not signature_header:
+        return False
+    expected = hmac.new(
+        WASSENGER_WEBHOOK_SECRET.encode(),
+        body,
+        hashlib.sha256,
+    ).hexdigest()  # type: ignore[attr-defined]
+    # Wassenger puede enviar "sha256=<hex>" o solo "<hex>"
+    received = signature_header.removeprefix("sha256=")
+    return hmac.compare_digest(expected, received)
 
 
 # ============================================================
@@ -64,7 +87,15 @@ async def receive_whatsapp_message(request: Request, background_tasks: Backgroun
     Recibe mensajes de WhatsApp vía Wassenger webhook.
     Responde inmediatamente con 200 OK y procesa en background.
     """
-    payload = await request.json()
+    body = await request.body()
+    signature = request.headers.get("X-Webhook-Signature") or request.headers.get("X-Hub-Signature-256")
+    if not _verify_wassenger_signature(body, signature):
+        raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
+    try:
+        payload = json.loads(body)
+    except json.JSONDecodeError:
+        return {"status": "ok", "message": "invalid json"}
 
     # Estructura del webhook de Wassenger
     # https://app.wassenger.com/docs/#tag/Webhooks

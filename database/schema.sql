@@ -68,9 +68,16 @@ CREATE TABLE leads (
     -- Notas y contexto
     notas TEXT,
     señales_detectadas TEXT[],          -- Señales del Agente 1/2 que motivaron el contacto
+    web TEXT,                            -- URL web del negocio (para enriquecimiento agent4)
+
+    -- Próxima acción (gestionada por comercial o agent2)
+    proxima_accion TEXT,                 -- 'llamar', 'whatsapp', 'email', 'reunion', etc.
+    proxima_accion_fecha TIMESTAMPTZ,   -- Cuándo ejecutar la acción
+    proxima_accion_nota TEXT,            -- Nota libre sobre la próxima acción
 
     -- Asignación
-    comercial_asignado UUID,            -- FK a tabla comerciales (a crear)
+    comercial_asignado UUID,            -- FK a tabla comerciales
+    team_id UUID,                        -- FK a tabla teams
 
     -- Control
     created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -435,3 +442,99 @@ SELECT
 FROM leads l
 LEFT JOIN comerciales c ON l.comercial_asignado = c.id
 WHERE l.estado != 'descartado';
+
+-- ============================================================
+-- TABLA: teams
+-- Equipos comerciales
+-- ============================================================
+CREATE TABLE IF NOT EXISTS teams (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    nombre TEXT NOT NULL,
+    activo BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ============================================================
+-- TABLA: team_members
+-- Relación comerciales ↔ equipos
+-- ============================================================
+CREATE TABLE IF NOT EXISTS team_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
+    comercial_id UUID NOT NULL REFERENCES comerciales(id) ON DELETE CASCADE,
+    rol TEXT DEFAULT 'comercial' CHECK (rol IN ('director', 'comercial')),
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (team_id, comercial_id)
+);
+
+-- ============================================================
+-- TABLA: clientes
+-- Cartera de clientes con pólizas activas
+-- ============================================================
+CREATE TABLE IF NOT EXISTS clientes (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    lead_id UUID REFERENCES leads(id),
+    comercial_asignado UUID REFERENCES comerciales(id),
+
+    nombre TEXT NOT NULL,
+    apellidos TEXT,
+    email TEXT,
+    telefono TEXT,
+    empresa TEXT,
+
+    producto TEXT,                        -- Producto contratado
+    fecha_inicio DATE,                    -- Fecha de contratación
+    fecha_renovacion DATE,                -- Próxima fecha de renovación
+    valor_contrato NUMERIC(10,2),         -- Valor anual del contrato
+
+    estado TEXT DEFAULT 'activo' CHECK (estado IN ('activo', 'renovado', 'cancelado', 'vencido')),
+    notas TEXT,
+
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_clientes_estado ON clientes(estado);
+CREATE INDEX IF NOT EXISTS idx_clientes_renovacion ON clientes(fecha_renovacion);
+ALTER TABLE clientes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow authenticated access" ON clientes FOR ALL USING (auth.role() = 'authenticated');
+
+-- ============================================================
+-- TABLA: recursos_rapidos
+-- Scripts, argumentarios, links y plantillas del equipo
+-- ============================================================
+CREATE TABLE IF NOT EXISTS recursos_rapidos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    creado_por UUID REFERENCES comerciales(id),
+    titulo TEXT NOT NULL,
+    tipo TEXT NOT NULL CHECK (tipo IN ('script', 'argumentario', 'link', 'plantilla_wa', 'documento', 'otro')),
+    contenido TEXT NOT NULL,
+    descripcion TEXT,
+    categoria TEXT,
+    es_global BOOLEAN DEFAULT TRUE,
+    orden INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE recursos_rapidos ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow authenticated access" ON recursos_rapidos FOR ALL USING (auth.role() = 'authenticated');
+
+-- ============================================================
+-- TABLA: mensajes_internos
+-- Chat interno del equipo (tipo Slack ligero)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS mensajes_internos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    de_comercial_id UUID NOT NULL REFERENCES comerciales(id),
+    para_comercial_id UUID REFERENCES comerciales(id),  -- NULL = broadcast a todos
+    mensaje TEXT NOT NULL,
+    tipo TEXT DEFAULT 'texto' CHECK (tipo IN ('texto', 'alerta', 'nota_lead')),
+    leido_por UUID[] DEFAULT '{}',
+    adjunto_lead_id UUID REFERENCES leads(id),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_mensajes_internos_de ON mensajes_internos(de_comercial_id);
+CREATE INDEX IF NOT EXISTS idx_mensajes_internos_para ON mensajes_internos(para_comercial_id);
+ALTER TABLE mensajes_internos ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow authenticated access" ON mensajes_internos FOR ALL USING (auth.role() = 'authenticated');

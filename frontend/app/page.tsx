@@ -315,9 +315,10 @@ export default function DashboardPage() {
       {/* ── Accesos rápidos ── */}
       <div>
         <h2 className="text-sm font-semibold text-slate-700 mb-3">Accesos rápidos</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           <QuickLink href="/hoy" icon="🎯" label="Hoy" sub="Tareas y cola del día" />
           <QuickLink href="/mensajes" icon="💬" label="Mensajes" sub="WhatsApp pendientes" />
+          <QuickLink href="/mensajes-internos" icon="🗨️" label="Chat equipo" sub="Mensajes internos" />
           <QuickLink href="/prospeccion" icon="📥" label="Prospectar" sub="Importar y gestionar leads" />
           <QuickLink href="/desempeno" icon="📊" label="Desempeño" sub="Métricas del equipo" />
         </div>
