@@ -201,7 +201,7 @@ export default function ClientesPage() {
         </div>
         <button
           onClick={abrirNuevo}
-          className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 transition-colors"
+          className="px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors" style={{ background: "#ea650d" }}
         >
           + Añadir cliente
         </button>
@@ -255,7 +255,7 @@ export default function ClientesPage() {
         <div className="py-24 text-center">
           <p className="text-sm text-slate-400">No hay clientes que coincidan</p>
           {clientes.length === 0 && (
-            <button onClick={abrirNuevo} className="mt-3 text-sm text-indigo-600 hover:underline">
+            <button onClick={abrirNuevo} className="mt-3 text-sm hover:underline" style={{ color: "#ea650d" }}>
               Añadir el primer cliente
             </button>
           )}
@@ -288,7 +288,7 @@ export default function ClientesPage() {
                         </p>
                         {c.empresa && <p className="text-xs text-slate-400">{c.empresa}</p>}
                         {c.lead_id && (
-                          <Link href={`/leads/${c.lead_id}`} className="text-xs text-indigo-500 hover:underline">
+                          <Link href={`/leads/${c.lead_id}`} className="text-xs hover:underline" style={{ color: "#ea650d" }}>
                             Ver lead original
                           </Link>
                         )}
@@ -324,7 +324,7 @@ export default function ClientesPage() {
                         onChange={e => cambiarEstado(c.id, e.target.value as Cliente["estado"])}
                         className={`text-xs font-medium rounded-full px-2 py-0.5 border cursor-pointer focus:outline-none ${
                           c.estado === "activo" ? "bg-green-50 text-green-700 border-green-200" :
-                          c.estado === "renovado" ? "bg-indigo-50 text-indigo-700 border-indigo-200" :
+                          c.estado === "renovado" ? "border-orange-200" :
                           c.estado === "pausado" ? "bg-amber-50 text-amber-700 border-amber-200" :
                           "bg-slate-100 text-slate-500 border-slate-200"
                         }`}
@@ -338,7 +338,7 @@ export default function ClientesPage() {
                     <td className="px-4 py-3 text-right">
                       <button
                         onClick={() => abrirEditar(c)}
-                        className="text-xs text-slate-400 hover:text-indigo-600 opacity-0 group-hover:opacity-100 transition-all"
+                        className="text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-all hover:underline"
                       >
                         Editar
                       </button>
@@ -514,7 +514,7 @@ export default function ClientesPage() {
               <button
                 onClick={guardar}
                 disabled={guardando || !form.nombre.trim()}
-                className="px-5 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-5 py-2 text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors" style={{ background: "#ea650d" }}
               >
                 {guardando ? "Guardando..." : modal === "nuevo" ? "Crear cliente" : "Guardar cambios"}
               </button>

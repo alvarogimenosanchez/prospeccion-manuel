@@ -103,7 +103,8 @@ function ModalPostCita({ cita, onGuardar, onCerrar }: ModalPostCitaProps) {
                 <button
                   key={r.value}
                   onClick={() => setResultado(r.value)}
-                  className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-colors ${resultado === r.value ? "bg-indigo-50 border-indigo-300 text-indigo-700 font-medium" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-colors ${resultado === r.value ? "font-medium" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  style={resultado === r.value ? { background: "#fff5f0", borderColor: "#f5a677", color: "#c2530b" } : undefined}
                 >
                   {r.label}
                 </button>
@@ -149,7 +150,7 @@ function ModalPostCita({ cita, onGuardar, onCerrar }: ModalPostCitaProps) {
           <button
             onClick={handleGuardar}
             disabled={guardando}
-            className="flex-1 py-2.5 bg-indigo-600 text-white text-sm font-semibold rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+            className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}
           >
             {guardando ? "Guardando..." : "Guardar resultado"}
           </button>
@@ -418,16 +419,20 @@ export default function AgendaPage() {
               return (
                 <div
                   key={dia.toISOString()}
-                  className={`p-3 text-center border-r last:border-r-0 border-slate-100 ${esHoy ? "bg-indigo-50" : ""}`}
+                  className={`p-3 text-center border-r last:border-r-0 border-slate-100`}
+                  style={esHoy ? { background: "#fff5f0" } : undefined}
                 >
-                  <p className={`text-xs font-medium uppercase tracking-wide ${esHoy ? "text-indigo-600" : "text-slate-400"}`}>
+                  <p className={`text-xs font-medium uppercase tracking-wide ${esHoy ? "" : "text-slate-400"}`}
+                    style={esHoy ? { color: "#ea650d" } : undefined}>
                     {format(dia, "EEE", { locale: es })}
                   </p>
-                  <p className={`text-lg font-bold mt-0.5 ${esHoy ? "text-indigo-600" : "text-slate-700"}`}>
+                  <p className={`text-lg font-bold mt-0.5 ${esHoy ? "" : "text-slate-700"}`}
+                    style={esHoy ? { color: "#ea650d" } : undefined}>
                     {format(dia, "d")}
                   </p>
                   {citasDia.length > 0 && (
-                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${esHoy ? "bg-indigo-100 text-indigo-600" : "bg-slate-100 text-slate-500"}`}>
+                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${esHoy ? "" : "bg-slate-100 text-slate-500"}`}
+                      style={esHoy ? { background: "#ffd9bf", color: "#ea650d" } : undefined}>
                       {citasDia.length}
                     </span>
                   )}
@@ -466,9 +471,9 @@ export default function AgendaPage() {
             return (
               <div key={dia.toISOString()}>
                 <div className={`flex items-center gap-3 mb-2`}>
-                  <div className={`flex items-center gap-2 ${esHoy ? "text-indigo-600" : "text-slate-500"}`}>
-                    {esHoy && <span className="text-xs font-bold bg-indigo-600 text-white px-2 py-0.5 rounded-full">HOY</span>}
-                    <span className={`text-sm font-semibold ${esHoy ? "text-indigo-700" : "text-slate-700"}`}>
+                  <div className={`flex items-center gap-2 ${esHoy ? "" : "text-slate-500"}`} style={esHoy ? { color: "#ea650d" } : undefined}>
+                    {esHoy && <span className="text-xs font-bold text-white px-2 py-0.5 rounded-full" style={{ background: "#ea650d" }}>HOY</span>}
+                    <span className={`text-sm font-semibold ${esHoy ? "" : "text-slate-700"}`} style={esHoy ? { color: "#c2530b" } : undefined}>
                       {format(dia, "EEEE d MMMM", { locale: es })}
                     </span>
                   </div>
@@ -549,7 +554,7 @@ function TarjetaCitaCompacta({ cita, onActualizar }: { cita: CitaConLead; onActu
       {cita.lead?.empresa && (
         <p className="text-slate-400 truncate">{cita.lead.empresa}</p>
       )}
-      <Link href={`/leads/${cita.lead_id}`} className="text-indigo-500 hover:underline mt-1 block">
+      <Link href={`/leads/${cita.lead_id}`} className="hover:underline mt-1 block" style={{ color: "#ea650d" }}>
         Ver lead →
       </Link>
       {esPasada && cita.estado !== "realizada" && cita.estado !== "cancelada" && (
@@ -583,7 +588,7 @@ function TarjetaCitaCompleta({ cita, onActualizar }: { cita: CitaConLead; onActu
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 mb-1">
           <span className="text-base">{TIPO_ICON[cita.tipo]}</span>
-          <Link href={`/leads/${cita.lead_id}`} className="font-semibold text-slate-800 hover:text-indigo-600 transition-colors">
+          <Link href={`/leads/${cita.lead_id}`} className="font-semibold text-slate-800 transition-colors" onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "")}>
             {nombre}
           </Link>
           {cita.lead?.temperatura && (
