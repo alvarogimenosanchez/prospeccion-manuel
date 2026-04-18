@@ -352,191 +352,199 @@ export default function AgendaPage() {
               </button>
             </div>
           )}
+      </div>
+    </div>
+
+      {/* Alertas */ }
+  {
+    citasSinRegistrar.length > 0 && (
+      <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-3">
+        <span className="text-red-500 text-lg">🔴</span>
+        <div className="flex-1">
+          <p className="text-sm font-semibold text-red-800">
+            {citasSinRegistrar.length} cita{citasSinRegistrar.length > 1 ? "s" : ""} sin registrar resultado
+          </p>
+          <p className="text-xs text-red-600 mt-0.5">
+            {citasSinRegistrar.map(c => c.lead?.nombre ?? "Lead").join(", ")}
+          </p>
+        </div>
+        <button
+          onClick={() => setCitaParaRegistrar(citasSinRegistrar[0])}
+          className="text-xs font-medium text-red-700 border border-red-300 bg-white hover:bg-red-50 px-3 py-1.5 rounded-lg whitespace-nowrap"
+        >
+          Registrar ahora
+        </button>
+      </div>
+    )
+  }
+  {
+    citasPendientes.length > 0 && (
+      <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+        <span className="text-amber-500 text-lg">⚠️</span>
+        <div>
+          <p className="text-sm font-semibold text-amber-800">
+            {citasPendientes.length} cita{citasPendientes.length > 1 ? "s" : ""} pendiente{citasPendientes.length > 1 ? "s" : ""} de confirmar esta semana
+          </p>
+          <p className="text-xs text-amber-600 mt-0.5">
+            {citasPendientes.map(c => c.lead?.nombre ?? "Lead").join(", ")}
+          </p>
         </div>
       </div>
+    )
+  }
 
-      {/* Alertas */}
-      {citasSinRegistrar.length > 0 && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 flex items-center gap-3">
-          <span className="text-red-500 text-lg">🔴</span>
-          <div className="flex-1">
-            <p className="text-sm font-semibold text-red-800">
-              {citasSinRegistrar.length} cita{citasSinRegistrar.length > 1 ? "s" : ""} sin registrar resultado
-            </p>
-            <p className="text-xs text-red-600 mt-0.5">
-              {citasSinRegistrar.map(c => c.lead?.nombre ?? "Lead").join(", ")}
-            </p>
+  {
+    loading ? (
+      <div className="py-20 text-center text-sm text-slate-400">Cargando agenda...</div>
+    ) : vista === "hoy" ? (
+      /* Vista hoy */
+      <div className="space-y-3">
+        {citas.length === 0 ? (
+          <div className="bg-white rounded-xl border border-slate-200 py-16 text-center">
+            <p className="text-2xl mb-2">📅</p>
+            <p className="text-slate-500 text-sm font-medium">Sin citas hoy</p>
+            <p className="text-xs text-slate-300 mt-1">Puedes agendar desde el detalle de cada lead</p>
           </div>
-          <button
-            onClick={() => setCitaParaRegistrar(citasSinRegistrar[0])}
-            className="text-xs font-medium text-red-700 border border-red-300 bg-white hover:bg-red-50 px-3 py-1.5 rounded-lg whitespace-nowrap"
-          >
-            Registrar ahora
-          </button>
-        </div>
-      )}
-      {citasPendientes.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
-          <span className="text-amber-500 text-lg">⚠️</span>
-          <div>
-            <p className="text-sm font-semibold text-amber-800">
-              {citasPendientes.length} cita{citasPendientes.length > 1 ? "s" : ""} pendiente{citasPendientes.length > 1 ? "s" : ""} de confirmar esta semana
-            </p>
-            <p className="text-xs text-amber-600 mt-0.5">
-              {citasPendientes.map(c => c.lead?.nombre ?? "Lead").join(", ")}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {loading ? (
-        <div className="py-20 text-center text-sm text-slate-400">Cargando agenda...</div>
-      ) : vista === "hoy" ? (
-        /* Vista hoy */
-        <div className="space-y-3">
-          {citas.length === 0 ? (
-            <div className="bg-white rounded-xl border border-slate-200 py-16 text-center">
-              <p className="text-2xl mb-2">📅</p>
-              <p className="text-slate-500 text-sm font-medium">Sin citas hoy</p>
-              <p className="text-xs text-slate-300 mt-1">Puedes agendar desde el detalle de cada lead</p>
-            </div>
-          ) : (
-            citas
-              .sort((a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime())
-              .map(cita => (
-                <TarjetaCitaCompleta key={cita.id} cita={cita} onActualizar={actualizarEstado} />
-              ))
-          )}
-        </div>
-      ) : vista === "semana" ? (
-        /* Vista semanal */
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          {/* Cabeceras días */}
-          <div className="grid grid-cols-7 border-b border-slate-100">
-            {dias.map(dia => {
-              const citasDia = citas.filter(c => isSameDay(parseISO(c.fecha_hora), dia));
-              const esHoy = isToday(dia);
-              return (
-                <div
-                  key={dia.toISOString()}
-                  className={`p-3 text-center border-r last:border-r-0 border-slate-100`}
-                  style={esHoy ? { background: "#fff5f0" } : undefined}
-                >
-                  <p className={`text-xs font-medium uppercase tracking-wide ${esHoy ? "" : "text-slate-400"}`}
-                    style={esHoy ? { color: "#ea650d" } : undefined}>
-                    {format(dia, "EEE", { locale: es })}
-                  </p>
-                  <p className={`text-lg font-bold mt-0.5 ${esHoy ? "" : "text-slate-700"}`}
-                    style={esHoy ? { color: "#ea650d" } : undefined}>
-                    {format(dia, "d")}
-                  </p>
-                  {citasDia.length > 0 && (
-                    <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${esHoy ? "" : "bg-slate-100 text-slate-500"}`}
-                      style={esHoy ? { background: "#ffd9bf", color: "#ea650d" } : undefined}>
-                      {citasDia.length}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Celdas con citas */}
-          <div className="grid grid-cols-7 min-h-64">
-            {dias.map(dia => {
-              const citasDia = citas
-                .filter(c => isSameDay(parseISO(c.fecha_hora), dia))
-                .sort((a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime());
-              return (
-                <div key={dia.toISOString()} className="border-r last:border-r-0 border-slate-100 p-2 space-y-1.5 min-h-32">
-                  {citasDia.length === 0 && (
-                    <p className="text-xs text-slate-200 text-center mt-4">—</p>
-                  )}
-                  {citasDia.map(cita => (
-                    <TarjetaCitaCompacta key={cita.id} cita={cita} onActualizar={actualizarEstado} />
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        /* Vista lista */
-        <div className="space-y-3">
+        ) : (
+          citas
+            .sort((a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime())
+            .map(cita => (
+              <TarjetaCitaCompleta key={cita.id} cita={cita} onActualizar={actualizarEstado} />
+            ))
+        )}
+      </div>
+    ) : vista === "semana" ? (
+      /* Vista semanal */
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        {/* Cabeceras días */}
+        <div className="grid grid-cols-7 border-b border-slate-100">
           {dias.map(dia => {
-            const citasDia = citas
-              .filter(c => isSameDay(parseISO(c.fecha_hora), dia))
-              .sort((a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime());
+            const citasDia = citas.filter(c => isSameDay(parseISO(c.fecha_hora), dia));
             const esHoy = isToday(dia);
             return (
-              <div key={dia.toISOString()}>
-                <div className={`flex items-center gap-3 mb-2`}>
-                  <div className={`flex items-center gap-2 ${esHoy ? "" : "text-slate-500"}`} style={esHoy ? { color: "#ea650d" } : undefined}>
-                    {esHoy && <span className="text-xs font-bold text-white px-2 py-0.5 rounded-full" style={{ background: "#ea650d" }}>HOY</span>}
-                    <span className={`text-sm font-semibold ${esHoy ? "" : "text-slate-700"}`} style={esHoy ? { color: "#c2530b" } : undefined}>
-                      {format(dia, "EEEE d MMMM", { locale: es })}
-                    </span>
-                  </div>
-                  {citasDia.length > 0 && (
-                    <span className="text-xs text-slate-400">{citasDia.length} cita{citasDia.length > 1 ? "s" : ""}</span>
-                  )}
-                </div>
-                {citasDia.length === 0 ? (
-                  <p className="text-xs text-slate-300 pl-2 mb-3">Sin citas</p>
-                ) : (
-                  <div className="space-y-2 mb-4">
-                    {citasDia.map(cita => (
-                      <TarjetaCitaCompleta key={cita.id} cita={cita} onActualizar={actualizarEstado} />
-                    ))}
-                  </div>
+              <div
+                key={dia.toISOString()}
+                className={`p-3 text-center border-r last:border-r-0 border-slate-100`}
+                style={esHoy ? { background: "#fff5f0" } : undefined}
+              >
+                <p className={`text-xs font-medium uppercase tracking-wide ${esHoy ? "" : "text-slate-400"}`}
+                  style={esHoy ? { color: "#ea650d" } : undefined}>
+                  {format(dia, "EEE", { locale: es })}
+                </p>
+                <p className={`text-lg font-bold mt-0.5 ${esHoy ? "" : "text-slate-700"}`}
+                  style={esHoy ? { color: "#ea650d" } : undefined}>
+                  {format(dia, "d")}
+                </p>
+                {citasDia.length > 0 && (
+                  <span className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${esHoy ? "" : "bg-slate-100 text-slate-500"}`}
+                    style={esHoy ? { background: "#ffd9bf", color: "#ea650d" } : undefined}>
+                    {citasDia.length}
+                  </span>
                 )}
               </div>
             );
           })}
-          {citas.length === 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 py-16 text-center">
-              <p className="text-slate-400 text-sm">No hay citas esta semana</p>
-              <p className="text-xs text-slate-300 mt-1">Puedes agendar citas desde el detalle de cada lead</p>
-            </div>
-          )}
         </div>
-      )}
 
-      {/* Métricas técnicas */}
-      {(() => {
-        const realizadas = citas.filter(c => c.estado === "realizada").length;
-        const noShow = citas.filter(c => c.estado === "no_show").length;
-        const canceladas = citas.filter(c => c.estado === "cancelada").length;
-        const total = citas.length;
-        const tasaNoShow = total > 0 ? Math.round((noShow / total) * 100) : 0;
-        const tasaRealizacion = total > 0 ? Math.round((realizadas / total) * 100) : 0;
-        const cerradas = citas.filter(c => c.notas_post?.includes("cerrado")).length;
-        const tasaConversion = realizadas > 0 ? Math.round((cerradas / realizadas) * 100) : 0;
-        return (
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100">
-              <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                {vista === "hoy" ? "Métricas de hoy" : "Métricas de la semana"}
-              </h2>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 divide-x divide-slate-100">
-              {[
-                { label: "Total citas", value: total, color: "text-slate-800", sub: `${citas.filter(c => c.tipo === "llamada").length} llamadas · ${citas.filter(c => c.tipo === "videollamada").length} video · ${citas.filter(c => c.tipo === "reunion_presencial").length} presencial` },
-                { label: "Tasa realización", value: `${tasaRealizacion}%`, color: tasaRealizacion >= 70 ? "text-emerald-600" : tasaRealizacion >= 50 ? "text-amber-600" : "text-red-600", sub: `${realizadas} realizadas de ${total}` },
-                { label: "No-show", value: `${tasaNoShow}%`, color: tasaNoShow === 0 ? "text-emerald-600" : tasaNoShow <= 15 ? "text-amber-600" : "text-red-600", sub: `${noShow} no asistieron · ${canceladas} canceladas` },
-                { label: "Conversión", value: `${tasaConversion}%`, color: tasaConversion >= 30 ? "text-emerald-600" : "text-slate-500", sub: `${cerradas} cierres sobre ${realizadas} realizadas` },
-              ].map(stat => (
-                <div key={stat.label} className="p-4 text-center">
-                  <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
-                  <p className="text-xs font-semibold text-slate-600 mt-0.5">{stat.label}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{stat.sub}</p>
+        {/* Celdas con citas */}
+        <div className="grid grid-cols-7 min-h-64">
+          {dias.map(dia => {
+            const citasDia = citas
+              .filter(c => isSameDay(parseISO(c.fecha_hora), dia))
+              .sort((a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime());
+            return (
+              <div key={dia.toISOString()} className="border-r last:border-r-0 border-slate-100 p-2 space-y-1.5 min-h-32">
+                {citasDia.length === 0 && (
+                  <p className="text-xs text-slate-200 text-center mt-4">—</p>
+                )}
+                {citasDia.map(cita => (
+                  <TarjetaCitaCompacta key={cita.id} cita={cita} onActualizar={actualizarEstado} />
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    ) : (
+      /* Vista lista */
+      <div className="space-y-3">
+        {dias.map(dia => {
+          const citasDia = citas
+            .filter(c => isSameDay(parseISO(c.fecha_hora), dia))
+            .sort((a, b) => new Date(a.fecha_hora).getTime() - new Date(b.fecha_hora).getTime());
+          const esHoy = isToday(dia);
+          return (
+            <div key={dia.toISOString()}>
+              <div className={`flex items-center gap-3 mb-2`}>
+                <div className={`flex items-center gap-2 ${esHoy ? "" : "text-slate-500"}`} style={esHoy ? { color: "#ea650d" } : undefined}>
+                  {esHoy && <span className="text-xs font-bold text-white px-2 py-0.5 rounded-full" style={{ background: "#ea650d" }}>HOY</span>}
+                  <span className={`text-sm font-semibold ${esHoy ? "" : "text-slate-700"}`} style={esHoy ? { color: "#c2530b" } : undefined}>
+                    {format(dia, "EEEE d MMMM", { locale: es })}
+                  </span>
                 </div>
-              ))}
+                {citasDia.length > 0 && (
+                  <span className="text-xs text-slate-400">{citasDia.length} cita{citasDia.length > 1 ? "s" : ""}</span>
+                )}
+              </div>
+              {citasDia.length === 0 ? (
+                <p className="text-xs text-slate-300 pl-2 mb-3">Sin citas</p>
+              ) : (
+                <div className="space-y-2 mb-4">
+                  {citasDia.map(cita => (
+                    <TarjetaCitaCompleta key={cita.id} cita={cita} onActualizar={actualizarEstado} />
+                  ))}
+                </div>
+              )}
             </div>
+          );
+        })}
+        {citas.length === 0 && (
+          <div className="bg-white rounded-xl border border-slate-200 py-16 text-center">
+            <p className="text-slate-400 text-sm">No hay citas esta semana</p>
+            <p className="text-xs text-slate-300 mt-1">Puedes agendar citas desde el detalle de cada lead</p>
           </div>
-        );
-      })()}
-    </div>
+        )}
+      </div>
+    )
+  }
+
+  {/* Métricas técnicas */ }
+  {
+    (() => {
+      const realizadas = citas.filter(c => c.estado === "realizada").length;
+      const noShow = citas.filter(c => c.estado === "no_show").length;
+      const canceladas = citas.filter(c => c.estado === "cancelada").length;
+      const total = citas.length;
+      const tasaNoShow = total > 0 ? Math.round((noShow / total) * 100) : 0;
+      const tasaRealizacion = total > 0 ? Math.round((realizadas / total) * 100) : 0;
+      const cerradas = citas.filter(c => c.notas_post?.includes("cerrado")).length;
+      const tasaConversion = realizadas > 0 ? Math.round((cerradas / realizadas) * 100) : 0;
+      return (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-100">
+            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              {vista === "hoy" ? "Métricas de hoy" : "Métricas de la semana"}
+            </h2>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 divide-x divide-slate-100">
+            {[
+              { label: "Total citas", value: total, color: "text-slate-800", sub: `${citas.filter(c => c.tipo === "llamada").length} llamadas · ${citas.filter(c => c.tipo === "videollamada").length} video · ${citas.filter(c => c.tipo === "reunion_presencial").length} presencial` },
+              { label: "Tasa realización", value: `${tasaRealizacion}%`, color: tasaRealizacion >= 70 ? "text-emerald-600" : tasaRealizacion >= 50 ? "text-amber-600" : "text-red-600", sub: `${realizadas} realizadas de ${total}` },
+              { label: "No-show", value: `${tasaNoShow}%`, color: tasaNoShow === 0 ? "text-emerald-600" : tasaNoShow <= 15 ? "text-amber-600" : "text-red-600", sub: `${noShow} no asistieron · ${canceladas} canceladas` },
+              { label: "Conversión", value: `${tasaConversion}%`, color: tasaConversion >= 30 ? "text-emerald-600" : "text-slate-500", sub: `${cerradas} cierres sobre ${realizadas} realizadas` },
+            ].map(stat => (
+              <div key={stat.label} className="p-4 text-center">
+                <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
+                <p className="text-xs font-semibold text-slate-600 mt-0.5">{stat.label}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{stat.sub}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    })()
+  }
+    </div >
   );
 }
 

@@ -127,7 +127,7 @@ export function LeadRow({ lead }: { lead: LeadDashboard }) {
               key={p}
               className={`text-xs px-1.5 py-0.5 rounded border ${
                 p === lead.producto_interes_principal
-                  ? "border-orange-200 font-medium"
+                  ? "border-orange-200 font-medium text-orange-700 bg-orange-50"
                   : "bg-slate-50 border-slate-200 text-slate-500"
               }`}
             >

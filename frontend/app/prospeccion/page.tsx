@@ -454,7 +454,7 @@ export default function ProspeccionPage() {
                 <span className="font-semibold text-slate-800">{headerStats.total}</span> total
               </span>
               <span className="text-slate-300">|</span>
-              <span className="text-sm text-blue-600">
+              <span className="text-sm" style={{ color: "#ea650d" }}>
                 <span className="font-semibold">{headerStats.sinContactar}</span> sin contactar
               </span>
               <span className="text-slate-300">|</span>

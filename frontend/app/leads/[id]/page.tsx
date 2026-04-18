@@ -1757,7 +1757,7 @@ export default function LeadDetailPage() {
 
             <div className="sticky bottom-0 bg-white border-t border-slate-100 px-6 py-4 flex gap-3 rounded-b-2xl">
               <button onClick={guardarEdicion} disabled={guardandoEdicion}
-                className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}
+                className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}>
                 {guardandoEdicion ? "Guardando..." : "Guardar cambios"}
               </button>
               <button onClick={() => setEditando(false)}

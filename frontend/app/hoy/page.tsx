@@ -532,7 +532,8 @@ export default function HoyPage() {
                       </a>
                     )}
                     <Link href={`/leads/${lead.id}`}
-                      className="rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                      className="rounded px-2 py-1 text-xs font-medium transition-colors hover:underline"
+                      style={{ color: "#ea650d" }}>
                       → Ver
                     </Link>
                   </div>
@@ -570,7 +571,8 @@ export default function HoyPage() {
                       📅 Agendar cita
                     </Link>
                     <Link href={`/leads/${lead.id}`}
-                      className="rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                      className="rounded px-2 py-1 text-xs font-medium transition-colors hover:underline"
+                      style={{ color: "#ea650d" }}>
                       → Ver
                     </Link>
                   </div>
@@ -598,18 +600,22 @@ export default function HoyPage() {
                   <div className="flex shrink-0 flex-wrap gap-1.5">
                     {tel && (
                       <a href={`https://wa.me/${tel}`} target="_blank" rel="noopener noreferrer"
-                        className="rounded px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                        className="rounded px-2 py-1 text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
                         onClick={() => accionRapida(lead.id, "mensajeEnviadoSinRespuesta", "whatsapp", "Recordatorio enviado por WhatsApp")}>
                         💬 Recordatorio
                       </a>
                     )}
                     <BtnAccion loading={guardandoAccion === `${lead.id}-descartado`}
-                      onClick={() => accionRapida(lead.id, "mensajeEnviadoSinRespuesta", "descartado", "Sin respuesta — marcado para revisión posterior")}
+                      onClick={() => {
+                        if (!confirm("¿Archivar este lead? Se marcará como descartado.")) return;
+                        accionRapida(lead.id, "mensajeEnviadoSinRespuesta", "descartado", "Sin respuesta — marcado para revisión posterior");
+                      }}
                       className="bg-slate-100 text-slate-500 hover:bg-slate-200">
                       Archivar
                     </BtnAccion>
                     <Link href={`/leads/${lead.id}`}
-                      className="rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                      className="rounded px-2 py-1 text-xs font-medium transition-colors hover:underline"
+                      style={{ color: "#ea650d" }}>
                       → Ver
                     </Link>
                   </div>
@@ -662,7 +668,8 @@ export default function HoyPage() {
                       ✗ No show
                     </BtnAccion>
                     <Link href={`/leads/${cita.lead_id}`}
-                      className="rounded px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                      className="rounded px-2 py-1 text-xs font-medium transition-colors hover:underline"
+                      style={{ color: "#ea650d" }}>
                       → Ver ficha
                     </Link>
                   </div>
