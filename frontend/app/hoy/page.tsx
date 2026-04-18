@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { format, formatDistanceToNow, addDays } from "date-fns";
+import { format, formatDistanceToNow, addDays, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
 
@@ -86,6 +86,22 @@ const ESTADO_CITA_STYLE: Record<string, string> = {
 const SELECT_LEAD =
   "id, nombre, apellidos, empresa, ciudad, sector, telefono, telefono_whatsapp, nivel_interes, prioridad, estado, proxima_accion, proxima_accion_fecha, proxima_accion_nota, comercial_asignado, updated_at";
 
+const RESULTADOS_CITA = [
+  { value: "interesado",       label: "✅ Interesado — quiere seguir" },
+  { value: "necesita_mas_info",label: "🤔 Necesita más información"   },
+  { value: "no_interesado",    label: "❌ No interesado"              },
+  { value: "cerrado_ganado",   label: "🏆 Cerrado — contratado"       },
+  { value: "aplazado",         label: "⏳ Aplazado — más adelante"    },
+];
+
+const PROXIMAS_ACCIONES_POST = [
+  { value: "llamar",      label: "📞 Llamar"             },
+  { value: "whatsapp",    label: "💬 Enviar WhatsApp"    },
+  { value: "enviar_info", label: "📎 Enviar información" },
+  { value: "reunion",     label: "📅 Nueva reunión"      },
+  { value: "ninguna",     label: "— Ninguna (cerrado)"   },
+];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function nombreCompleto(lead: { nombre: string; apellidos: string | null }) {
@@ -131,6 +147,7 @@ export default function HoyPage() {
   });
   const [loading,        setLoading       ] = useState(true);
   const [guardandoAccion, setGuardandoAccion] = useState<string | null>(null);
+  const [citaParaRegistrar, setCitaParaRegistrar] = useState<CitaRow | null>(null);
 
   // ─── Get logged comercial ──────────────────────────────────────────────────
   useEffect(() => {
@@ -318,6 +335,36 @@ export default function HoyPage() {
       setGuardandoAccion(null);
     }
   }, []);
+
+  // ─── Guardar resultado de cita ───────────────────────────────────────────
+  async function guardarResultadoCita(citaId: string, datos: {
+    notas_post: string; resultado: string; proxima_accion: string;
+    proxima_accion_nota: string; proxima_accion_fecha: string;
+  }) {
+    await supabase.from("appointments").update({
+      estado: "realizada", notas_post: datos.notas_post, resultado: datos.resultado,
+    }).eq("id", citaId);
+
+    const cita = seccionesData.citasHoy.find(c => c.id === citaId);
+    if (cita) {
+      await supabase.from("interactions").insert({
+        lead_id: cita.lead_id, tipo: "nota_manual",
+        mensaje: `📋 Post-cita: ${datos.notas_post}`, origen: "comercial",
+      });
+      const leadUpdates: Record<string, string | null> = {
+        proxima_accion: datos.proxima_accion !== "ninguna" ? datos.proxima_accion : null,
+        proxima_accion_nota: datos.proxima_accion_nota || null,
+        proxima_accion_fecha: datos.proxima_accion_fecha || null,
+        updated_at: new Date().toISOString(),
+      };
+      if (datos.resultado === "cerrado_ganado") leadUpdates.estado = "cerrado_ganado";
+      else if (datos.resultado === "no_interesado") leadUpdates.estado = "cerrado_perdido";
+      else if (["interesado", "necesita_mas_info"].includes(datos.resultado)) leadUpdates.estado = "en_negociacion";
+      await supabase.from("leads").update(leadUpdates).eq("id", cita.lead_id);
+    }
+    setSeccionesData(prev => ({ ...prev, citasHoy: prev.citasHoy.filter(c => c.id !== citaId) }));
+    setCitaParaRegistrar(null);
+  }
 
   // ─── Total tasks ─────────────────────────────────────────────────────────
   const totalTareas =
@@ -673,9 +720,9 @@ export default function HoyPage() {
                       </a>
                     )}
                     <BtnAccion loading={guardandoAccion === `cita-${cita.id}`}
-                      onClick={() => accionCita(cita.id, cita.lead_id, "realizada", "Cita marcada como realizada")}
+                      onClick={() => setCitaParaRegistrar(cita)}
                       className="bg-green-100 text-green-700 hover:bg-green-200">
-                      ✓ Realizada
+                      ✓ Registrar resultado
                     </BtnAccion>
                     <BtnAccion loading={guardandoAccion === `cita-noshow-${cita.id}`}
                       onClick={() => accionCita(cita.id, cita.lead_id, "no_show", "Cita: no show")}
@@ -694,6 +741,100 @@ export default function HoyPage() {
           </SeccionCard>
         )}
 
+      </div>
+
+      {/* ─── Modal post-cita ──────────────────────────────────────────────── */}
+      {citaParaRegistrar && (
+        <ModalPostCitaHoy
+          cita={citaParaRegistrar}
+          onGuardar={guardarResultadoCita}
+          onCerrar={() => setCitaParaRegistrar(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ─── ModalPostCitaHoy ─────────────────────────────────────────────────────────
+
+function ModalPostCitaHoy({ cita, onGuardar, onCerrar }: {
+  cita: CitaRow;
+  onGuardar: (citaId: string, datos: { notas_post: string; resultado: string; proxima_accion: string; proxima_accion_nota: string; proxima_accion_fecha: string }) => Promise<void>;
+  onCerrar: () => void;
+}) {
+  const nombre = [cita.leads?.nombre, cita.leads?.apellidos].filter(Boolean).join(" ") || "Lead";
+  const [resultado, setResultado] = useState("interesado");
+  const [notasPost, setNotasPost] = useState("");
+  const [proximaAccion, setProximaAccion] = useState("llamar");
+  const [proximaNota, setProximaNota] = useState("");
+  const [proximaFecha, setProximaFecha] = useState("");
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleGuardar() {
+    if (!notasPost.trim()) { setError("Escribe al menos una nota sobre cómo fue la cita."); return; }
+    setGuardando(true);
+    await onGuardar(cita.id, { notas_post: notasPost, resultado, proxima_accion: proximaAccion, proxima_accion_nota: proximaNota, proxima_accion_fecha: proximaFecha });
+    setGuardando(false);
+  }
+
+  return (
+    <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, background: "rgba(0,0,0,0.5)", zIndex: 9999 }}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="px-6 py-4 border-b border-slate-100">
+          <h2 className="text-base font-bold text-slate-800">Resultado de la cita</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {nombre}{cita.leads?.empresa ? ` · ${cita.leads.empresa}` : ""} · {format(parseISO(cita.fecha_hora), "d MMM · HH:mm", { locale: es })}
+          </p>
+        </div>
+        <div className="p-6 space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2 block">¿Cómo fue?</label>
+            <div className="space-y-1.5">
+              {RESULTADOS_CITA.map(r => (
+                <button key={r.value} onClick={() => setResultado(r.value)}
+                  className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-colors ${resultado === r.value ? "font-medium" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                  style={resultado === r.value ? { background: "#fff5f0", borderColor: "#f5a677", color: "#c2530b" } : undefined}>
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">
+              Nota post-cita <span className="text-red-400">*</span>
+            </label>
+            <textarea value={notasPost} onChange={e => { setNotasPost(e.target.value); setError(""); }} rows={3}
+              placeholder="¿Qué se habló? ¿Qué le interesó? ¿Qué objeciones hubo?..."
+              className={`w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none ${error ? "border-red-300 focus:border-red-400" : "border-slate-200 focus:border-orange-300"}`} />
+            {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Próxima acción</label>
+            <select value={proximaAccion} onChange={e => setProximaAccion(e.target.value)}
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-orange-300">
+              {PROXIMAS_ACCIONES_POST.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
+            </select>
+            {proximaAccion !== "ninguna" && (
+              <div className="space-y-1.5 mt-1.5">
+                <input type="datetime-local" value={proximaFecha} onChange={e => setProximaFecha(e.target.value)}
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300" />
+                <input type="text" value={proximaNota} onChange={e => setProximaNota(e.target.value)}
+                  placeholder="Nota opcional"
+                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300" />
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+          <button onClick={handleGuardar} disabled={guardando}
+            className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}>
+            {guardando ? "Guardando..." : "Guardar resultado"}
+          </button>
+          <button onClick={onCerrar} className="px-4 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50">
+            Cancelar
+          </button>
+        </div>
       </div>
     </div>
   );
