@@ -64,6 +64,13 @@ const ACCIONES_CONFIG: Record<string, { label: string; icon: string; color: stri
 
 const ESTADOS_CERRADOS = ["cerrado_ganado", "cerrado_perdido", "descartado"];
 
+const TEMP_POR_ESTADO: Record<string, string> = {
+  nuevo: "frio", mensaje_enviado: "frio", segmentado: "frio",
+  respondio: "templado",
+  cita_agendada: "caliente", en_negociacion: "caliente",
+  cerrado_ganado: "caliente", cerrado_perdido: "frio",
+};
+
 const TIPO_CITA_LABEL: Record<string, string> = {
   llamada: "Llamada",
   reunion_presencial: "Reunión presencial",
@@ -255,7 +262,10 @@ export default function HoyPage() {
       });
       if (nuevoEstado || clearAccion) {
         const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-        if (nuevoEstado) updates.estado = nuevoEstado;
+        if (nuevoEstado) {
+          updates.estado = nuevoEstado;
+          if (TEMP_POR_ESTADO[nuevoEstado]) updates.temperatura = TEMP_POR_ESTADO[nuevoEstado];
+        }
         if (clearAccion) { updates.proxima_accion = null; updates.proxima_accion_fecha = null; }
         await supabase.from("leads").update(updates).eq("id", leadId);
       }
