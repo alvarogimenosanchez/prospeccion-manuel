@@ -1298,7 +1298,7 @@ export default function LeadDetailPage() {
               <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Citas</h3>
               <button
                 onClick={() => setMostrarNuevaCita(true)}
-                className="text-xs text-indigo-600 hover:text-indigo-800 font-medium hover:underline"
+                className="text-xs text-orange-600 hover:text-orange-800 font-medium hover:underline"
               >
                 + Nueva cita
               </button>
@@ -1306,7 +1306,7 @@ export default function LeadDetailPage() {
 
             {/* Formulario nueva cita inline */}
             {mostrarNuevaCita && (
-              <div className="mb-3 p-3 bg-indigo-50 rounded-xl border border-indigo-100 space-y-2">
+              <div className="mb-3 p-3 bg-orange-50 rounded-xl border border-orange-100 space-y-2">
                 <div className="grid grid-cols-2 gap-2">
                   <div>
                     <label className="block text-xs text-slate-500 mb-1">Tipo</label>
@@ -1373,7 +1373,7 @@ export default function LeadDetailPage() {
                   <button
                     onClick={crearCita}
                     disabled={!citaForm.fecha_hora || guardandoCita}
-                    className="flex-1 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+                    className="flex-1 py-1.5 bg-orange-600 text-white text-xs font-medium rounded-lg hover:bg-orange-700 disabled:opacity-40 transition-colors"
                   >
                     {guardandoCita ? "Guardando..." : "Agendar cita"}
                   </button>
@@ -1631,7 +1631,7 @@ export default function LeadDetailPage() {
                     setAccionForm({ proxima_accion: "enviar_info", proxima_accion_fecha: "", proxima_accion_nota: "Enviar propuesta post-reunión" });
                     setEditandoAccion(true);
                   }}
-                  className="text-xs px-2.5 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-lg hover:border-indigo-400 transition-colors">
+                  className="text-xs px-2.5 py-1.5 bg-orange-50 border border-orange-200 text-orange-700 rounded-lg hover:border-orange-400 transition-colors">
                   🤝 Reunión hecha
                 </button>
               </div>
@@ -1641,7 +1641,7 @@ export default function LeadDetailPage() {
                 placeholder="Añadir nota del comercial..."
                 className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" />
               <button onClick={guardarNota} disabled={!nota.trim() || guardando}
-                className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700 disabled:opacity-40 transition-colors">
+                className="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 disabled:opacity-40 transition-colors">
                 {guardando ? "..." : "Guardar"}
               </button>
             </div>
@@ -1838,10 +1838,10 @@ function ChatBubble({ interaction }: { interaction: Interaction }) {
 
   return (
     <div className={`flex ${isLead ? "justify-start" : "justify-end"}`}>
-      <div className={`max-w-sm rounded-2xl px-3.5 py-2.5 ${isLead ? "bg-slate-100 text-slate-800" : isBot ? "bg-indigo-600 text-white" : "bg-slate-800 text-white"}`}>
-        {!isLead && <p className={`text-xs mb-1 ${isBot ? "text-indigo-200" : "text-slate-400"}`}>{isBot ? "Bot" : "Comercial"}</p>}
+      <div className={`max-w-sm rounded-2xl px-3.5 py-2.5 ${isLead ? "bg-slate-100 text-slate-800" : isBot ? "bg-orange-500 text-white" : "bg-slate-800 text-white"}`}>
+        {!isLead && <p className={`text-xs mb-1 ${isBot ? "text-orange-200" : "text-slate-400"}`}>{isBot ? "Bot" : "Comercial"}</p>}
         <p className="text-sm leading-relaxed">{interaction.mensaje}</p>
-        <p className={`text-xs mt-1 ${isLead ? "text-slate-400" : isBot ? "text-indigo-300" : "text-slate-500"}`}>
+        <p className={`text-xs mt-1 ${isLead ? "text-slate-400" : isBot ? "text-orange-200" : "text-slate-500"}`}>
           {format(new Date(interaction.created_at), "HH:mm · d MMM", { locale: es })}
         </p>
       </div>

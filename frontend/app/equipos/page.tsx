@@ -240,8 +240,8 @@ export default function EquiposPage() {
               /* Empty state útil con guía de primeros pasos */
               <div className="bg-white rounded-xl border border-dashed border-slate-300 p-6 space-y-5">
                 <div className="text-center">
-                  <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center mx-auto mb-3">
-                    <svg className="w-6 h-6 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center mx-auto mb-3">
+                    <svg className="w-6 h-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                   </div>
@@ -275,7 +275,7 @@ export default function EquiposPage() {
                       { n: "3", text: "Distribuye leads desde la lista de prospectos" },
                     ].map(({ n, text }) => (
                       <div key={n} className="flex items-start gap-2.5">
-                        <span className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 text-xs font-bold flex items-center justify-center flex-shrink-0">{n}</span>
+                        <span className="w-5 h-5 rounded-full bg-orange-100 text-orange-600 text-xs font-bold flex items-center justify-center flex-shrink-0">{n}</span>
                         <p className="text-xs text-slate-500 pt-0.5">{text}</p>
                       </div>
                     ))}
@@ -297,7 +297,7 @@ export default function EquiposPage() {
                     key={eq.id}
                     onClick={() => setEquipoSeleccionado(eq)}
                     className={`bg-white rounded-xl border p-4 cursor-pointer transition-all ${
-                      seleccionado ? "border-indigo-400 ring-2 ring-indigo-100" : "border-slate-200 hover:border-slate-300"
+                      seleccionado ? "border-orange-300 ring-2 ring-orange-100" : "border-slate-200 hover:border-slate-300"
                     } ${!eq.activo ? "opacity-50" : ""}`}
                   >
                     <div className="flex items-start justify-between mb-2">
@@ -324,8 +324,8 @@ export default function EquiposPage() {
                         <p className="text-sm font-bold text-red-600">{eq.stats.calientes}</p>
                         <p className="text-xs text-slate-400">calientes</p>
                       </div>
-                      <div className="bg-indigo-50 rounded py-1">
-                        <p className="text-sm font-bold text-indigo-600">{eq.stats.enProceso}</p>
+                      <div className="bg-orange-50 rounded py-1">
+                        <p className="text-sm font-bold text-orange-600">{eq.stats.enProceso}</p>
                         <p className="text-xs text-slate-400">proceso</p>
                       </div>
                       <div className="bg-emerald-50 rounded py-1">
@@ -363,7 +363,7 @@ export default function EquiposPage() {
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => setMostrarAnadirMiembro(true)}
-                      className="text-xs bg-indigo-50 text-indigo-600 border border-indigo-200 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition-colors font-medium"
+                      className="text-xs bg-orange-50 text-orange-600 border border-orange-300 hover:bg-orange-100 px-3 py-1.5 rounded-lg transition-colors font-medium"
                     >
                       + Añadir miembro
                     </button>
@@ -379,7 +379,7 @@ export default function EquiposPage() {
                 {equipoSeleccionado.miembros.length === 0 ? (
                   <div className="py-12 text-center">
                     <p className="text-slate-400 text-sm mb-3">Este equipo no tiene miembros todavía</p>
-                    <button onClick={() => setMostrarAnadirMiembro(true)} className="text-indigo-600 text-sm hover:underline">
+                    <button onClick={() => setMostrarAnadirMiembro(true)} className="text-orange-600 text-sm hover:underline">
                       Añadir el primer miembro →
                     </button>
                   </div>
@@ -397,7 +397,7 @@ export default function EquiposPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <Link href={`/desempeno/${m.comercial_id}`} className="text-sm font-medium text-slate-800 truncate hover:text-indigo-600 hover:underline">
+                              <Link href={`/desempeno/${m.comercial_id}`} className="text-sm font-medium text-slate-800 truncate hover:text-orange-600 hover:underline">
                                 {m.comercial.nombre} {m.comercial.apellidos ?? ""}
                               </Link>
                               <span className={`text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0 ${
@@ -430,7 +430,7 @@ export default function EquiposPage() {
                           <div className="flex items-center gap-1 flex-shrink-0">
                             <button
                               onClick={() => { setMiembroParaMover(m); setEquipoDestinoId(""); }}
-                              className="text-xs text-slate-400 hover:text-indigo-600 border border-slate-200 hover:border-indigo-300 px-2 py-1 rounded transition-colors"
+                              className="text-xs text-slate-400 hover:text-orange-600 border border-slate-200 hover:border-orange-300 px-2 py-1 rounded transition-colors"
                               title="Mover a otro equipo"
                             >
                               Mover
@@ -457,7 +457,7 @@ export default function EquiposPage() {
                       <select
                         value={comercialParaAnadir}
                         onChange={e => setComercialParaAnadir(e.target.value)}
-                        className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300 bg-white"
+                        className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300 bg-white"
                       >
                         <option value="">Seleccionar comercial...</option>
                         {comercialesNoMiembros.map(c => (
@@ -467,7 +467,7 @@ export default function EquiposPage() {
                       <select
                         value={rolParaAnadir}
                         onChange={e => setRolParaAnadir(e.target.value as "lider" | "miembro")}
-                        className="w-28 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300 bg-white"
+                        className="w-28 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300 bg-white"
                       >
                         <option value="miembro">Miembro</option>
                         <option value="lider">Líder</option>
@@ -549,7 +549,7 @@ export default function EquiposPage() {
                     <div key={c.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors">
                       {/* Avatar */}
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                        c.rol === "director" ? "bg-amber-100 text-amber-700" : "bg-indigo-100 text-indigo-700"
+                        c.rol === "director" ? "bg-amber-100 text-amber-700" : "bg-orange-100 text-orange-700"
                       }`}>
                         {iniciales}
                       </div>
@@ -561,7 +561,7 @@ export default function EquiposPage() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <Link
                               href={`/desempeno/${c.id}`}
-                              className="text-sm font-semibold text-slate-800 hover:text-indigo-600 hover:underline truncate"
+                              className="text-sm font-semibold text-slate-800 hover:text-orange-600 hover:underline truncate"
                             >
                               {c.nombre} {c.apellidos ?? ""}
                             </Link>
@@ -605,7 +605,7 @@ export default function EquiposPage() {
                           {misEquipos.length > 0 ? (
                             <div className="flex flex-wrap gap-1">
                               {misEquipos.map(e => (
-                                <span key={e.id} className="text-xs bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full">
+                                <span key={e.id} className="text-xs bg-orange-50 text-orange-600 px-2 py-0.5 rounded-full">
                                   {e.nombre}
                                 </span>
                               ))}
@@ -625,7 +625,7 @@ export default function EquiposPage() {
                           rol: c.rol,
                           max_leads_activos: c.max_leads_activos,
                         })}
-                        className="flex-shrink-0 text-xs text-slate-400 hover:text-indigo-600 border border-slate-200 hover:border-indigo-300 px-3 py-1.5 rounded-lg transition-colors font-medium"
+                        className="flex-shrink-0 text-xs text-slate-400 hover:text-orange-600 border border-slate-200 hover:border-orange-300 px-3 py-1.5 rounded-lg transition-colors font-medium"
                       >
                         Editar
                       </button>
@@ -653,7 +653,7 @@ export default function EquiposPage() {
               <select
                 value={equipoDestinoId}
                 onChange={e => setEquipoDestinoId(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300 bg-white"
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300 bg-white"
               >
                 <option value="">Seleccionar equipo destino...</option>
                 {equipos.filter(e => e.id !== equipoSeleccionado?.id).map(e => (
@@ -692,7 +692,7 @@ export default function EquiposPage() {
                   value={formEquipo.nombre}
                   onChange={e => setFormEquipo(p => ({ ...p, nombre: e.target.value }))}
                   placeholder="Ej: Equipo Madrid"
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300"
                   autoFocus
                 />
               </div>
@@ -702,7 +702,7 @@ export default function EquiposPage() {
                   value={formEquipo.zona_geografica}
                   onChange={e => setFormEquipo(p => ({ ...p, zona_geografica: e.target.value }))}
                   placeholder="Ej: Madrid y alrededores"
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300"
                 />
               </div>
               <div>
@@ -712,7 +712,7 @@ export default function EquiposPage() {
                   onChange={e => setFormEquipo(p => ({ ...p, descripcion: e.target.value }))}
                   rows={2}
                   placeholder="Especialización, objetivos..."
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-indigo-300 resize-none"
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300 resize-none"
                 />
               </div>
 
@@ -722,7 +722,7 @@ export default function EquiposPage() {
                   <label className="block text-xs text-slate-500 mb-2">
                     Miembros iniciales
                     {formEquipo.miembros_ids.length > 0 && (
-                      <span className="ml-1.5 bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded text-xs font-semibold">
+                      <span className="ml-1.5 bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded text-xs font-semibold">
                         {formEquipo.miembros_ids.length} seleccionado{formEquipo.miembros_ids.length > 1 ? "s" : ""}
                       </span>
                     )}
@@ -740,12 +740,12 @@ export default function EquiposPage() {
                           onClick={() => toggleMiembroEnForm(c.id)}
                           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-left transition-all ${
                             selected
-                              ? "border-indigo-300 bg-indigo-50"
+                              ? "border-orange-300 bg-orange-50"
                               : "border-slate-200 hover:border-slate-300 hover:bg-slate-50"
                           }`}
                         >
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs flex-shrink-0 ${
-                            c.rol === "director" ? "bg-amber-100 text-amber-700" : "bg-indigo-100 text-indigo-700"
+                            c.rol === "director" ? "bg-amber-100 text-amber-700" : "bg-orange-100 text-orange-700"
                           }`}>
                             {iniciales}
                           </div>
@@ -759,13 +759,13 @@ export default function EquiposPage() {
                           </div>
                           {selected && (
                             <span className={`text-xs font-semibold flex-shrink-0 ${
-                              isFirst ? "text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded" : "text-indigo-500"
+                              isFirst ? "text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded" : "text-orange-500"
                             }`}>
                               {isFirst ? "Líder" : "Miembro"}
                             </span>
                           )}
                           <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${
-                            selected ? "bg-indigo-600 border-indigo-600" : "border-slate-300"
+                            selected ? "bg-orange-500 border-orange-300" : "border-slate-300"
                           }`}>
                             {selected && (
                               <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -829,7 +829,7 @@ export default function EquiposPage() {
                         comercialEditando.rol === r
                           ? r === "director"
                             ? "bg-amber-50 border-amber-300 text-amber-700"
-                            : "bg-indigo-50 border-indigo-300 text-indigo-700"
+                            : "bg-orange-50 border-orange-300 text-orange-700"
                           : "border-slate-200 text-slate-500 hover:border-slate-300"
                       }`}
                     >

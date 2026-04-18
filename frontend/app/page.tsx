@@ -241,7 +241,7 @@ export default function DashboardPage() {
         {citasHoy.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-xl px-4 py-6 text-center text-sm text-slate-400">
             No hay citas programadas para hoy.
-            <Link href="/agenda" className="block text-xs text-indigo-500 hover:underline mt-1">
+            <Link href="/agenda" className="block text-xs text-orange-500 hover:underline mt-1">
               {stats!.citas_proximas > 0 ? `${stats!.citas_proximas} cita${stats!.citas_proximas > 1 ? "s" : ""} próximas` : "Ir a la agenda"}
             </Link>
           </div>
@@ -258,7 +258,7 @@ export default function DashboardPage() {
                   <p className="text-sm font-medium text-slate-800 truncate">{c.lead_nombre ?? "Lead"}</p>
                   <p className="text-xs text-slate-400 capitalize">{c.tipo.replace("_", " ")}</p>
                 </div>
-                <span className="text-xs text-indigo-500 shrink-0">Ver →</span>
+                <span className="text-xs text-orange-500 shrink-0">Ver →</span>
               </Link>
             ))}
             {stats!.citas_proximas > 0 && (
