@@ -1,6 +1,6 @@
 # Roadmap — Sistema de Prospección Manuel
 
-Estado actualizado: 2026-04-19
+Estado actualizado: 2026-04-19 (tarde)
 
 ---
 
@@ -73,6 +73,14 @@ Columnas relevantes en leads: `estado`, `temperatura`, `nivel_interes`, `priorid
 
 #### ~~Scoring automático — Agente 6~~ [✅ 2026-04-13]
 - `agent6_scoring.py`: temperatura + nivel de interés calculados por señales léxicas y comportamiento
+
+#### ~~Auditoría completa UX + brand (ronda 2)~~ [✅ 2026-04-19]
+- Corregido bug crítico: `TEMPERATURA_POR_ESTADO` vacío — temperatura nunca se actualizaba al cambiar estado desde lead detail, pipeline kanban o acciones rápidas de /hoy
+- Nueva página `/leads/nuevo`: formulario completo de creación manual con sector autocomplete, tipo de lead, producto de interés
+- Botón `+ Nuevo lead` en cabecera de /leads y accesos rápidos del dashboard (naranja destacado)
+- Post-cita ahora incluye `datetime-local` para programar próxima acción con fecha exacta (en /leads/[id] y /agenda)
+- FiltrosBar: filtros activos ahora en naranja NN; añadidos estados `enriquecido` y `segmentado` al selector
+- Pipeline `moverLead`: temperatura actualizada al mover tarjeta en Kanban
 
 #### ~~Auditoría completa UX + brand~~ [✅ 2026-04-19]
 - Revisión de todas las páginas: brand NN España (#ea650d), purple→orange/teal donde no había semántica
