@@ -33,6 +33,7 @@ type CitaRow = {
   estado: string;
   fecha_hora: string;
   lead_id: string;
+  notas_previas: string | null;
   leads: {
     nombre: string;
     apellidos: string | null;
@@ -208,7 +209,7 @@ export default function HoyPage() {
       // Citas: no filtramos por comercial aquí (puede que el lead no esté asignado todavía)
       const citasQuery = supabase
         .from("appointments")
-        .select("id, tipo, estado, fecha_hora, lead_id, leads(nombre, apellidos, empresa, telefono_whatsapp)")
+        .select("id, tipo, estado, fecha_hora, lead_id, notas_previas, leads(nombre, apellidos, empresa, telefono_whatsapp)")
         .gte("fecha_hora", `${hoyStr}T00:00:00`)
         .lt("fecha_hora", `${hoyStr}T23:59:59`)
         .not("estado", "eq", "cancelada")
@@ -650,6 +651,9 @@ export default function HoyPage() {
                     <span className={`rounded px-2 py-0.5 text-xs font-medium ${estadoStyle}`}>
                       {cita.estado.replace(/_/g, " ")}
                     </span>
+                    {cita.notas_previas && (
+                      <span className="text-xs text-slate-400 italic truncate max-w-[200px]">{cita.notas_previas}</span>
+                    )}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-1.5">
                     {tel && (
