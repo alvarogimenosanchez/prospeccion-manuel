@@ -220,6 +220,10 @@ CREATE TABLE comerciales (
     telefono TEXT,
     whatsapp TEXT,
     activo BOOLEAN DEFAULT TRUE,
+    rol TEXT DEFAULT 'comercial' CHECK (rol IN ('director', 'comercial')),
+    objetivo_cierres_mes INTEGER,
+    objetivo_citas_mes INTEGER,
+    max_leads_activos INTEGER DEFAULT 50,
 
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -450,6 +454,8 @@ WHERE l.estado != 'descartado';
 CREATE TABLE IF NOT EXISTS teams (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     nombre TEXT NOT NULL,
+    descripcion TEXT,
+    zona_geografica TEXT,
     activo BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -462,7 +468,7 @@ CREATE TABLE IF NOT EXISTS team_members (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
     comercial_id UUID NOT NULL REFERENCES comerciales(id) ON DELETE CASCADE,
-    rol TEXT DEFAULT 'comercial' CHECK (rol IN ('director', 'comercial')),
+    rol TEXT DEFAULT 'miembro' CHECK (rol IN ('lider', 'miembro')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (team_id, comercial_id)
 );

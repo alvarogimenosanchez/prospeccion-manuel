@@ -113,7 +113,8 @@ export type Comercial = {
   activo: boolean;
   rol: "director" | "comercial";
   max_leads_activos: number;
-  google_calendar_id: string | null;
+  objetivo_cierres_mes: number | null;
+  objetivo_citas_mes: number | null;
   created_at: string;
 };
 
