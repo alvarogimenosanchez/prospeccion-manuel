@@ -1,6 +1,21 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { Navbar } from "@/components/Navbar";
+import { Space_Grotesk, Inter } from "next/font/google";
+import { AppShell } from "@/components/AppShell";
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-heading",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  variable: "--font-body",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Manuel · Prospección Comercial",
@@ -13,12 +28,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
-      <body className="antialiased min-h-screen bg-slate-50">
-        <Navbar />
-        <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
-          {children}
-        </main>
+    <html lang="es" className={`${spaceGrotesk.variable} ${inter.variable}`}>
+      <body className="antialiased">
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
