@@ -118,6 +118,10 @@ function PipelineContent() {
   const [comercialId, setComercialId] = useState<string | null>(null);
   const [comercialNombre, setComercialNombre] = useState<string>("");
   const [colapsadas, setColapsadas] = useState<Set<Estado>>(new Set());
+  const [busqueda, setBusqueda] = useState("");
+  const [limiteColumna, setLimiteColumna] = useState<Record<string, number>>({});
+
+  const CARDS_PER_COL = 25;
 
   // Obtener el comercial logueado
   useEffect(() => {
@@ -184,7 +188,19 @@ function PipelineContent() {
     });
   }
 
-  const leadsColumna = (estado: Estado) => leads.filter(l => l.estado === estado);
+  const leadsFiltrados = busqueda.trim()
+    ? leads.filter(l => {
+        const q = busqueda.toLowerCase();
+        return (
+          l.nombre?.toLowerCase().includes(q) ||
+          l.apellidos?.toLowerCase().includes(q) ||
+          l.empresa?.toLowerCase().includes(q) ||
+          l.ciudad?.toLowerCase().includes(q)
+        );
+      })
+    : leads;
+
+  const leadsColumna = (estado: Estado) => leadsFiltrados.filter(l => l.estado === estado);
 
   return (
     <div className="space-y-6">
@@ -195,9 +211,18 @@ function PipelineContent() {
             {comercialNombre ? `Leads de ${comercialNombre}` : "Vista Kanban del proceso de ventas"}
           </p>
         </div>
-        <button onClick={cargarLeads} className="text-sm text-slate-500 hover:text-slate-800 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors">
-          Actualizar
-        </button>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Buscar lead..."
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 w-48 focus:outline-none focus:border-orange-300 bg-white"
+          />
+          <button onClick={cargarLeads} className="text-sm text-slate-500 hover:text-slate-800 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors">
+            ↺
+          </button>
+        </div>
       </div>
 
       {loading ? (
@@ -209,6 +234,9 @@ function PipelineContent() {
           <div className="flex gap-3 min-w-max items-start">
             {COLUMNAS.map(col => {
               const colLeads = leadsColumna(col.estado);
+              const limite = limiteColumna[col.estado] ?? CARDS_PER_COL;
+              const leadsVisibles = busqueda ? colLeads : colLeads.slice(0, limite);
+              const hayMas = !busqueda && colLeads.length > limite;
               const vacia = colLeads.length === 0;
               const colapsada = colapsadas.has(col.estado);
 
@@ -245,6 +273,9 @@ function PipelineContent() {
                     <span className={`text-xs font-medium text-slate-500 bg-white rounded-full px-2 py-0.5 border border-slate-200 flex-shrink-0 ${colapsada ? "mx-auto" : "ml-auto"}`}>
                       {colLeads.length}
                     </span>
+                    {hayMas && !colapsada && (
+                      <span className="text-xs text-slate-400 flex-shrink-0">+{colLeads.length - limite}</span>
+                    )}
                   </div>
 
                   {/* Cuerpo de columna */}
@@ -259,7 +290,7 @@ function PipelineContent() {
                     </div>
                   ) : (
                     <div className={`min-h-64 rounded-b-xl border ${col.color} ${col.bg} p-2 space-y-2`}>
-                      {colLeads.map(lead => (
+                      {leadsVisibles.map(lead => (
                         <TarjetaLead
                           key={lead.id}
                           lead={lead}
@@ -268,6 +299,14 @@ function PipelineContent() {
                           onMover={moverLead}
                         />
                       ))}
+                      {hayMas && (
+                        <button
+                          onClick={() => setLimiteColumna(prev => ({ ...prev, [col.estado]: (prev[col.estado] ?? CARDS_PER_COL) + CARDS_PER_COL }))}
+                          className="w-full py-2 text-xs text-slate-400 hover:text-slate-600 border border-dashed border-slate-200 rounded-lg hover:border-slate-300 transition-colors"
+                        >
+                          Mostrar {Math.min(colLeads.length - limite, CARDS_PER_COL)} más de {colLeads.length - limite} restantes
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
