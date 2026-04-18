@@ -187,6 +187,7 @@ export default function LeadDetailPage() {
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [nota, setNota] = useState("");
+  const [currentComercialId, setCurrentComercialId] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mensajeWhatsapp, setMensajeWhatsapp] = useState("");
@@ -245,18 +246,30 @@ export default function LeadDetailPage() {
 
   useEffect(() => {
     async function cargar() {
-      const [leadRes, interRes, apptRes, clienteRes, historyRes] = await Promise.all([
+      const [leadRes, interRes, apptRes, clienteRes, historyRes, { data: { user } }] = await Promise.all([
         supabase.from("leads").select("*").eq("id", id).single(),
         supabase.from("interactions").select("*").eq("lead_id", id).order("created_at"),
         supabase.from("appointments").select("*").eq("lead_id", id).order("fecha_hora"),
         supabase.from("clientes").select("id").eq("lead_id", id).maybeSingle(),
         supabase.from("lead_state_history").select("id, estado_anterior, estado_nuevo, created_at").eq("lead_id", id).order("created_at"),
+        supabase.auth.getUser(),
       ]);
       setLead(leadRes.data as Lead);
       setInteractions((interRes.data as Interaction[]) ?? []);
       setAppointments((apptRes.data as Appointment[]) ?? []);
       setClienteExistente(clienteRes.data as { id: string } | null);
       setStateHistory((historyRes.data as { id: string; estado_anterior: string; estado_nuevo: string; created_at: string }[]) ?? []);
+
+      // Obtener ID del comercial logueado por email
+      if (user?.email) {
+        const { data: comercial } = await supabase
+          .from("comerciales")
+          .select("id")
+          .eq("email", user.email)
+          .single();
+        if (comercial) setCurrentComercialId(comercial.id);
+      }
+
       setLoading(false);
     }
     cargar();
@@ -306,6 +319,7 @@ export default function LeadDetailPage() {
       setMotivoForm({ motivo: "precio", nota: "" });
       return;
     }
+    await autoAsignarComercial();
     const temperatura = TEMPERATURA_POR_ESTADO[nuevoEstado] as Lead["temperatura"] | undefined;
     const updates: Partial<Lead> & { updated_at: string } = { estado: nuevoEstado as Lead["estado"], updated_at: new Date().toISOString() };
     if (temperatura) updates.temperatura = temperatura;
@@ -362,9 +376,20 @@ export default function LeadDetailPage() {
     setCreandoCliente(false);
   }
 
+  // Asigna automáticamente el comercial actual si el lead no tiene uno asignado
+  async function autoAsignarComercial() {
+    if (!lead || lead.comercial_asignado || !currentComercialId) return;
+    await supabase.from("leads").update({
+      comercial_asignado: currentComercialId,
+      updated_at: new Date().toISOString(),
+    }).eq("id", lead.id);
+    setLead(prev => prev ? { ...prev, comercial_asignado: currentComercialId } : prev);
+  }
+
   async function guardarNota() {
     if (!nota.trim() || !lead) return;
     setGuardando(true);
+    await autoAsignarComercial();
     await supabase.from("interactions").insert({
       lead_id: lead.id,
       tipo: "nota_manual",
@@ -391,6 +416,7 @@ export default function LeadDetailPage() {
   async function crearCita() {
     if (!lead || !citaForm.fecha_hora) return;
     setGuardandoCita(true);
+    await autoAsignarComercial();
     const { data } = await supabase.from("appointments").insert({
       lead_id: lead.id,
       comercial_id: citaForm.comercial_id || lead.comercial_asignado || null,
@@ -539,6 +565,7 @@ export default function LeadDetailPage() {
 
   async function accionRapida(tipo: string, mensaje: string, nuevoEstado?: string) {
     if (!lead) return;
+    await autoAsignarComercial();
     await supabase.from("interactions").insert({
       lead_id: lead.id,
       tipo: "nota_manual",
@@ -603,6 +630,7 @@ export default function LeadDetailPage() {
     if (!lead?.telefono_whatsapp || !mensajeWhatsapp.trim()) return;
     setEnviandoWhatsapp(true);
     setErrorEnvio("");
+    await autoAsignarComercial();
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://prospeccion-manuel-production.up.railway.app";
       const res = await fetch(`${API_URL}/mensajes/enviar-directo`, {
