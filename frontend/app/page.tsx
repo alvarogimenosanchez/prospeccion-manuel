@@ -281,7 +281,7 @@ export default function DashboardPage() {
           <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm text-slate-600">Pendientes IA</span>
-              <span className={`text-sm font-bold ${stats!.mensajes_pendientes > 0 ? "text-violet-700" : "text-slate-400"}`}>
+              <span className={`text-sm font-bold ${stats!.mensajes_pendientes > 0 ? "" : "text-slate-400"}`} style={stats!.mensajes_pendientes > 0 ? { color: "#ea650d" } : undefined}>
                 {stats!.mensajes_pendientes}
               </span>
             </div>
