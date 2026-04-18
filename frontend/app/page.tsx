@@ -203,7 +203,7 @@ export default function DashboardPage() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatBox label="Total activos" valor={stats!.leads_total} sub="en el sistema" href="/leads" />
-          <StatBox label="Nuevos hoy" valor={stats!.leads_nuevos_hoy} sub="captados hoy" href="/leads" color="blue" />
+          <StatBox label="Nuevos hoy" valor={stats!.leads_nuevos_hoy} sub="captados hoy" href="/leads" color="orange" />
           <StatBox label="Calientes" valor={stats!.leads_calientes} sub="alta intención" href="/leads?temperatura=caliente" color="red" />
           <StatBox label="Sin atender" valor={stats!.sin_atencion} sub="+2h sin respuesta" href="/leads?temperatura=caliente" color={stats!.sin_atencion > 0 ? "red" : undefined} />
         </div>
@@ -326,11 +326,11 @@ export default function DashboardPage() {
   );
 }
 
-function StatBox({ label, valor, sub, href, color }: { label: string; valor: number; sub: string; href: string; color?: "red" | "blue" | "green" }) {
-  const valColor = color === "red" ? "text-red-600" : color === "blue" ? "text-blue-700" : color === "green" ? "text-emerald-700" : "text-slate-900";
+function StatBox({ label, valor, sub, href, color }: { label: string; valor: number; sub: string; href: string; color?: "red" | "orange" | "green" }) {
+  const valColor = color === "red" ? "text-red-600" : color === "orange" ? "" : color === "green" ? "text-emerald-700" : "text-slate-900";
   return (
     <Link href={href} className="bg-white border border-slate-200 rounded-xl p-4 hover:shadow-sm transition-all block" style={{ borderColor: undefined }} onMouseEnter={e => (e.currentTarget.style.borderColor = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.borderColor = "")}>
-      <p className={`text-2xl font-bold ${valColor}`}>{valor}</p>
+      <p className={`text-2xl font-bold ${valColor}`} style={color === "orange" ? { color: "#ea650d" } : undefined}>{valor}</p>
       <p className="text-xs font-semibold text-slate-700 mt-1">{label}</p>
       <p className="text-xs text-slate-400">{sub}</p>
     </Link>
