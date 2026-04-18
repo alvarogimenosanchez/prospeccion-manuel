@@ -183,21 +183,7 @@ export default function ProspeccionPage() {
   const [resultadoImport, setResultadoImport] = useState<{importados: number; omitidos: number} | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [estadoSeguimiento, setEstadoSeguimiento] = useState<"idle"|"corriendo"|"completado">("idle");
   const [estadoEnriquecimiento, setEstadoEnriquecimiento] = useState<"idle"|"corriendo"|"completado">("idle");
-
-  const lanzarSeguimiento = async () => {
-    setEstadoSeguimiento("corriendo");
-    try {
-      const resp = await fetch("/api/seguimiento/ejecutar", { method: "POST" });
-      if (resp.ok) {
-        setEstadoSeguimiento("completado");
-        setTimeout(() => setEstadoSeguimiento("idle"), 4000);
-      }
-    } catch {
-      setEstadoSeguimiento("idle");
-    }
-  };
 
   const lanzarEnriquecimiento = async () => {
     setEstadoEnriquecimiento("corriendo");
@@ -296,6 +282,21 @@ export default function ProspeccionPage() {
   };
 
   // ── Lógica de importación ──
+
+  function descargarPlantilla() {
+    const headers = ["nombre", "apellidos", "email", "telefono", "empresa", "sector", "ciudad", "cargo", "notas"];
+    const ejemplos = [
+      ["María", "García López", "maria@empresa.com", "+34612345678", "Cafetería El Centro", "Hostelería", "Madrid", "Propietaria", "Tiene local propio"],
+      ["Carlos", "Martínez", "carlos@asesorex.es", "+34698765432", "Asesoría Martínez SL", "Asesoría", "Barcelona", "Director", "Interesado en planes de pensión"],
+      ["Ana", "Rodríguez", "", "+34677001122", "", "Inmobiliaria", "Valencia", "Agente", "Contacto frío"],
+    ];
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...ejemplos]);
+    // Ancho de columnas
+    ws["!cols"] = headers.map(h => ({ wch: Math.max(h.length + 4, 18) }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Leads");
+    XLSX.writeFile(wb, "plantilla_importacion_leads.xlsx");
+  }
 
   function leerExcel(file: File) {
     const reader = new FileReader();
@@ -498,24 +499,6 @@ export default function ProspeccionPage() {
           </button>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide flex items-center gap-1.5">
-              <span>🔄</span> Seguimiento automático
-            </p>
-            <p className="text-sm text-slate-700 mt-0.5">Recordatorios y leads fríos</p>
-            {estadoSeguimiento === "completado" && (
-              <p className="text-xs text-green-600 mt-0.5">✓ Última ejecución: hoy</p>
-            )}
-          </div>
-          <button
-            onClick={lanzarSeguimiento}
-            disabled={estadoSeguimiento === "corriendo"}
-            className="flex-shrink-0 px-3 py-1.5 bg-amber-600 text-white text-xs font-medium rounded-lg hover:bg-amber-700 disabled:opacity-50 transition-colors"
-          >
-            {estadoSeguimiento === "corriendo" ? "Ejecutando..." : estadoSeguimiento === "completado" ? "✓ Hecho" : "Ejecutar"}
-          </button>
-        </div>
       </div>
 
       {/* ── Importar Excel ── */}
@@ -574,6 +557,23 @@ export default function ProspeccionPage() {
                   className="hidden"
                   onChange={e => { const f = e.target.files?.[0]; if (f) leerExcel(f); }}
                 />
+              </div>
+            )}
+
+            {/* Botón descargar plantilla — solo cuando no hay archivo cargado */}
+            {filasBruto.length === 0 && (
+              <div className="flex items-center justify-center pt-1">
+                <button
+                  onClick={e => { e.stopPropagation(); descargarPlantilla(); }}
+                  className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-indigo-600 transition-colors"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+                    <polyline points="7 10 12 15 17 10"/>
+                    <line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Descargar plantilla de ejemplo (.xlsx)
+                </button>
               </div>
             )}
 
