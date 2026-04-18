@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main className="flex-1 min-w-0 md:ml-56 pt-12 md:pt-0 min-h-screen">
-        <div className="px-4 sm:px-6 py-6 max-w-[1400px]">
+        <div className="w-full px-4 sm:px-6 py-6 max-w-[1400px]">
           {children}
         </div>
       </main>
