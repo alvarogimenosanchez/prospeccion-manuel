@@ -187,7 +187,7 @@ export default function AjustesPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="max-w-2xl">
+    <div className="w-full max-w-2xl">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-xl font-normal" style={{ color: "#414141" }}>
@@ -516,19 +516,25 @@ export default function AjustesPage() {
       {/* ── Modal editor ───────────────────────────────────────────────────── */}
       {modalAbierto && (
         <div
-          className="fixed inset-0 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.45)", zIndex: 9999 }}
+          style={{
+            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 16, background: "rgba(0,0,0,0.45)", zIndex: 9999,
+          }}
           onClick={(e) => { if (e.target === e.currentTarget) setModalAbierto(false); }}
         >
           <div
-            className="card w-full"
             style={{
+              width: "100%",
               maxWidth: 640,
               padding: 0,
               overflow: "hidden",
               maxHeight: "92vh",
               display: "flex",
               flexDirection: "column",
+              background: "#ffffff",
+              borderRadius: 8,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
             }}
           >
             {/* Modal header */}
