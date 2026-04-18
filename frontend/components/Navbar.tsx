@@ -34,6 +34,8 @@ export function Navbar() {
     { href: "/desempeno", label: "Desempeño" },
     { href: "/clientes", label: "Clientes" },
     { href: "/equipos", label: "Equipos" },
+    { href: "/recursos", label: "Recursos" },
+    { href: "/ajustes", label: "Ajustes" },
   ];
 
   return (
@@ -45,12 +47,12 @@ export function Navbar() {
           </div>
           <span className="font-semibold text-slate-800 text-sm">Manuel · Prospección</span>
         </div>
-        <div className="hidden sm:flex items-center gap-4">
+        <div className="hidden sm:flex items-center gap-4 overflow-x-auto max-w-[calc(100vw-320px)] no-scrollbar">
           {links.map(({ href, label }) => (
             <Link
               key={href}
               href={href}
-              className={`text-sm transition-colors ${
+              className={`text-sm transition-colors whitespace-nowrap flex-shrink-0 ${
                 pathname === href
                   ? "font-medium"
                   : "text-slate-600 hover:text-slate-900"

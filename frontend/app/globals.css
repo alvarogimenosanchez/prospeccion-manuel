@@ -26,6 +26,10 @@ body {
 .sidebar-scroll::-webkit-scrollbar { width: 3px; }
 .sidebar-scroll::-webkit-scrollbar-thumb { background: rgba(65,65,65,0.12); }
 
+/* Hide scrollbar for nav overflow */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* ── Brand utility classes ──────────────────────────────────────────────── */
 .btn-primary {
   background: #ea650d;
