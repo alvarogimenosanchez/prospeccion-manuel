@@ -109,7 +109,7 @@ export default function NuevoLeadPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div style={{ maxWidth: 672, margin: "0 auto" }} className="space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/leads" className="text-sm text-slate-400 hover:text-slate-700">← Leads</Link>

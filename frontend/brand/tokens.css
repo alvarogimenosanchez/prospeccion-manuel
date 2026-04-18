@@ -25,13 +25,15 @@
   --radius-pill: 25px;
 
   /* ── Spacing (4px base grid) ───────────────────────────────────────────── */
-  --spacing-xs:  4px;
-  --spacing-sm:  8px;
-  --spacing-md:  12px;
-  --spacing-lg:  16px;
-  --spacing-xl:  24px;
-  --spacing-2xl: 32px;
-  --spacing-3xl: 40px;
+  /* NOTE: renamed from --spacing-* to --gap-* to avoid Tailwind 4 collision  */
+  /* Tailwind 4 uses --spacing-* for max-w-*, p-*, m-*, etc. utilities         */
+  --gap-xs:  4px;
+  --gap-sm:  8px;
+  --gap-md:  12px;
+  --gap-lg:  16px;
+  --gap-xl:  24px;
+  --gap-2xl: 32px;
+  --gap-3xl: 40px;
 }
 
 :root {

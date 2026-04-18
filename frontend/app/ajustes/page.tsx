@@ -187,7 +187,7 @@ export default function AjustesPage() {
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="w-full max-w-2xl">
+    <div style={{ width: "100%", maxWidth: 672 }}>
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-xl font-normal" style={{ color: "#414141" }}>
