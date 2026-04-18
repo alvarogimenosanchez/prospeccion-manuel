@@ -171,7 +171,6 @@ def scrape_google_places(categoria: str, ciudad: str, max_results: int = 20) -> 
                 "fuente": "scraping",
                 "fuente_detalle": f"google_places:{place_id}",
                 "estado": "nuevo",
-                "temperatura": "frio",
                 "nivel_interes": 1,
                 "prioridad": "baja",
                 "tipo_lead": config["tipo_lead"],
@@ -266,7 +265,6 @@ def scrape_yelp(categoria: str, ciudad: str) -> list[dict]:
                 "fuente": "scraping",
                 "fuente_detalle": biz_links.get(nombre, f"https://www.yelp.es/search?find_desc={query}&find_loc={ciudad}"),
                 "estado": "nuevo",
-                "temperatura": "frio",
                 "nivel_interes": 1,
                 "prioridad": "baja",
                 "tipo_lead": config["tipo_lead"],
@@ -334,7 +332,6 @@ def scrape_google_search(categoria: str, ciudad: str) -> list[dict]:
                 "fuente": "scraping",
                 "fuente_detalle": link,
                 "estado": "nuevo",
-                "temperatura": "frio",
                 "nivel_interes": 2,  # Tiene teléfono = más valor
                 "prioridad": "baja",
                 "tipo_lead": config["tipo_lead"],

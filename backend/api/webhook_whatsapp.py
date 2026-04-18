@@ -256,9 +256,8 @@ async def recalcular_y_guardar_scoring(
         "evento_tipo": "respuesta_whatsapp"
     }).execute()
 
-    # Actualizar lead con nuevo scoring
+    # Actualizar lead con nuevo scoring (temperatura la gestiona el usuario manualmente)
     update_data = {
-        "temperatura": scoring.temperatura.value,
         "nivel_interes": scoring.nivel_interes,
         "prioridad": scoring.prioridad.value,
         "updated_at": datetime.now(timezone.utc).isoformat()
@@ -562,6 +561,10 @@ class AprobarMensajeRequest(BaseModel):
 class MensajeUnicoRequest(BaseModel):
     lead_id: str
 
+class EnviarDirectoRequest(BaseModel):
+    lead_id: str
+    mensaje: str
+
 
 @app.post("/mensajes/generar")
 async def lanzar_generacion_mensajes(payload: MensajesLoteRequest, background_tasks: BackgroundTasks):
@@ -673,3 +676,43 @@ async def descartar_mensaje_endpoint(mensaje_id: str):
     if not ok:
         raise HTTPException(status_code=404, detail="Mensaje no encontrado")
     return {"status": "descartado"}
+
+
+@app.post("/mensajes/enviar-directo")
+async def enviar_mensaje_directo(payload: EnviarDirectoRequest):
+    """
+    Envía un mensaje de WhatsApp directamente al lead vía Wassenger.
+    No pasa por bandeja de aprobación — el comercial lo escribe/edita y lo envía al momento.
+    Registra la interacción y actualiza el estado del lead a mensaje_enviado.
+    """
+    lead_resp = supabase.table("leads").select(
+        "id, nombre, telefono_whatsapp, estado, comercial_asignado"
+    ).eq("id", payload.lead_id).single().execute()
+
+    if not lead_resp.data:
+        raise HTTPException(status_code=404, detail="Lead no encontrado")
+
+    lead = lead_resp.data
+    telefono = lead.get("telefono_whatsapp")
+    if not telefono:
+        raise HTTPException(status_code=400, detail="El lead no tiene número de WhatsApp")
+
+    # Enviar por Wassenger
+    await send_whatsapp_message(telefono, payload.mensaje)
+
+    # Registrar interacción
+    supabase.table("interactions").insert({
+        "lead_id": payload.lead_id,
+        "tipo": "whatsapp_enviado",
+        "mensaje": payload.mensaje,
+        "origen": "comercial",
+    }).execute()
+
+    # Actualizar estado del lead
+    if lead.get("estado") not in ("respondio", "cita_agendada", "en_negociacion", "cerrado_ganado"):
+        supabase.table("leads").update({
+            "estado": "mensaje_enviado",
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("id", payload.lead_id).execute()
+
+    return {"status": "enviado", "telefono": telefono}

@@ -21,7 +21,6 @@ function LeadsContent() {
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
 
-  const [temperatura, setTemperatura] = useState(searchParams.get("temperatura") ?? "");
   const [prioridad, setPrioridad] = useState(searchParams.get("prioridad") ?? "");
   const [busqueda, setBusqueda] = useState("");
   const [teamId, setTeamId] = useState(searchParams.get("team") ?? "");
@@ -34,7 +33,6 @@ function LeadsContent() {
       .order("nivel_interes", { ascending: false })
       .limit(100);
 
-    if (temperatura) query = query.eq("temperatura", temperatura);
     if (prioridad) query = query.eq("prioridad", prioridad);
     if (teamId) query = query.eq("team_id", teamId);
 
@@ -57,7 +55,7 @@ function LeadsContent() {
     setLeads(resultado);
     setTotal(count ?? 0);
     setLoading(false);
-  }, [temperatura, prioridad, busqueda, teamId]);
+  }, [prioridad, busqueda, teamId]);
 
   useEffect(() => {
     cargarLeads();
@@ -69,22 +67,24 @@ function LeadsContent() {
     "cerrado_ganado", "cerrado_perdido", "descartado"
   ];
 
-  // Agrupar por temperatura para mostrar secciones
-  const calientes = leads.filter((l) => l.temperatura === "caliente");
-  const templados = leads.filter((l) => l.temperatura === "templado");
-  const frios = leads.filter((l) => l.temperatura === "frio");
+  // Agrupar por prioridad
+  const alta = leads.filter((l) => l.prioridad === "alta");
+  const media = leads.filter((l) => l.prioridad === "media");
+  const baja = leads.filter((l) => l.prioridad === "baja");
+  const sinPrioridad = leads.filter((l) => !l.prioridad);
 
   const grupos =
-    temperatura === "caliente"
-      ? [{ titulo: "Calientes", leads: calientes, color: "text-red-600" }]
-      : temperatura === "templado"
-      ? [{ titulo: "Templados", leads: templados, color: "text-amber-600" }]
-      : temperatura === "frio"
-      ? [{ titulo: "Fríos", leads: frios, color: "text-blue-600" }]
+    prioridad === "alta"
+      ? [{ titulo: "Alta prioridad", leads: alta, color: "text-red-600" }]
+      : prioridad === "media"
+      ? [{ titulo: "Media prioridad", leads: media, color: "text-amber-600" }]
+      : prioridad === "baja"
+      ? [{ titulo: "Baja prioridad", leads: baja, color: "text-slate-500" }]
       : [
-          { titulo: "Calientes", leads: calientes, color: "text-red-600" },
-          { titulo: "Templados", leads: templados, color: "text-amber-600" },
-          { titulo: "Fríos", leads: frios, color: "text-blue-600" },
+          { titulo: "Alta prioridad", leads: alta, color: "text-red-600" },
+          { titulo: "Media prioridad", leads: media, color: "text-amber-600" },
+          { titulo: "Baja prioridad", leads: baja, color: "text-slate-500" },
+          { titulo: "Sin prioridad", leads: sinPrioridad, color: "text-slate-400" },
         ];
 
   return (
@@ -95,7 +95,7 @@ function LeadsContent() {
           <h1 className="text-2xl font-bold text-slate-900">Leads</h1>
           {!loading && (
             <p className="text-sm text-slate-400 mt-0.5">
-              {leads.length} leads{temperatura || prioridad ? " (filtrado)" : ""}
+              {leads.length} leads{prioridad ? " (filtrado)" : ""}
             </p>
           )}
         </div>
@@ -104,11 +104,9 @@ function LeadsContent() {
       {/* Filtros */}
       <div className="bg-white rounded-xl border border-slate-200 px-4">
         <FiltrosBar
-          temperatura={temperatura}
           prioridad={prioridad}
           busqueda={busqueda}
           teamId={teamId}
-          onTemperatura={setTemperatura}
           onPrioridad={setPrioridad}
           onBusqueda={setBusqueda}
           onTeam={setTeamId}

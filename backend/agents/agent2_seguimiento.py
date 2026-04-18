@@ -358,14 +358,13 @@ def _procesar_recordatorio_2(lead: Dict[str, Any]) -> None:
     )
     _registrar_scoring_history(
         lead_id=lead_id,
-        temperatura="frio",
+        temperatura=lead.get("temperatura", ""),
         nivel_interes=max(0, (lead.get("nivel_interes") or 2) - 1),
         prioridad="baja",
         motivo="Recordatorio 2 enviado — 7 días sin respuesta. Interés decreciente.",
         evento_tipo="sin_respuesta_7_dias",
     )
     _actualizar_lead(lead_id, {
-        "temperatura": "frio",
         "prioridad": "baja",
     })
 
@@ -387,17 +386,15 @@ def _procesar_lead_frio(lead: Dict[str, Any]) -> None:
     )
     _registrar_scoring_history(
         lead_id=lead_id,
-        temperatura="frio",
+        temperatura=lead.get("temperatura", ""),
         nivel_interes=0,
         prioridad="baja",
-        motivo="14 días sin respuesta. Lead archivado automáticamente como frío.",
+        motivo="14 días sin respuesta. Lead archivado automáticamente.",
         evento_tipo="sin_respuesta_14_dias",
     )
     _actualizar_lead(lead_id, {
-        "temperatura": "frio",
         "prioridad": "baja",
         "nivel_interes": 0,
-        # No cambiamos el estado a "descartado"; el comercial puede revisarlo
     })
 
 
@@ -489,14 +486,13 @@ def _procesar_alerta_urgente(lead: Dict[str, Any]) -> None:
 
     _registrar_scoring_history(
         lead_id=lead_id,
-        temperatura="caliente",
+        temperatura=lead.get("temperatura", ""),
         nivel_interes=min(10, (lead.get("nivel_interes") or 5) + 1),
         prioridad="alta",
         motivo=f"Lead respondió hace {horas}h y no hay atención comercial. Alerta urgente generada.",
         evento_tipo="alerta_sin_atencion_24h",
     )
     _actualizar_lead(lead_id, {
-        "temperatura": "caliente",
         "prioridad": "alta",
     })
 

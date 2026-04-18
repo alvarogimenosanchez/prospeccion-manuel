@@ -4,22 +4,18 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 type FiltrosBarProps = {
-  temperatura: string;
   prioridad: string;
   busqueda: string;
   teamId?: string;
-  onTemperatura: (v: string) => void;
   onPrioridad: (v: string) => void;
   onBusqueda: (v: string) => void;
   onTeam?: (v: string) => void;
 };
 
 export function FiltrosBar({
-  temperatura,
   prioridad,
   busqueda,
   teamId = "",
-  onTemperatura,
   onPrioridad,
   onBusqueda,
   onTeam,
@@ -33,13 +29,6 @@ export function FiltrosBar({
     supabase.from("teams").select("id, nombre").eq("activo", true).order("nombre")
       .then(({ data }) => setTeams(data ?? []));
   }, []);
-
-  const tempBtns = [
-    { value: "", label: "Todos" },
-    { value: "caliente", label: "🔴 Calientes" },
-    { value: "templado", label: "🟡 Templados" },
-    { value: "frio", label: "🔵 Fríos" },
-  ];
 
   const priorBtns = [
     { value: "", label: "Todas" },
@@ -78,24 +67,8 @@ export function FiltrosBar({
 
       <div className="hidden sm:block w-px h-6 bg-slate-200" />
 
-      {/* Temperatura */}
-      <div className="flex gap-1">
-        {tempBtns.map((b) => (
-          <button
-            key={b.value}
-            onClick={() => onTemperatura(b.value)}
-            className={`${btnBase} ${temperatura === b.value ? active : inactive}`}
-          >
-            {b.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="hidden sm:block w-px h-6 bg-slate-200" />
-
       {/* Prioridad */}
       <div className="flex gap-1">
-        <span className="text-xs text-slate-400 self-center mr-1">Prioridad:</span>
         {priorBtns.map((b) => (
           <button
             key={b.value}
