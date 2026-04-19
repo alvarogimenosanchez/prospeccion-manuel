@@ -28,6 +28,7 @@ function NavIcon({ name }: { name: string }) {
     settings:   ["M12 15a3 3 0 100-6 3 3 0 000 6z", "M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"],
     flag:       ["M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z", "M4 22v-7"],
     logout:     ["M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4", "M16 17l5-5-5-5M21 12H9"],
+    download:   ["M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4", "M7 10l5 5 5-5M12 15V3"],
     sparkle:    ["M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"],
   };
 
@@ -85,6 +86,7 @@ const NAV_GROUPS = [
       { href: "/clientes",   label: "Clientes",   icon: "briefcase", permiso: "gestionar_clientes" },
       { href: "/ingresos",   label: "Ingresos",   icon: "chart",     permiso: "ver_metricas" },
       { href: "/recuperar",  label: "Recuperar",  icon: "target",    permiso: "asignar_leads" },
+      { href: "/exportar",   label: "Exportar",   icon: "download",  permiso: "exportar_datos" },
       { href: "/equipos",    label: "Equipos",    icon: "team",      permiso: "gestionar_equipo" },
       { href: "/ajustes",    label: "Ajustes",    icon: "settings",  permiso: "gestionar_ajustes" },
       { href: "/reportes",   label: "Reportes",   icon: "flag",      permiso: "ver_reportes" },
