@@ -49,9 +49,10 @@ const NAV_GROUPS = [
   {
     label: "Diario",
     items: [
-      { href: "/hoy",      label: "Hoy",         icon: "target",   permiso: null },
-      { href: "/leads",    label: "Leads",        icon: "users",    permiso: null },
-      { href: "/pipeline", label: "Pipeline",     icon: "pipeline", permiso: null },
+      { href: "/hoy",             label: "Hoy",           icon: "target",    permiso: null },
+      { href: "/notificaciones",  label: "Notificaciones", icon: "flag",      permiso: null },
+      { href: "/leads",           label: "Leads",          icon: "users",     permiso: null },
+      { href: "/pipeline",        label: "Pipeline",       icon: "pipeline",  permiso: null },
     ],
   },
   {
