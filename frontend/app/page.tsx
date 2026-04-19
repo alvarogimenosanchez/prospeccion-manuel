@@ -55,6 +55,7 @@ export default function DashboardPage() {
   const [leadsUrgentes, setLeadsUrgentes] = useState<LeadDashboard[]>([]);
   const [accionesVencidas, setAccionesVencidas] = useState<LeadDashboard[]>([]);
   const [citasHoy, setCitasHoy] = useState<CitaHoy[]>([]);
+  const [cuestionariosSemana, setCuestionariosSemana] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -111,6 +112,11 @@ export default function DashboardPage() {
       vencidasRes.data && setAccionesVencidas(vencidasRes.data as LeadDashboard[]);
       setCitasHoy(citasRaw.map(c => ({ ...c, lead_nombre: leadNombres[c.lead_id] ?? null })));
 
+      const inicioSemana = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - hoy.getDay()).toISOString();
+      const { count: cuestionariosCount } = await supabase.from("leads").select("id", { count: "exact", head: true })
+        .eq("fuente_detalle", "formulario_captacion").gte("fecha_captacion", inicioSemana);
+      setCuestionariosSemana(cuestionariosCount ?? 0);
+
       sinAtencion = (urgentesRes.data ?? []).length;
 
       setStats({
@@ -134,7 +140,10 @@ export default function DashboardPage() {
     cargar();
   }, []);
 
-  const fecha = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
+  const ahora = new Date();
+  const hora = ahora.getHours();
+  const saludo = hora < 13 ? "Buenos días" : hora < 20 ? "Buenas tardes" : "Buenas noches";
+  const fecha = ahora.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
   const fechaCap = fecha.charAt(0).toUpperCase() + fecha.slice(1);
 
   if (loading) return <div className="py-24 text-center text-sm" style={{ color: "#a09890" }}>Cargando dashboard...</div>;
@@ -144,9 +153,15 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{saludo}, Manuel</h1>
           <p className="text-sm text-slate-500 mt-0.5">{fechaCap}</p>
         </div>
+        <Link href="/hoy" className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-xl border transition-all"
+          style={{ borderColor: "#ea650d", color: "#ea650d" }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#fff5f0"; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+          🎯 Ver tareas de hoy
+        </Link>
       </div>
 
       {/* ── Banner leads nuevos sin trabajar ── */}
@@ -293,8 +308,8 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* ── Mensajes + Clientes ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {/* ── Mensajes + Clientes + Cuestionario ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {/* Mensajes */}
         <div>
           <div className="flex items-center justify-between mb-3">
@@ -333,18 +348,39 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+
+        {/* Cuestionario */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-slate-700">Cuestionario</h2>
+            <Link href="/cuestionario" className="text-xs hover:underline" style={{ color: "#ea650d" }}>Ver resultados →</Link>
+          </div>
+          <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-slate-600">Esta semana</span>
+              <span className={`text-sm font-bold ${cuestionariosSemana > 0 ? "" : "text-slate-400"}`}
+                style={cuestionariosSemana > 0 ? { color: "#ea650d" } : undefined}>
+                {cuestionariosSemana}
+              </span>
+            </div>
+            <Link href="/captacion" target="_blank" className="block text-center text-xs rounded-lg py-2 border transition-colors hover:bg-slate-50"
+              style={{ borderColor: "#e5ded9", color: "#6b6560" }}>
+              🔗 Abrir formulario público
+            </Link>
+          </div>
+        </div>
       </div>
 
       {/* ── Accesos rápidos ── */}
       <div>
         <h2 className="text-sm font-semibold text-slate-700 mb-3">Accesos rápidos</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <QuickLink href="/hoy" icon="🎯" label="Hoy" sub="Cola del día" />
           <QuickLink href="/leads/nuevo" icon="➕" label="Nuevo lead" sub="Añadir manualmente" highlight />
           <QuickLink href="/mensajes" icon="💬" label="Mensajes" sub="WhatsApp pendientes" />
-          <QuickLink href="/mensajes-internos" icon="🗨️" label="Chat equipo" sub="Mensajes internos" />
+          <QuickLink href="/pipeline" icon="📊" label="Pipeline" sub="Vista Kanban" />
+          <QuickLink href="/cuestionario" icon="📋" label="Cuestionario" sub="Leads del formulario" />
           <QuickLink href="/prospeccion" icon="📥" label="Prospectar" sub="Importar leads" />
-          <QuickLink href="/desempeno" icon="📊" label="Desempeño" sub="Métricas" />
+          <QuickLink href="/ajustes" icon="⚙️" label="Ajustes" sub="Plantillas y config" />
         </div>
       </div>
     </div>
