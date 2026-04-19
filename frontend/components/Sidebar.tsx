@@ -73,8 +73,9 @@ const NAV_GROUPS = [
   {
     label: "Análisis",
     items: [
-      { href: "/metricas",  label: "Métricas",   icon: "chart",    permiso: "ver_metricas" },
-      { href: "/desempeno", label: "Desempeño",  icon: "trending", permiso: "ver_metricas" },
+      { href: "/metricas",   label: "Métricas",   icon: "chart",    permiso: "ver_metricas" },
+      { href: "/desempeno",  label: "Desempeño",  icon: "trending", permiso: "ver_metricas" },
+      { href: "/actividad",  label: "Actividad",  icon: "sparkle",  permiso: "ver_metricas" },
     ],
   },
   {
