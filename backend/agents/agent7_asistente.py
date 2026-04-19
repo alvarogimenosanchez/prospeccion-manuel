@@ -118,12 +118,12 @@ def responder_asistente(
 
     try:
         response = _client.messages.create(
-            model="claude-sonnet-4-6",
+            model="claude-haiku-4-5-20251001",
             max_tokens=600,
             system=SYSTEM_ASISTENTE,
             messages=mensajes_con_contexto,
         )
         return response.content[0].text
     except Exception as e:
-        print(f"  ✗ Error en asistente IA: {e}")
-        return "Lo siento, hubo un error al procesar tu pregunta. Inténtalo de nuevo."
+        print(f"  ✗ Error en asistente IA: {type(e).__name__}: {e}")
+        return f"Error al conectar con la IA: {type(e).__name__}. Inténtalo de nuevo."
