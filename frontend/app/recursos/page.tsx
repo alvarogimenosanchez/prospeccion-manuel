@@ -50,6 +50,22 @@ const FORM_EMPTY: FormState = {
   es_global: true,
 };
 
+// ── Seed data ─────────────────────────────────────────────────────────────────
+const SEED_RECURSOS = [
+  { titulo: "Script apertura — Hostelería", tipo: "script" as TipoRecurso, categoria: "Hostelería", descripcion: "Mejor hora: 10:00–12:00 antes del servicio de comidas", contenido: "Hola [nombre], soy Manuel, trabajo con autónomos de hostelería en [ciudad]. Muchos no saben que existe un seguro desde 5€/mes que te cubre el día que no puedes trabajar — porque si tú no trabajas, el negocio para. ¿Tienes 5 minutos?" },
+  { titulo: "Argumentario objeciones — Hostelería", tipo: "argumentario" as TipoRecurso, categoria: "Hostelería", descripcion: "Respuestas a las objeciones más comunes en hostelería", contenido: "«No tengo tiempo ahora» → Entiendo, ¿cuándo te va mejor? No me lleva más de 10 minutos explicarte cómo funciona.\n\n«Ya tengo seguro / no me interesa» → ¿Es un seguro de baja laboral desde el primer día? Muchos autónomos tienen seguro de local pero no de su propia baja — que es el riesgo más real." },
+  { titulo: "Script apertura — Inmobiliaria", tipo: "script" as TipoRecurso, categoria: "Inmobiliaria", descripcion: "Mejor hora: 10:00–13:00 entre visitas", contenido: "Hola [nombre], soy Manuel, asesor financiero en [ciudad]. Trabajo con inmobiliarias en acuerdos de derivación hipotecaria — cuando tu cliente necesita hipoteca, vosotros generáis una comisión sin hacer nada extra. El mes pasado la media fue 900€ por operación. ¿15 minutos esta semana?" },
+  { titulo: "Argumentario objeciones — Inmobiliaria", tipo: "argumentario" as TipoRecurso, categoria: "Inmobiliaria", descripcion: "Respuestas a objeciones típicas en inmobiliarias", contenido: "«Ya tenemos acuerdo con otra entidad» → Esto no interfiere con ningún banco. Es un acuerdo independiente de derivación — cuantos más canales, más comisiones. ¿Lo comparamos?\n\n«No me interesa / no tenemos tiempo» → Solo te pido 15 minutos. Si no encaja, no hay ningún problema. ¿La semana que viene?" },
+  { titulo: "Script apertura — Asesoría / Gestoría", tipo: "script" as TipoRecurso, categoria: "Asesoría", descripcion: "Mejor hora: 09:00–11:00 o 16:00–18:00", contenido: "Hola [nombre], soy Manuel. Trabajo con asesorías para ofrecer a sus clientes autónomos una cobertura de baja desde el primer día — algo que muchos autónomos necesitan y que la mayoría de asesorías no ofrecen. ¿Podríamos explorar si encaja en vuestra cartera de servicios?" },
+  { titulo: "Argumentario objeciones — Asesoría", tipo: "argumentario" as TipoRecurso, categoria: "Asesoría", descripcion: "Respuestas a objeciones en asesorías y gestorías", contenido: "«Ya ofrecemos seguros» → ¿Tenéis específicamente el seguro de baja laboral para autónomos desde el primer día? Es diferente al RETA — cubre desde la primera hora de baja. Muchos autónomos no lo tienen.\n\n«No tenemos tiempo para esto» → Una reunión de 20 minutos para ver si encaja. Si no, no te molesto más. ¿Cuándo tienes un hueco?" },
+  { titulo: "Script apertura — Clínica / Salud", tipo: "script" as TipoRecurso, categoria: "Clínicas", descripcion: "Mejor hora: 08:30–10:00 o 14:00–16:00", contenido: "Hola [nombre], soy Manuel. Para profesionales sanitarios autónomos hay coberturas específicas de incapacidad temporal desde el primer día — especialmente relevante si sois dueños de la clínica. ¿Tenéis eso cubierto?" },
+  { titulo: "Argumentario — Clínica (seguro del colegio)", tipo: "argumentario" as TipoRecurso, categoria: "Clínicas", descripcion: "Respuesta a la objeción del seguro colegial", contenido: "«Ya tenemos seguro del colegio» → El del colegio cubre responsabilidad civil, no tu baja laboral personal. Si mañana te pones enfermo y no puedes trabajar, ¿quién cubre los gastos fijos de la clínica?" },
+  { titulo: "Script apertura — Taller mecánico", tipo: "script" as TipoRecurso, categoria: "Talleres", descripcion: "Mejor hora: 08:00–10:00 antes de abrir", contenido: "Hola [nombre], soy Manuel. Para autónomos de talleres hay un seguro desde 4€/mes que cubre la baja desde el primer día. Si tú paras, el taller para — ¿tienes eso cubierto?" },
+  { titulo: "Argumentario — Taller (precio)", tipo: "argumentario" as TipoRecurso, categoria: "Talleres", descripcion: "Respuesta a la objeción del precio en talleres", contenido: "«Es muy caro / no puedo permitírmelo» → Desde 4€ al mes. Si un día de baja te cuesta 200€ en ingresos perdidos + gastos fijos, ¿no merece la pena asegurarlo por 4€?" },
+  { titulo: "Script apertura — Peluquería / Estética", tipo: "script" as TipoRecurso, categoria: "Peluquería", descripcion: "Mejor hora: 09:00–10:30 antes de las primeras citas", contenido: "Hola [nombre], soy Manuel. Para autónomos del sector belleza hay un seguro muy económico que cubre si un día no puedes trabajar — porque si estás de baja y no cortas el pelo, no cobras. ¿Tienes eso cubierto?" },
+  { titulo: "Argumentario — Peluquería (está ocupado)", tipo: "argumentario" as TipoRecurso, categoria: "Peluquería", descripcion: "Respuesta cuando el cliente dice que está ocupado", contenido: "«Ahora no puedo / estoy con clientes» → Ningún problema, ¿a qué hora te viene bien? Solo son 10 minutos." },
+];
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function RecursosPage() {
   const supabase = createClient();
@@ -206,6 +222,17 @@ export default function RecursosPage() {
     setRecursos((prev) => prev.filter((r) => r.id !== id));
   }
 
+  const [sembrando, setSembrando] = useState(false);
+  async function sembrarRecursos() {
+    if (!miComercialId) return;
+    setSembrando(true);
+    await supabase.from("recursos_rapidos").insert(
+      SEED_RECURSOS.map((r, i) => ({ ...r, creado_por: miComercialId, es_global: true, orden: i + 1 }))
+    );
+    await cargarRecursos();
+    setSembrando(false);
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────
   return (
     <div>
@@ -349,12 +376,22 @@ export default function RecursosPage() {
               : "Prueba con otros filtros"}
           </p>
           {recursos.length === 0 && (
-            <button
-              onClick={abrirNuevo}
-              className="btn-primary mt-4 px-4 py-2 text-sm"
-            >
-              Crear primer recurso
-            </button>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={sembrarRecursos}
+                disabled={sembrando || !miComercialId}
+                className="px-4 py-2 text-sm font-medium rounded-lg border transition-colors disabled:opacity-50"
+                style={{ background: "#ea650d", color: "#fff", borderColor: "#ea650d" }}
+              >
+                {sembrando ? "Cargando..." : "✨ Cargar scripts de ejemplo"}
+              </button>
+              <button
+                onClick={abrirNuevo}
+                className="px-4 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"
+              >
+                Crear desde cero
+              </button>
+            </div>
           )}
         </div>
       ) : (
