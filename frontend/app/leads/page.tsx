@@ -39,6 +39,7 @@ function LeadsContent() {
   const [soloMios,     setSoloMios    ] = useState(true);
   const [temperatura,  setTemperatura ] = useState(searchParams.get("temperatura") ?? "");
   const [fuente,       setFuente      ] = useState(searchParams.get("fuente") ?? "");
+  const [ordenar,      setOrdenar     ] = useState(searchParams.get("ordenar") ?? "reciente");
 
   // ── Comercial del usuario logueado ────────────────────────────────────────
   const [comercialId, setComercialId] = useState<string | null>(null);
@@ -99,10 +100,19 @@ function LeadsContent() {
     if (!comercialCargado) return;
     if (nuevoOffset === 0) setLoading(true);
 
+    const ORDEN_CFG: Record<string, { col: string; asc: boolean }> = {
+      reciente:       { col: "created_at",   asc: false },
+      actividad:      { col: "updated_at",   asc: false },
+      interes_alto:   { col: "nivel_interes", asc: false },
+      interes_bajo:   { col: "nivel_interes", asc: true  },
+      prioridad_alta: { col: "prioridad",    asc: true  },
+    };
+    const ord = ORDEN_CFG[ordenar] ?? ORDEN_CFG.reciente;
+
     let query = supabase
       .from("leads_dashboard")
       .select("*", { count: "exact" })
-      .order("created_at", { ascending: false })
+      .order(ord.col, { ascending: ord.asc })
       .range(nuevoOffset, nuevoOffset + PAGE_SIZE - 1);
 
     if (prioridad)   query = query.eq("prioridad",   prioridad);
@@ -135,7 +145,7 @@ function LeadsContent() {
     setOffset(nuevoOffset);
     setHayMas(nuevoOffset + PAGE_SIZE < totalCount);
     setLoading(false);
-  }, [prioridad, busqueda, estado, soloMios, comercialId, comercialCargado, teamId, temperatura, fuente]);
+  }, [prioridad, busqueda, estado, soloMios, comercialId, comercialCargado, teamId, temperatura, fuente, ordenar]);
 
   // Reset y recargar cuando cambian los filtros
   useEffect(() => {
@@ -171,6 +181,17 @@ function LeadsContent() {
           )}
         </div>
         <div className="flex items-center gap-2">
+          <select
+            value={ordenar}
+            onChange={(e) => setOrdenar(e.target.value)}
+            className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-600 focus:outline-none focus:border-slate-400"
+          >
+            <option value="reciente">Más recientes</option>
+            <option value="actividad">Última actividad</option>
+            <option value="interes_alto">Mayor interés</option>
+            <option value="interes_bajo">Menor interés</option>
+            <option value="prioridad_alta">Prioridad</option>
+          </select>
           <button
             onClick={() => cargarLeads(0)}
             className="text-sm text-slate-500 hover:text-slate-800 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
