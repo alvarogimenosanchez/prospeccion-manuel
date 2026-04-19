@@ -1,0 +1,110 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - link "NN Manuel Prospección CRM" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e7]: NN
+          - generic [ref=e8]:
+            - paragraph [ref=e9]: Manuel
+            - paragraph [ref=e10]: Prospección CRM
+        - link "Dashboard" [ref=e12] [cursor=pointer]:
+          - /url: /
+          - img [ref=e13]
+          - generic [ref=e15]: Dashboard
+        - navigation [ref=e16]:
+          - generic [ref=e17]:
+            - paragraph [ref=e18]: Diario
+            - generic [ref=e19]:
+              - link "Hoy" [ref=e20] [cursor=pointer]:
+                - /url: /hoy
+                - img [ref=e21]
+                - generic [ref=e25]: Hoy
+              - link "Leads" [ref=e26] [cursor=pointer]:
+                - /url: /leads
+                - img [ref=e27]
+                - generic [ref=e31]: Leads
+              - link "Pipeline" [ref=e32] [cursor=pointer]:
+                - /url: /pipeline
+                - img [ref=e33]
+                - generic [ref=e37]: Pipeline
+          - generic [ref=e38]:
+            - paragraph [ref=e39]: Comunicación
+            - generic [ref=e40]:
+              - link "Mensajes WA" [ref=e41] [cursor=pointer]:
+                - /url: /mensajes
+                - img [ref=e42]
+                - generic [ref=e44]: Mensajes WA
+              - link "Chat interno" [ref=e45] [cursor=pointer]:
+                - /url: /mensajes-internos
+                - img [ref=e46]
+                - generic [ref=e48]: Chat interno
+              - link "Agenda" [ref=e49] [cursor=pointer]:
+                - /url: /agenda
+                - img [ref=e50]
+                - generic [ref=e53]: Agenda
+              - link "Acceso rápido" [ref=e54] [cursor=pointer]:
+                - /url: /recursos
+                - img [ref=e55]
+                - generic [ref=e57]: Acceso rápido
+          - generic [ref=e58]:
+            - paragraph [ref=e59]: Captación
+            - generic [ref=e60]:
+              - link "Prospección" [ref=e61] [cursor=pointer]:
+                - /url: /prospeccion
+                - img [ref=e62]
+                - generic [ref=e65]: Prospección
+              - link "Mapa" [ref=e66] [cursor=pointer]:
+                - /url: /mapa
+                - img [ref=e67]
+                - generic [ref=e70]: Mapa
+          - generic [ref=e71]:
+            - paragraph [ref=e72]: Análisis
+            - generic [ref=e73]:
+              - link "Métricas" [ref=e74] [cursor=pointer]:
+                - /url: /metricas
+                - img [ref=e75]
+                - generic [ref=e77]: Métricas
+              - link "Desempeño" [ref=e78] [cursor=pointer]:
+                - /url: /desempeno
+                - img [ref=e79]
+                - generic [ref=e82]: Desempeño
+          - generic [ref=e83]:
+            - paragraph [ref=e84]: Gestión
+            - generic [ref=e85]:
+              - link "Clientes" [ref=e86] [cursor=pointer]:
+                - /url: /clientes
+                - img [ref=e87]
+                - generic [ref=e90]: Clientes
+              - link "Equipos" [ref=e91] [cursor=pointer]:
+                - /url: /equipos
+                - img [ref=e92]
+                - generic [ref=e96]: Equipos
+              - link "Ajustes" [ref=e97] [cursor=pointer]:
+                - /url: /ajustes
+                - img [ref=e98]
+                - generic [ref=e101]: Ajustes
+    - main [ref=e104]:
+      - generic [ref=e106]:
+        - heading "Ajustes" [level=1] [ref=e108]
+        - generic [ref=e109]:
+          - generic [ref=e110]:
+            - generic [ref=e111]:
+              - img [ref=e113]
+              - generic [ref=e115]:
+                - paragraph [ref=e116]: Plantillas de WhatsApp
+                - paragraph [ref=e117]: Mensajes que se usan al enviar WA a un lead
+            - button "Nueva plantilla" [ref=e118]:
+              - img [ref=e119]
+              - text: Nueva plantilla
+          - generic [ref=e121]:
+            - paragraph [ref=e122]: "Variables disponibles — se sustituyen automáticamente con los datos del lead:"
+            - generic [ref=e123]:
+              - generic [ref=e124]: "{{nombre}}"
+              - generic [ref=e125]: "{{empresa}}"
+              - generic [ref=e126]: "{{ciudad}}"
+              - generic [ref=e127]: "{{sector}}"
+              - generic [ref=e128]: "{{producto}}"
+              - generic [ref=e129]: "{{cargo}}"
+          - generic [ref=e130]: Cargando plantillas...
+  - alert [ref=e131]

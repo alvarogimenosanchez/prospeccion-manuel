@@ -30,6 +30,8 @@ type FormEditComercial = {
   apellidos: string;
   rol: "admin" | "director" | "manager" | "comercial";
   max_leads_activos: number;
+  objetivo_cierres_mes: number;
+  objetivo_citas_mes: number;
 };
 
 export default function EquiposPage() {
@@ -185,6 +187,8 @@ export default function EquiposPage() {
     await supabase.from("comerciales").update({
       rol: comercialEditando.rol,
       max_leads_activos: comercialEditando.max_leads_activos,
+      objetivo_cierres_mes: comercialEditando.objetivo_cierres_mes,
+      objetivo_citas_mes: comercialEditando.objetivo_citas_mes,
     }).eq("id", comercialEditando.id);
     setComercialEditando(null);
     setGuardandoComercial(false);
@@ -575,7 +579,7 @@ export default function EquiposPage() {
                     <div key={c.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50/50 transition-colors">
                       {/* Avatar */}
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                        c.rol === "director" ? "bg-amber-100 text-amber-700" : "bg-orange-100 text-orange-700"
+                        c.rol === "admin" ? "bg-red-100 text-red-700" : c.rol === "director" ? "bg-amber-100 text-amber-700" : c.rol === "manager" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"
                       }`}>
                         {iniciales}
                       </div>
@@ -592,11 +596,9 @@ export default function EquiposPage() {
                               {c.nombre} {c.apellidos ?? ""}
                             </Link>
                             <span className={`text-xs px-2 py-0.5 rounded font-medium flex-shrink-0 ${
-                              c.rol === "director"
-                                ? "bg-amber-100 text-amber-700"
-                                : "bg-slate-100 text-slate-500"
+                              c.rol === "admin" ? "bg-red-100 text-red-700" : c.rol === "director" ? "bg-amber-100 text-amber-700" : c.rol === "manager" ? "bg-blue-100 text-blue-700" : "bg-slate-100 text-slate-500"
                             }`}>
-                              {c.rol === "director" ? "Director" : "Comercial"}
+                              {{ admin: "Admin", director: "Director", manager: "Manager", comercial: "Comercial" }[c.rol] ?? c.rol}
                             </span>
                           </div>
                           {c.email && <p className="text-xs text-slate-400 truncate">{c.email}</p>}
@@ -650,6 +652,8 @@ export default function EquiposPage() {
                           apellidos: c.apellidos ?? "",
                           rol: c.rol,
                           max_leads_activos: c.max_leads_activos,
+                          objetivo_cierres_mes: c.objetivo_cierres_mes ?? 5,
+                          objetivo_citas_mes: c.objetivo_citas_mes ?? 10,
                         })}
                         className="flex-shrink-0 text-xs text-slate-400 hover:text-orange-600 border border-slate-200 hover:border-orange-300 px-3 py-1.5 rounded-lg transition-colors font-medium"
                       >
@@ -846,22 +850,57 @@ export default function EquiposPage() {
               <div>
                 <label className="block text-xs text-slate-500 mb-1.5">Rol</label>
                 <div className="grid grid-cols-2 gap-2">
-                  {(["comercial", "director"] as const).map(r => (
+                  {([
+                    { value: "comercial", label: "Comercial", cls: "bg-slate-50 border-slate-300 text-slate-700" },
+                    { value: "manager",   label: "Manager",   cls: "bg-blue-50 border-blue-300 text-blue-700"   },
+                    { value: "director",  label: "Director",  cls: "bg-amber-50 border-amber-300 text-amber-700" },
+                    { value: "admin",     label: "Admin",     cls: "bg-red-50 border-red-300 text-red-700"      },
+                  ] as const).map(r => (
                     <button
-                      key={r}
+                      key={r.value}
                       type="button"
-                      onClick={() => setComercialEditando(prev => prev ? { ...prev, rol: r } : null)}
+                      onClick={() => setComercialEditando(prev => prev ? { ...prev, rol: r.value } : null)}
                       className={`py-2.5 rounded-lg border text-sm font-medium transition-all ${
-                        comercialEditando.rol === r
-                          ? r === "director"
-                            ? "bg-amber-50 border-amber-300 text-amber-700"
-                            : "bg-orange-50 border-orange-300 text-orange-700"
+                        comercialEditando.rol === r.value
+                          ? r.cls
                           : "border-slate-200 text-slate-500 hover:border-slate-300"
                       }`}
                     >
-                      {r === "director" ? "Director" : "Comercial"}
+                      {r.label}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-500 mb-1.5">Objetivo cierres / mes</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={1}
+                    max={50}
+                    step={1}
+                    value={comercialEditando.objetivo_cierres_mes}
+                    onChange={e => setComercialEditando(prev => prev ? { ...prev, objetivo_cierres_mes: parseInt(e.target.value) } : null)}
+                    className="flex-1 accent-orange-600"
+                  />
+                  <span className="text-sm font-bold text-slate-700 w-8 text-right">{comercialEditando.objetivo_cierres_mes}</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs text-slate-500 mb-1.5">Objetivo citas / mes</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="range"
+                    min={1}
+                    max={100}
+                    step={1}
+                    value={comercialEditando.objetivo_citas_mes}
+                    onChange={e => setComercialEditando(prev => prev ? { ...prev, objetivo_citas_mes: parseInt(e.target.value) } : null)}
+                    className="flex-1 accent-orange-600"
+                  />
+                  <span className="text-sm font-bold text-slate-700 w-8 text-right">{comercialEditando.objetivo_citas_mes}</span>
                 </div>
               </div>
 

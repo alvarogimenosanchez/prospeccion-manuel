@@ -1,0 +1,37 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - progressbar [ref=e6]
+      - main [ref=e84]:
+        - generic [ref=e85]:
+          - generic [ref=e88]:
+            - img [ref=e90]
+            - generic [ref=e95]: Iniciar sesión con Google
+          - generic [ref=e96]:
+            - heading "Alvaro Gimeno Sanchez-Ferragut" [level=1] [ref=e97]
+            - generic [ref=e104]: alvarogimeno2002@gmail.com
+        - generic [ref=e110]:
+          - heading "Verificando tu identidad..." [level=2] [ref=e112]:
+            - generic [ref=e113]: Verificando tu identidad...
+          - generic [ref=e116]: Completa el inicio de sesión con tu llave de acceso
+        - button "Probar otra manera" [ref=e122]:
+          - generic [ref=e125]: Probar otra manera
+    - contentinfo [ref=e69]:
+      - combobox "Cómo cambiar de idioma Español (España)" [ref=e73] [cursor=pointer]:
+        - generic:
+          - generic: Español (España)
+        - generic:
+          - img
+      - list [ref=e75]:
+        - listitem [ref=e76]:
+          - link "Ayuda" [ref=e77] [cursor=pointer]:
+            - /url: https://support.google.com/accounts?hl=es&p=account_iph
+        - listitem [ref=e78]:
+          - link "Privacidad" [ref=e79] [cursor=pointer]:
+            - /url: https://accounts.google.com/TOS?loc=ES&hl=es&privacy=true
+        - listitem [ref=e80]:
+          - link "Términos" [ref=e81] [cursor=pointer]:
+            - /url: https://accounts.google.com/TOS?loc=ES&hl=es
+  - iframe [ref=e82]:
+    
+  - generic [ref=e128]: Alvaro Gimeno Sanchez-Ferragut

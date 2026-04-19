@@ -1,0 +1,218 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - link "NN Manuel Prospección CRM" [ref=e6] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e7]: NN
+          - generic [ref=e8]:
+            - paragraph [ref=e9]: Manuel
+            - paragraph [ref=e10]: Prospección CRM
+        - link "Dashboard" [ref=e12] [cursor=pointer]:
+          - /url: /
+          - img [ref=e13]
+          - generic [ref=e15]: Dashboard
+        - navigation [ref=e16]:
+          - generic [ref=e17]:
+            - paragraph [ref=e18]: Diario
+            - generic [ref=e19]:
+              - link "Hoy" [ref=e20] [cursor=pointer]:
+                - /url: /hoy
+                - img [ref=e21]
+                - generic [ref=e25]: Hoy
+              - link "Leads" [ref=e26] [cursor=pointer]:
+                - /url: /leads
+                - img [ref=e27]
+                - generic [ref=e31]: Leads
+              - link "Pipeline" [ref=e32] [cursor=pointer]:
+                - /url: /pipeline
+                - img [ref=e33]
+                - generic [ref=e37]: Pipeline
+          - generic [ref=e38]:
+            - paragraph [ref=e39]: Comunicación
+            - generic [ref=e40]:
+              - link "Mensajes WA" [ref=e41] [cursor=pointer]:
+                - /url: /mensajes
+                - img [ref=e42]
+                - generic [ref=e44]: Mensajes WA
+              - link "Chat interno" [ref=e45] [cursor=pointer]:
+                - /url: /mensajes-internos
+                - img [ref=e46]
+                - generic [ref=e48]: Chat interno
+              - link "Agenda" [ref=e49] [cursor=pointer]:
+                - /url: /agenda
+                - img [ref=e50]
+                - generic [ref=e53]: Agenda
+              - link "Acceso rápido" [ref=e54] [cursor=pointer]:
+                - /url: /recursos
+                - img [ref=e55]
+                - generic [ref=e57]: Acceso rápido
+          - generic [ref=e58]:
+            - paragraph [ref=e59]: Captación
+            - generic [ref=e60]:
+              - link "Prospección" [ref=e61] [cursor=pointer]:
+                - /url: /prospeccion
+                - img [ref=e62]
+                - generic [ref=e65]: Prospección
+              - link "Mapa" [ref=e66] [cursor=pointer]:
+                - /url: /mapa
+                - img [ref=e67]
+                - generic [ref=e70]: Mapa
+          - generic [ref=e71]:
+            - paragraph [ref=e72]: Análisis
+            - generic [ref=e73]:
+              - link "Métricas" [ref=e74] [cursor=pointer]:
+                - /url: /metricas
+                - img [ref=e75]
+                - generic [ref=e77]: Métricas
+              - link "Desempeño" [ref=e78] [cursor=pointer]:
+                - /url: /desempeno
+                - img [ref=e79]
+                - generic [ref=e82]: Desempeño
+          - generic [ref=e83]:
+            - paragraph [ref=e84]: Gestión
+            - generic [ref=e85]:
+              - link "Clientes" [ref=e86] [cursor=pointer]:
+                - /url: /clientes
+                - img [ref=e87]
+                - generic [ref=e90]: Clientes
+              - link "Equipos" [ref=e91] [cursor=pointer]:
+                - /url: /equipos
+                - img [ref=e92]
+                - generic [ref=e96]: Equipos
+              - link "Ajustes" [ref=e97] [cursor=pointer]:
+                - /url: /ajustes
+                - img [ref=e98]
+                - generic [ref=e101]: Ajustes
+        - generic [ref=e139]:
+          - paragraph [ref=e140]: Alvaro
+          - button "Cerrar sesión" [ref=e141]:
+            - img [ref=e142]
+            - text: Cerrar sesión
+    - main [ref=e104]:
+      - generic [ref=e106]:
+        - generic [ref=e107]:
+          - generic [ref=e108]:
+            - heading "Leads" [level=1] [ref=e109]
+            - paragraph [ref=e145]: 3 leads · mis leads
+          - generic [ref=e110]:
+            - button "Actualizar" [ref=e111]
+            - link "+ Nuevo lead" [ref=e112] [cursor=pointer]:
+              - /url: /leads/nuevo
+        - generic [ref=e114]:
+          - generic [ref=e115]:
+            - textbox "Buscar por nombre, empresa..." [ref=e116]
+            - button "👤 Mis leads" [ref=e117]:
+              - generic [ref=e118]: 👤
+              - generic [ref=e119]: Mis leads
+            - generic [ref=e121]:
+              - button "Todas" [ref=e122]
+              - button "Alta" [ref=e123]
+              - button "Media" [ref=e124]
+              - button "Baja" [ref=e125]
+          - generic [ref=e126]:
+            - button "Todos" [ref=e127]
+            - button "Nuevo" [ref=e128]
+            - button "Enriquecido" [ref=e129]
+            - button "Segmentado" [ref=e130]
+            - button "Contactado" [ref=e131]
+            - button "Respondió" [ref=e132]
+            - button "Cita" [ref=e133]
+            - button "Negociando" [ref=e134]
+            - button "Ganado" [ref=e135]
+            - button "Perdido" [ref=e136]
+        - generic [ref=e137]:
+          - generic [ref=e146]:
+            - generic [ref=e147]: Estado · Nombre / Empresa
+            - generic [ref=e148]:
+              - generic [ref=e149]: Ciudad / Fuente
+              - generic [ref=e150]: Productos
+              - generic [ref=e151]: Interés
+              - generic [ref=e152]: Prioridad
+              - generic [ref=e153]: Actividad / Acción
+              - generic [ref=e154]: —
+          - generic [ref=e155]:
+            - generic [ref=e156]:
+              - generic [ref=e158]: Nuevo
+              - link "Carlos Fernández Gil CEO · TechPyme SL" [ref=e159] [cursor=pointer]:
+                - /url: /leads/26855068-a980-417f-a943-1e321c586c70
+                - paragraph [ref=e160]: Carlos Fernández Gil
+                - paragraph [ref=e161]: CEO · TechPyme SL
+            - generic [ref=e162]:
+              - paragraph [ref=e163]: Barcelona
+              - generic [ref=e164]: Inbound
+            - generic [ref=e165]:
+              - generic [ref=e166]: Pyme
+              - generic [ref=e167]: C. Futuro
+            - generic [ref=e172]: 7/10
+            - generic [ref=e173]: Alta
+            - generic [ref=e174]:
+              - paragraph [ref=e175]: Sin actividad
+              - paragraph [ref=e176]: Álvaro Gimeno
+            - generic [ref=e177]:
+              - link "Abrir WhatsApp" [ref=e178] [cursor=pointer]:
+                - /url: https://wa.me/34633333333
+                - img [ref=e179]
+              - link "Llamar" [ref=e181] [cursor=pointer]:
+                - /url: tel:+34633333333
+                - img [ref=e182]
+              - link [ref=e184] [cursor=pointer]:
+                - /url: /leads/26855068-a980-417f-a943-1e321c586c70
+                - img [ref=e185]
+          - generic [ref=e187]:
+            - generic [ref=e188]:
+              - generic [ref=e190]: Respondió
+              - link "Laura Sánchez Ruiz Directora · Inmobiliaria Costa Sol" [ref=e191] [cursor=pointer]:
+                - /url: /leads/2542e913-a219-4a1d-a944-204130494f8c
+                - paragraph [ref=e192]: Laura Sánchez Ruiz
+                - paragraph [ref=e193]: Directora · Inmobiliaria Costa Sol
+            - generic [ref=e194]:
+              - paragraph [ref=e195]: Málaga
+              - generic [ref=e196]: LinkedIn
+            - generic [ref=e197]:
+              - generic [ref=e198]: Pyme
+              - generic [ref=e199]: Hipoteca
+            - generic [ref=e204]: 2/10
+            - generic [ref=e205]: Alta
+            - generic [ref=e206]:
+              - paragraph [ref=e207]: hace alrededor de 1 mes
+              - paragraph [ref=e208]: Álvaro Gimeno
+            - generic [ref=e209]:
+              - link "Abrir WhatsApp" [ref=e210] [cursor=pointer]:
+                - /url: https://wa.me/34622222222
+                - img [ref=e211]
+              - link "Llamar" [ref=e213] [cursor=pointer]:
+                - /url: tel:+34622222222
+                - img [ref=e214]
+              - link [ref=e216] [cursor=pointer]:
+                - /url: /leads/2542e913-a219-4a1d-a944-204130494f8c
+                - img [ref=e217]
+          - generic [ref=e219]:
+            - generic [ref=e220]:
+              - generic [ref=e222]: Nuevo
+              - link "Cafetería Cafetería y Restaurante Brisa del Sur" [ref=e223] [cursor=pointer]:
+                - /url: /leads/cc937029-9dce-438d-a2d5-4b80821adb89
+                - paragraph [ref=e224]: Cafetería
+                - paragraph [ref=e225]: Cafetería y Restaurante Brisa del Sur
+            - generic [ref=e226]:
+              - paragraph [ref=e227]: Málaga
+              - generic [ref=e228]: Web
+            - generic [ref=e229]:
+              - generic [ref=e230]: Autónomo
+              - generic [ref=e231]: SIALP
+            - generic [ref=e236]: 1/10
+            - generic [ref=e237]: Baja
+            - generic [ref=e238]:
+              - paragraph [ref=e239]: Sin actividad
+              - paragraph [ref=e240]: Álvaro Gimeno
+            - generic [ref=e241]:
+              - link "Abrir WhatsApp" [ref=e242] [cursor=pointer]:
+                - /url: https://wa.me/34625930947
+                - img [ref=e243]
+              - link "Llamar" [ref=e245] [cursor=pointer]:
+                - /url: tel:+34625930947
+                - img [ref=e246]
+              - link [ref=e248] [cursor=pointer]:
+                - /url: /leads/cc937029-9dce-438d-a2d5-4b80821adb89
+                - img [ref=e249]
+  - alert [ref=e138]

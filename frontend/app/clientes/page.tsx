@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import type { Cliente } from "@/lib/supabase";
+import { usePermisos } from "@/components/PermisosProvider";
 
 type ClienteConComercial = Cliente & {
   comerciales: { nombre: string; apellidos: string | null } | null;
@@ -128,6 +129,7 @@ export default function ClientesPage() {
 
 function ClientesContent() {
   const searchParams = useSearchParams();
+  const { puede, cargando: cargandoPermisos } = usePermisos();
   const [clientes, setClientes] = useState<ClienteConComercial[]>([]);
   const [comerciales, setComerciales] = useState<{ id: string; nombre: string; apellidos: string | null }[]>([]);
   const [comercialLogueadoId, setComercialLogueadoId] = useState<string | null>(null);
@@ -141,29 +143,38 @@ function ClientesContent() {
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
-    cargar();
-    obtenerComercialLogueado();
-  }, []);
+    if (cargandoPermisos) return;
+    obtenerComercialLogueado().then(id => cargar(id));
+  }, [cargandoPermisos]);
 
-  async function obtenerComercialLogueado() {
+  async function obtenerComercialLogueado(): Promise<string | null> {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user?.email) return;
+    if (!user?.email) return null;
     const { data } = await supabase
       .from("comerciales")
       .select("id")
       .eq("email", user.email)
       .single();
-    if (data?.id) setComercialLogueadoId(data.id);
+    const id = data?.id ?? null;
+    setComercialLogueadoId(id);
+    return id;
   }
 
-  async function cargar() {
+  async function cargar(miId?: string | null) {
     setLoading(true);
+    const sinPermisoVerTodos = !puede("ver_todos_leads");
+    let query = supabase
+      .from("clientes")
+      .select("*, comerciales(nombre, apellidos)")
+      .order("fecha_renovacion", { ascending: true, nullsFirst: false })
+      .order("nombre", { ascending: true });
+
+    if (sinPermisoVerTodos && miId) {
+      query = query.eq("comercial_asignado", miId);
+    }
+
     const [{ data: clientesData }, { data: comercialesData }] = await Promise.all([
-      supabase
-        .from("clientes")
-        .select("*, comerciales(nombre, apellidos)")
-        .order("fecha_renovacion", { ascending: true, nullsFirst: false })
-        .order("nombre", { ascending: true }),
+      query,
       supabase.from("comerciales").select("id, nombre, apellidos").eq("activo", true),
     ]);
     setClientes((clientesData as ClienteConComercial[]) ?? []);
@@ -221,7 +232,7 @@ function ClientesContent() {
 
     setModal(null);
     setGuardando(false);
-    cargar();
+    cargar(comercialLogueadoId);
   }
 
   async function cambiarEstado(id: string, estado: Cliente["estado"]) {
@@ -626,22 +637,24 @@ function ClientesContent() {
                 </div>
               </div>
 
-              {/* Comercial */}
-              <div>
-                <label className="text-xs font-medium text-slate-600 block mb-1">Comercial responsable</label>
-                <select
-                  value={form.comercial_asignado}
-                  onChange={e => setForm(f => ({ ...f, comercial_asignado: e.target.value }))}
-                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
-                >
-                  <option value="">Sin asignar</option>
-                  {comerciales.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.nombre} {c.apellidos ?? ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {/* Comercial — solo visible para quienes pueden ver todos los leads */}
+              {puede("ver_todos_leads") && (
+                <div>
+                  <label className="text-xs font-medium text-slate-600 block mb-1">Comercial responsable</label>
+                  <select
+                    value={form.comercial_asignado}
+                    onChange={e => setForm(f => ({ ...f, comercial_asignado: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-300"
+                  >
+                    <option value="">Sin asignar</option>
+                    {comerciales.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombre} {c.apellidos ?? ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Notas */}
               <div>
