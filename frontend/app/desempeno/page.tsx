@@ -415,6 +415,29 @@ export default function DesempenoPage() {
               </button>
             ))}
           </div>
+          {statsFiltrados.length > 0 && (
+            <button
+              onClick={() => {
+                const cols = ["Nombre","Rol","Leads","Calientes","Contactados","Respondieron","Citas","Cerrados","Tasa resp.","Tasa conv.","Cierres obj.","Citas obj.","Top producto"];
+                const rows = statsFiltrados.map(s => [
+                  `${s.comercial.nombre}${s.comercial.apellidos ? " " + s.comercial.apellidos : ""}`,
+                  s.comercial.rol, s.totalLeads, s.leadsCalientes, s.leadsContactados, s.respondieron,
+                  s.citasAgendadas, s.cerradosGanados,
+                  `${s.tasaRespuesta.toFixed(1)}%`, `${s.tasaConversion.toFixed(1)}%`,
+                  s.objetivoCierres, s.objetivoCitas, s.topProducto ?? "",
+                ]);
+                const csv = [cols, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+                const blob = new Blob(["\uFEFF"+csv], { type: "text/csv;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a"); a.href = url;
+                a.download = `desempeno-${new Date().toISOString().split("T")[0]}.csv`; a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="text-sm text-slate-500 hover:text-slate-800 px-3 py-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+            >
+              ↓ CSV
+            </button>
+          )}
         </div>
       </div>
 
