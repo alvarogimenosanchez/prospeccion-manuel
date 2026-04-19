@@ -81,6 +81,7 @@ const NAV_GROUPS = [
       { href: "/metricas",      label: "Métricas",      icon: "chart",    permiso: "ver_metricas" },
       { href: "/desempeno",     label: "Desempeño",     icon: "trending", permiso: "ver_metricas" },
       { href: "/funnel",             label: "Funnel",          icon: "pipeline",  permiso: "ver_metricas" },
+      { href: "/velocidad",          label: "Velocidad",       icon: "trending",  permiso: "ver_metricas" },
       { href: "/productos-analisis", label: "Productos",       icon: "briefcase", permiso: "ver_metricas" },
       { href: "/analisis-perdidas",  label: "Pérdidas",        icon: "flag",      permiso: "ver_metricas" },
       { href: "/actividad",          label: "Actividad",       icon: "sparkle",   permiso: "ver_metricas" },
