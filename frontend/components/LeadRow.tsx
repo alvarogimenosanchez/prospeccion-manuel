@@ -9,6 +9,7 @@ import { NivelInteresBar } from "./NivelInteresBar";
 import { FuenteBadge } from "./FuenteBadge";
 import type { LeadDashboard } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
+import { usePermisos } from "./PermisosProvider";
 
 // ── Estado badge ──────────────────────────────────────────────────────────────
 const ESTADO_CFG: Record<string, { label: string; cls: string }> = {
@@ -93,6 +94,11 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
   const [estadoActual, setEstadoActual] = useState(lead.estado);
   const [avanzando, setAvanzando] = useState(false);
   const [generandoMsg, setGenerandoMsg] = useState<"idle" | "generando" | "ok" | "error">("idle");
+  const [comercialAsignado, setComercialAsignado] = useState(lead.comercial_asignado);
+  const [comercialNombreActual, setComercialNombreActual] = useState(lead.comercial_nombre);
+  const [asignando, setAsignando] = useState(false);
+  const [listaComerciales, setListaComerciales] = useState<{ id: string; nombre: string }[] | null>(null);
+  const { puede, cargando: cargandoPermisos } = usePermisos();
 
   const siguienteTransicion = TRANSICIONES[estadoActual]?.[0] ?? null;
 
@@ -121,7 +127,23 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
     }
   }
 
+  async function cargarComerciales() {
+    if (listaComerciales) return;
+    const { data } = await supabase.from("comerciales").select("id, nombre").eq("activo", true).order("nombre");
+    setListaComerciales(data ?? []);
+  }
+
+  async function asignarComercial(nuevoId: string) {
+    setAsignando(true);
+    const com = listaComerciales?.find(c => c.id === nuevoId);
+    await supabase.from("leads").update({ comercial_asignado: nuevoId || null, updated_at: new Date().toISOString() }).eq("id", lead.id);
+    setComercialAsignado(nuevoId || null);
+    setComercialNombreActual(com?.nombre ?? null);
+    setAsignando(false);
+  }
+
   const puedeGenerarMsg = ["nuevo", "enriquecido", "segmentado"].includes(estadoActual) && !!lead.telefono_whatsapp;
+  const puedeAsignar = !cargandoPermisos && puede("asignar_leads");
 
   const accionInfo = proximaAccionTexto(lead.proxima_accion, lead.proxima_accion_fecha);
 
@@ -225,8 +247,8 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
         ) : (
           <p className="text-xs text-slate-300">Sin actividad</p>
         )}
-        {lead.comercial_nombre && (
-          <p className="text-xs text-slate-300 mt-0.5 truncate">{lead.comercial_nombre}</p>
+        {comercialNombreActual && (
+          <p className="text-xs text-slate-300 mt-0.5 truncate">{comercialNombreActual}</p>
         )}
       </div>
 
@@ -283,6 +305,22 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
           >
             {avanzando ? "..." : siguienteTransicion.label}
           </button>
+        )}
+        {puedeAsignar && (
+          <select
+            value={comercialAsignado ?? ""}
+            onChange={e => { e.stopPropagation(); asignarComercial(e.target.value); }}
+            onFocus={() => cargarComerciales()}
+            disabled={asignando}
+            title="Asignar a comercial"
+            className="text-xs border border-slate-200 rounded-lg px-1.5 py-1 bg-white text-slate-600 focus:outline-none focus:border-orange-300 max-w-28 disabled:opacity-50"
+            onClick={e => e.stopPropagation()}
+          >
+            <option value="">Sin asignar</option>
+            {listaComerciales?.map(c => (
+              <option key={c.id} value={c.id}>{c.nombre}</option>
+            ))}
+          </select>
         )}
         <Link
           href={`/leads/${lead.id}`}
