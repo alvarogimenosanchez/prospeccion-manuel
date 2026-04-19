@@ -8,6 +8,7 @@ import { Suspense } from "react";
 type Estado =
   | "nuevo"
   | "segmentado"
+  | "mensaje_generado"
   | "mensaje_enviado"
   | "respondio"
   | "cita_agendada"
@@ -64,12 +65,14 @@ type Columna = {
 };
 
 const COLUMNAS: Columna[] = [
-  { estado: "nuevo",           label: "Nuevo",           color: "border-slate-300",   bg: "bg-slate-50",    dot: "bg-slate-400"   },
-  { estado: "mensaje_enviado", label: "Contactado",       color: "border-blue-300",    bg: "bg-blue-50",     dot: "bg-blue-500"    },
-  { estado: "respondio",       label: "Respondió",        color: "border-amber-300",   bg: "bg-amber-50",    dot: "bg-amber-500"   },
-  { estado: "cita_agendada",   label: "Cita agendada",    color: "border-orange-300",  bg: "bg-orange-50",   dot: "bg-orange-500"  },
-  { estado: "en_negociacion",  label: "En negociación",   color: "border-violet-300",  bg: "bg-violet-50",   dot: "bg-violet-500"  },
-  { estado: "cerrado_ganado",  label: "Ganado",           color: "border-emerald-300", bg: "bg-emerald-50",  dot: "bg-emerald-500" },
+  { estado: "nuevo",            label: "Nuevo",           color: "border-slate-300",   bg: "bg-slate-50",    dot: "bg-slate-400"   },
+  { estado: "segmentado",       label: "Segmentado",      color: "border-sky-300",     bg: "bg-sky-50",      dot: "bg-sky-500"     },
+  { estado: "mensaje_generado", label: "Msg. listo",      color: "border-cyan-300",    bg: "bg-cyan-50",     dot: "bg-cyan-500"    },
+  { estado: "mensaje_enviado",  label: "Contactado",      color: "border-blue-300",    bg: "bg-blue-50",     dot: "bg-blue-500"    },
+  { estado: "respondio",        label: "Respondió",       color: "border-amber-300",   bg: "bg-amber-50",    dot: "bg-amber-500"   },
+  { estado: "cita_agendada",    label: "Cita agendada",   color: "border-orange-300",  bg: "bg-orange-50",   dot: "bg-orange-500"  },
+  { estado: "en_negociacion",   label: "En negociación",  color: "border-violet-300",  bg: "bg-violet-50",   dot: "bg-violet-500"  },
+  { estado: "cerrado_ganado",   label: "Ganado",          color: "border-emerald-300", bg: "bg-emerald-50",  dot: "bg-emerald-500" },
 ];
 
 const ESTADOS_CERRADOS: Estado[] = ["cerrado_ganado", "cerrado_perdido"];
@@ -118,6 +121,21 @@ function infoProximaAccion(
   const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
   const diaSemana = dias[new Date(fecha).getDay()];
   return { texto: `${diaSemana} · ${accionCorta}`, clase: "text-slate-400" };
+}
+
+function mensajePipelineWA(lead: Lead): string {
+  switch (lead.estado) {
+    case "mensaje_enviado":
+      return `Hola ${lead.nombre}, ¿has podido ver mi mensaje anterior? Quedo a tu disposición.`;
+    case "respondio":
+      return `Hola ${lead.nombre}, ¿has podido pensar en lo que hablamos?`;
+    case "cita_agendada":
+      return `Hola ${lead.nombre}, te recuerdo que tenemos cita próximamente. ¿Confirmas?`;
+    case "en_negociacion":
+      return `Hola ${lead.nombre}, ¿has podido considerar la propuesta?`;
+    default:
+      return `Hola ${lead.nombre}, soy de Nationale-Nederlanden. ¿Tienes un momento para hablar?`;
+  }
 }
 
 /** Color de fondo según nivel de interés */
@@ -459,10 +477,12 @@ function TarjetaLead({
   // Próxima acción
   const accionInfo = infoProximaAccion(lead.proxima_accion, lead.proxima_accion_fecha);
 
-  // WhatsApp URL
-  const waUrl = lead.telefono_whatsapp
-    ? `https://wa.me/${lead.telefono_whatsapp.replace(/\D/g, "")}`
+  // WhatsApp URL con mensaje pre-relleno
+  const telLimpio = lead.telefono_whatsapp ? lead.telefono_whatsapp.replace(/\D/g, "") : null;
+  const waUrl = telLimpio
+    ? `https://wa.me/${telLimpio}?text=${encodeURIComponent(mensajePipelineWA(lead))}`
     : null;
+  const telUrl = telLimpio ? `tel:+${telLimpio.replace(/^\+/, "")}` : null;
 
   // Nivel interés color
   const interesColor = colorInteres(lead.nivel_interes);
@@ -547,13 +567,26 @@ function TarjetaLead({
         <div className="flex items-center gap-1 mt-2.5 pt-2 border-t border-slate-100">
           <span className="text-[10px] text-slate-300 mr-auto">{diasDesdeLabel(lead.updated_at)}</span>
 
+          {telUrl && (
+            <a
+              href={telUrl}
+              onClick={e => e.stopPropagation()}
+              title={`Llamar: ${lead.telefono_whatsapp}`}
+              className="flex items-center gap-1 bg-blue-100 hover:bg-blue-200 text-blue-700 text-[11px] font-semibold px-2 py-1 rounded-lg transition-colors"
+            >
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8a19.79 19.79 0 01-3.07-8.67A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/>
+              </svg>
+              Tel
+            </a>
+          )}
           {waUrl && (
             <a
               href={waUrl}
               target="_blank"
               rel="noopener noreferrer"
               onClick={e => e.stopPropagation()}
-              title="Abrir WhatsApp"
+              title="Abrir WhatsApp con mensaje"
               className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-white text-[11px] font-semibold px-2 py-1 rounded-lg transition-colors"
             >
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor">
