@@ -1616,30 +1616,44 @@ export default function LeadDetailPage() {
               {mostrarEnvio && (
                 <div className="p-4 space-y-3">
 
-                  {/* Selector de producto */}
-                  {lead.productos_recomendados && lead.productos_recomendados.length > 0 && (
-                    <div>
-                      <p className="text-xs text-slate-400 mb-1.5 font-medium">Plantilla por producto</p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {lead.productos_recomendados.map((p) => (
+                  {/* Selector de producto — todos los productos disponibles */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-xs text-slate-400 font-medium">Plantilla por producto</p>
+                      {lead.productos_recomendados && lead.productos_recomendados.length > 0 && (
+                        <p className="text-xs text-slate-300">
+                          <span style={{ color: "#ea650d" }}>★</span> Principal &nbsp;
+                          <span style={{ color: "#ea650d" }}>·</span> Recomendado IA
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {Object.entries(PRODUCTOS_NOMBRE).map(([key, nombre]) => {
+                        const esRecomendado = lead.productos_recomendados?.includes(key);
+                        const esPrincipal = key === lead.producto_interes_principal;
+                        const esActivo = productoActivoMsg === key;
+                        return (
                           <button
-                            key={p}
+                            key={key}
                             onClick={() => {
-                              const msg = templateProducto(p, lead.nombre || "", lead.empresa || "", lead.ciudad || "", lead.tipo_lead || "");
+                              const msg = templateProducto(key, lead.nombre || "", lead.empresa || "", lead.ciudad || "", lead.tipo_lead || "");
                               setMensajeWhatsapp(msg);
-                              setProductoActivoMsg(p);
+                              setProductoActivoMsg(key);
                             }}
                             className="px-2.5 py-1 text-xs font-medium rounded-lg border transition-all"
-                            style={productoActivoMsg === p
+                            style={esActivo
                               ? { background: "#ea650d", color: "#fff", borderColor: "#ea650d" }
-                              : { background: "#fff5f0", color: "#ea650d", borderColor: "#f5a677" }}
+                              : esRecomendado
+                              ? { background: "#fff5f0", color: "#ea650d", borderColor: "#f5a677" }
+                              : { background: "#f8fafc", color: "#64748b", borderColor: "#e2e8f0" }}
+                            title={esPrincipal ? "Producto principal recomendado" : esRecomendado ? "Recomendado por IA" : ""}
                           >
-                            {PRODUCTOS_NOMBRE[p] ?? p}
+                            {esPrincipal ? "★ " : esRecomendado ? "· " : ""}{nombre}
                           </button>
-                        ))}
-                      </div>
+                        );
+                      })}
                     </div>
-                  )}
+                  </div>
 
                   <div className="flex gap-2 flex-wrap">
                     {[
