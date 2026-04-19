@@ -8,6 +8,7 @@ import type { LeadDashboard } from "@/lib/supabase";
 import { LeadRow } from "@/components/LeadRow";
 import { FiltrosBar, type EstadoFiltro } from "@/components/FiltrosBar";
 import { usePermisos } from "@/components/PermisosProvider";
+import { ImportarLeadsModal } from "@/components/ImportarLeadsModal";
 
 const PAGE_SIZE = 50;
 
@@ -44,6 +45,7 @@ function LeadsContent() {
   const [ordenar,      setOrdenar     ] = useState(searchParams.get("ordenar") ?? "reciente");
   const [sinActividad, setSinActividad] = useState(searchParams.get("inactivos") ?? "");
   const [soloSinAsignar, setSoloSinAsignar] = useState(false);
+  const [mostrarImport, setMostrarImport] = useState(false);
 
   // ── Comercial del usuario logueado ────────────────────────────────────────
   const [comercialId, setComercialId] = useState<string | null>(null);
@@ -330,6 +332,15 @@ function LeadsContent() {
               ↓ CSV
             </button>
           )}
+          {!cargandoPermisos && puede("asignar_leads") && (
+            <button
+              onClick={() => setMostrarImport(true)}
+              className="text-sm text-slate-500 hover:text-slate-800 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+              title="Importar leads desde CSV"
+            >
+              ↑ Importar
+            </button>
+          )}
           <button
             onClick={() => cargarLeads(0)}
             className="text-sm text-slate-500 hover:text-slate-800 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
@@ -523,6 +534,14 @@ function LeadsContent() {
             </div>
           )}
         </div>
+      )}
+      {/* Import modal */}
+      {mostrarImport && (
+        <ImportarLeadsModal
+          onClose={() => setMostrarImport(false)}
+          onImportado={() => cargarLeads(0)}
+          comercialId={comercialId}
+        />
       )}
       {/* Bulk action bar */}
       {seleccionados.size > 0 && !cargandoPermisos && puede("asignar_leads") && (
