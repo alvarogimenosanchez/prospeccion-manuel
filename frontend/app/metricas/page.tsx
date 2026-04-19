@@ -58,6 +58,28 @@ type Periodo = "semana" | "mes" | "total";
 
 const FUENTES = ["scraping", "linkedin", "inbound", "referido", "base_existente", "manual"];
 
+const PRODUCTOS = [
+  { key: "contigo_autonomo", label: "Contigo Autónomo" },
+  { key: "contigo_pyme",     label: "Contigo Pyme"     },
+  { key: "contigo_familia",  label: "Contigo Familia"  },
+  { key: "contigo_futuro",   label: "Contigo Futuro"   },
+  { key: "contigo_senior",   label: "Contigo Senior"   },
+  { key: "sialp",            label: "SIALP"            },
+  { key: "liderplus",        label: "LiderPlus"        },
+  { key: "sanitas_salud",    label: "Sanitas Salud"    },
+  { key: "mihogar",          label: "MiHogar"          },
+  { key: "hipotecas",        label: "Hipotecas"        },
+];
+
+type StatsFilaProducto = {
+  producto: string;
+  label: string;
+  total: number;
+  respondieron: number;
+  cerrados: number;
+  tasaConversion: number;
+};
+
 const SECTORES = [
   "Inmobiliaria",
   "Hostelería",
@@ -105,6 +127,7 @@ export default function MetricasPage() {
   const [funnel, setFunnel] = useState<FunnelStep[]>([]);
   const [statsFuente, setStatsFuente] = useState<StatsFilaFuente[]>([]);
   const [statsSector, setStatsSector] = useState<StatsFilaSector[]>([]);
+  const [statsProducto, setStatsProducto] = useState<StatsFilaProducto[]>([]);
   const [seguimiento, setSeguimiento] = useState<SeguimientoCounts>({
     recordatorio1: 0,
     recordatorio2: 0,
@@ -160,6 +183,7 @@ export default function MetricasPage() {
         cargarDiasHastaCierre(fechaInicio, comercialId),
         cargarStatsCiudad(fechaInicio, comercialId),
         cargarLeadsSinTocar(comercialId),
+        cargarStatsProducto(fechaInicio, comercialId),
       ]);
       setLoading(false);
     }
@@ -398,6 +422,29 @@ export default function MetricasPage() {
       recordatorio2: r2 ?? 0,
       abandonados: ab ?? 0,
     });
+  }
+
+  // ── Stats por producto ───────────────────────────────────────────────────────
+
+  async function cargarStatsProducto(fechaInicio: string | null, cid: string) {
+    const rows: StatsFilaProducto[] = [];
+    for (const { key, label } of PRODUCTOS) {
+      const makeQ = () => {
+        let q = supabase.from("leads").select("*", { count: "exact", head: true }).eq("producto_interes_principal", key);
+        if (fechaInicio) q = q.gte("fecha_captacion", fechaInicio);
+        if (cid !== "todos") q = q.eq("comercial_asignado", cid);
+        return q;
+      };
+      const [{ count: total }, { count: respondieron }, { count: cerrados }] = await Promise.all([
+        makeQ(),
+        makeQ().in("estado", ["respondio", "cita_agendada", "en_negociacion", "cerrado_ganado"]),
+        makeQ().eq("estado", "cerrado_ganado"),
+      ]);
+      const t = total ?? 0;
+      if (t === 0) continue;
+      rows.push({ producto: key, label, total: t, respondieron: respondieron ?? 0, cerrados: cerrados ?? 0, tasaConversion: t > 0 ? Math.round(((cerrados ?? 0) / t) * 100) : 0 });
+    }
+    setStatsProducto(rows.sort((a, b) => b.total - a.total));
   }
 
   // ── Días promedio hasta cierre ────────────────────────────────────────────────
@@ -804,6 +851,40 @@ export default function MetricasPage() {
                           <td className="px-4 py-3 text-right"><TasaBadge valor={row.tasaConversion} /></td>
                         </tr>
                       ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {/* ── Sección 3c: Stats por producto ───────────────────────────────────── */}
+          {statsProducto.length > 0 && (
+            <section>
+              <h2 className="text-base font-semibold text-slate-800 mb-1">Conversión por producto</h2>
+              <p className="text-xs text-slate-400 mb-4">Basado en el producto de interés principal del lead</p>
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                      <th className="px-4 py-3 text-left">Producto</th>
+                      <th className="px-4 py-3 text-right">Leads</th>
+                      <th className="px-4 py-3 text-right">Respondieron</th>
+                      <th className="px-4 py-3 text-right">Cierres</th>
+                      <th className="px-4 py-3 text-right">T. conversión</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {statsProducto.map(row => (
+                      <tr key={row.producto} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 font-medium text-slate-700">{row.label}</td>
+                        <td className="px-4 py-3 text-right text-slate-600">{row.total}</td>
+                        <td className="px-4 py-3 text-right text-slate-600">{row.respondieron}</td>
+                        <td className="px-4 py-3 text-right font-semibold text-emerald-700">
+                          {row.cerrados > 0 ? row.cerrados : <span className="text-slate-300 font-normal">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right"><TasaBadge valor={row.tasaConversion} /></td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
