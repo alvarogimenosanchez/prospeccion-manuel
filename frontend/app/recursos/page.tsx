@@ -71,6 +71,9 @@ export default function RecursosPage() {
   // Copy feedback
   const [copiado, setCopiado] = useState<string | null>(null);
 
+  // Expand modal
+  const [expandido, setExpandido] = useState<Recurso | null>(null);
+
   // ── Load comercial ──────────────────────────────────────────────────────
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -92,6 +95,7 @@ export default function RecursosPage() {
     const { data } = await supabase
       .from("recursos_rapidos")
       .select("*")
+      .neq("tipo", "cuestionario_config")
       .order("categoria", { ascending: true })
       .order("orden", { ascending: true })
       .order("titulo", { ascending: true });
@@ -488,6 +492,24 @@ export default function RecursosPage() {
                           </p>
                         </div>
 
+                        {/* Expand if long */}
+                        {r.contenido.length > 180 && (
+                          <button
+                            onClick={() => setExpandido(r)}
+                            style={{
+                              fontSize: 11,
+                              color: "#ea650d",
+                              background: "transparent",
+                              border: "none",
+                              cursor: "pointer",
+                              padding: "0",
+                              textAlign: "left",
+                            }}
+                          >
+                            Ver texto completo →
+                          </button>
+                        )}
+
                         {/* Action button */}
                         {r.tipo === "link" ? (
                           <button
@@ -569,6 +591,60 @@ export default function RecursosPage() {
                 </div>
               </div>
             ))}
+        </div>
+      )}
+
+      {/* ── Modal: ver contenido completo ──────────────────────────────────── */}
+      {expandido && (
+        <div
+          style={{
+            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 16, background: "rgba(0,0,0,0.45)", zIndex: 9999,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setExpandido(null); }}
+        >
+          <div style={{
+            background: "#fff", borderRadius: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.15)",
+            padding: 24, width: "100%", maxWidth: 600, maxHeight: "85vh", overflowY: "auto",
+          }}>
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div>
+                <h2 className="text-base font-semibold" style={{ color: "#414141" }}>{expandido.titulo}</h2>
+                {expandido.descripcion && (
+                  <p className="text-xs mt-0.5" style={{ color: "#a09890" }}>{expandido.descripcion}</p>
+                )}
+              </div>
+              <button onClick={() => setExpandido(null)} style={{ color: "#a09890", background: "transparent", border: "none", cursor: "pointer", fontSize: 20, lineHeight: 1 }}>×</button>
+            </div>
+            <div style={{
+              background: "#f5f0ec", borderRadius: 6, padding: "14px 16px",
+              fontSize: 13, color: "#414141", lineHeight: "20px", whiteSpace: "pre-wrap",
+            }}>
+              {expandido.contenido}
+            </div>
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => { copiar(expandido); }}
+                style={{
+                  flex: 1, padding: "9px", background: copiado === expandido.id ? "#16a34a" : "#ea650d",
+                  color: "#fff", border: "none", borderRadius: 6, fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", transition: "background 0.15s",
+                }}
+              >
+                {copiado === expandido.id ? "¡Copiado!" : "Copiar al portapapeles"}
+              </button>
+              <button
+                onClick={() => setExpandido(null)}
+                style={{
+                  padding: "9px 18px", background: "transparent", border: "1px solid #e5ded9",
+                  borderRadius: 6, fontSize: 13, color: "#6b6560", cursor: "pointer",
+                }}
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
