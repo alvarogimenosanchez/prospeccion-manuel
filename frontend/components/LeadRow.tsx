@@ -139,6 +139,25 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
     await supabase.from("leads").update({ comercial_asignado: nuevoId || null, updated_at: new Date().toISOString() }).eq("id", lead.id);
     setComercialAsignado(nuevoId || null);
     setComercialNombreActual(com?.nombre ?? null);
+    // Notificar al nuevo comercial vía mensajes internos
+    if (nuevoId && com) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.email) {
+        const { data: yo } = await supabase.from("comerciales").select("id").eq("email", user.email).single();
+        if (yo) {
+          const nombreLead = [lead.nombre, lead.apellidos].filter(Boolean).join(" ") || "Un lead";
+          await supabase.from("mensajes_internos").insert({
+            de_comercial_id: yo.id,
+            para_comercial_id: nuevoId,
+            mensaje: `📋 Se te ha asignado el lead "${nombreLead}"${lead.empresa ? ` (${lead.empresa})` : ""}`,
+            tipo: "nota_lead",
+            adjunto_lead_id: lead.id,
+            leido_por: [],
+            reactions: {},
+          });
+        }
+      }
+    }
     setAsignando(false);
   }
 
