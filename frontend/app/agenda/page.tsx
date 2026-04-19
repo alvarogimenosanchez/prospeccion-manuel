@@ -190,6 +190,7 @@ export default function AgendaPage() {
   const [nuevaCitaLeadSel, setNuevaCitaLeadSel] = useState<{ id: string; nombre: string; apellidos: string | null; empresa: string | null } | null>(null);
   const [nuevaCitaFecha, setNuevaCitaFecha] = useState("");
   const [nuevaCitaTipo, setNuevaCitaTipo] = useState<"llamada" | "videollamada" | "reunion_presencial">("llamada");
+  const [nuevaCitaDuracion, setNuevaCitaDuracion] = useState(30);
   const [nuevaCitaNotas, setNuevaCitaNotas] = useState("");
   const [nuevaCitaComercial, setNuevaCitaComercial] = useState("");
   const [guardandoNuevaCita, setGuardandoNuevaCita] = useState(false);
@@ -303,7 +304,7 @@ export default function AgendaPage() {
       tipo: nuevaCitaTipo,
       estado: "confirmada",
       fecha_hora: new Date(nuevaCitaFecha).toISOString(),
-      duracion_minutos: 30,
+      duracion_minutos: nuevaCitaDuracion,
       notas_previas: nuevaCitaNotas || null,
       comercial_id: nuevaCitaComercial || null,
     }).select(`*, lead:leads(nombre, apellidos, empresa, telefono_whatsapp, temperatura), comercial:comerciales(nombre, apellidos)`).single();
@@ -319,7 +320,7 @@ export default function AgendaPage() {
     }
     setModalNuevaCita(false);
     setNuevaCitaLeadQuery(""); setNuevaCitaLeadSel(null); setNuevaCitaFecha("");
-    setNuevaCitaNotas(""); setNuevaCitaComercial(""); setNuevaCitaTipo("llamada");
+    setNuevaCitaNotas(""); setNuevaCitaComercial(""); setNuevaCitaTipo("llamada"); setNuevaCitaDuracion(30);
     setGuardandoNuevaCita(false);
   }
 
@@ -390,6 +391,19 @@ export default function AgendaPage() {
                       className="flex-1 text-xs py-2 rounded-lg border font-medium transition-all"
                       style={nuevaCitaTipo === t ? { background: "#ea650d", color: "#fff", borderColor: "#ea650d" } : { background: "#fff", color: "#6b7280", borderColor: "#e5e7eb" }}>
                       {t === "llamada" ? "📞 Llamada" : t === "videollamada" ? "💻 Video" : "🤝 Presencial"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Duración */}
+              <div>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Duración</label>
+                <div className="flex gap-2">
+                  {[15, 30, 45, 60, 90].map(min => (
+                    <button key={min} onClick={() => setNuevaCitaDuracion(min)}
+                      className="flex-1 text-xs py-2 rounded-lg border font-medium transition-all"
+                      style={nuevaCitaDuracion === min ? { background: "#ea650d", color: "#fff", borderColor: "#ea650d" } : { background: "#fff", color: "#6b7280", borderColor: "#e5e7eb" }}>
+                      {min}m
                     </button>
                   ))}
                 </div>
@@ -740,6 +754,13 @@ function TarjetaCitaCompacta({ cita, onActualizar }: { cita: CitaConLead; onActu
   );
 }
 
+function mensajeConfirmacion(cita: CitaConLead): string {
+  const nombre = cita.lead?.nombre || "te";
+  const tipo = cita.tipo === "llamada" ? "llamada" : cita.tipo === "videollamada" ? "videollamada" : "reunión presencial";
+  const fecha = format(parseISO(cita.fecha_hora), "EEEE d 'de' MMMM 'a las' HH:mm", { locale: es });
+  return `Hola ${nombre}, te confirmo nuestra ${tipo} el ${fecha}. ¿Te viene bien? 😊`;
+}
+
 function TarjetaCitaCompleta({ cita, onActualizar }: { cita: CitaConLead; onActualizar: (id: string, estado: string) => void }) {
   const nombre = [cita.lead?.nombre, cita.lead?.apellidos].filter(Boolean).join(" ") || "Lead";
   const esPasada = new Date(cita.fecha_hora) < new Date();
@@ -778,12 +799,12 @@ function TarjetaCitaCompleta({ cita, onActualizar }: { cita: CitaConLead; onActu
         <div className="flex items-center gap-3 mt-2">
           {cita.lead?.telefono_whatsapp && (
             <a
-              href={`https://wa.me/${cita.lead.telefono_whatsapp.replace("+", "")}`}
+              href={`https://wa.me/${cita.lead.telefono_whatsapp.replace("+", "")}?text=${encodeURIComponent(mensajeConfirmacion(cita))}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs text-green-600 hover:text-green-800 font-medium"
             >
-              WhatsApp
+              💬 Confirmar por WA
             </a>
           )}
           {!esPasada && cita.estado === "pendiente" && (
