@@ -135,6 +135,7 @@ function badgeAccion(tipo: string | null) {
 
 export default function HoyPage() {
   const [comercialId,  setComercialId ] = useState<string | null>(null);
+  const [comercialNombre, setComercialNombre] = useState("Manuel");
   const [comercialCargado, setComercialCargado] = useState(false);
 
   const [seccionesData, setSeccionesData] = useState<SeccionesData>({
@@ -157,10 +158,11 @@ export default function HoyPage() {
       if (!email) { setComercialCargado(true); return; }
       const { data } = await supabase
         .from("comerciales")
-        .select("id")
+        .select("id, nombre")
         .eq("email", email)
         .single();
       setComercialId(data?.id ?? null);
+      if (data?.nombre) setComercialNombre(data.nombre);
       setComercialCargado(true);
     }
     obtenerComercial();
@@ -426,7 +428,7 @@ export default function HoyPage() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl font-bold text-slate-900">
-                {emojiSaludo} {saludo}, Manuel
+                {emojiSaludo} {saludo}, {comercialNombre}
               </h1>
               {totalTareas > 0 ? (
                 <p className="mt-0.5 text-sm text-slate-500">

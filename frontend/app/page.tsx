@@ -57,6 +57,16 @@ export default function DashboardPage() {
   const [citasHoy, setCitasHoy] = useState<CitaHoy[]>([]);
   const [cuestionariosSemana, setCuestionariosSemana] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [nombreUsuario, setNombreUsuario] = useState("Manuel");
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user?.email) {
+        supabase.from("comerciales").select("nombre").eq("email", data.user.email).single()
+          .then(({ data: c }) => { if (c?.nombre) setNombreUsuario(c.nombre); });
+      }
+    });
+  }, []);
 
   useEffect(() => {
     async function cargar() {
@@ -153,7 +163,7 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">{saludo}, Manuel</h1>
+          <h1 className="text-2xl font-bold text-slate-900">{saludo}, {nombreUsuario}</h1>
           <p className="text-sm text-slate-500 mt-0.5">{fechaCap}</p>
         </div>
         <Link href="/hoy" className="flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-xl border transition-all"
@@ -340,12 +350,12 @@ export default function DashboardPage() {
               <span className="text-sm text-slate-600">Activos</span>
               <span className="text-sm font-bold text-emerald-700">{stats!.clientes_activos}</span>
             </div>
-            <div className="flex items-center justify-between">
+            <Link href="/clientes?filtro=renovacion_proxima" className="flex items-center justify-between hover:opacity-80 transition-opacity">
               <span className="text-sm text-slate-600">Renuevan en 30d</span>
               <span className={`text-sm font-bold ${stats!.renovaciones_30d > 0 ? "text-amber-600" : "text-slate-400"}`}>
                 {stats!.renovaciones_30d}
               </span>
-            </div>
+            </Link>
           </div>
         </div>
 
