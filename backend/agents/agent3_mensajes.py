@@ -33,32 +33,26 @@ claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 # ============================================================
 
 PRODUCTOS_MANUEL = """
-Manuel es asesor financiero, asegurador y patrimonial. Sus productos:
+Manuel es asesor financiero y de seguros de Nationale-Nederlanden España.
 
-1. CONTIGO PYME / AUTÓNOMOS — Seguro multirriesgo para negocios y autónomos.
-   Cubre: responsabilidad civil, accidentes del propietario, daños en el local.
-   Ideal para: cualquier autónomo o empresa pequeña. Desde ~30€/mes.
+PRODUCTOS CLAVE:
+- Contigo Autónomo: cubre baja laboral desde el 1er día, entre 10-200€/día, desde ~5€/mes.
+  El más relevante para cualquier autónomo. Si no trabajan, no cobran → esto lo soluciona.
+- Contigo Pyme: seguro colectivo vida+accidente para toda la plantilla, sin reconocimiento médico.
+  Es gasto deducible y beneficio laboral muy valorado. Para empresas con empleados.
+- Contigo Familia: protección de vida (fallecimiento, invalidez, enfermedades graves). Cubre hipoteca.
+- Contigo Futuro / SIALP: ahorro fiscal para jubilación. SIALP: hasta 5.000€/año libres de tributar.
+- LiderPlus: protección integral para directivos (vida, invalidez, accidente mundial).
+- Sanitas Salud: acceso a +40.000 especialistas sin listas de espera. Deducible en empresa.
+- MiHogar: seguro de hogar con responsabilidad civil y asistencia 24h.
+- Hipotecas (derivación): acuerdo con inmobiliarias → comisión por cada cliente hipotecario.
 
-2. SANITAS SALUD — Seguro médico privado individual, familiar o colectivo para empresas.
-   Ideal para: autónomos sin buena cobertura pública, familias, empresas para empleados.
-
-3. CONTIGO FAMILIA / LIDERPLUS — Seguro de vida y protección familiar.
-   Cubre: fallecimiento, invalidez, enfermedad grave.
-   Ideal para: cabezas de familia, personas con hipoteca, autónomos.
-
-4. SIALP / CONTIGO FUTURO / PGI — Ahorro e inversión con ventajas fiscales.
-   Ideal para: empleados con nómina estable, autónomos con ingresos regulares, 30-55 años.
-
-5. MIHOGAR / CASER — Seguro de hogar y vehículo.
-   Ideal para: propietarios de vivienda, conductores.
-
-6. HIPOTECAS ING / ABANCA — Intermediación hipotecaria.
-   Ideal para: personas comprando primera vivienda, cambio hipoteca.
-   ESPECIALMENTE VALIOSO para inmobiliarias: acuerdo de derivación = comisión por cada cliente.
-
-INMOBILIARIAS son el lead más valioso: en un solo contacto se puede hablar de hipotecas
-(acuerdo de derivación), seguro de hogar para nuevos compradores, seguro de vida,
-y Contigo Pyme para la propia agencia.
+ENFOQUES POR SECTOR:
+- Hostelería/talleres/peluquerías (autónomos): Contigo Autónomo — si paran, pierden todo.
+- Inmobiliarias: acuerdo de derivación hipotecaria (comisión pasiva) + Contigo Pyme para la agencia.
+- Asesorías/gestorías: prescriptores de Contigo Autónomo para sus clientes. Valor añadido.
+- Clínicas/salud: si el médico no trabaja, la clínica para → Contigo Autónomo urgente.
+- Pymes con plantilla: Contigo Pyme — beneficio laboral y gasto deducible.
 """
 
 URL_CUESTIONARIO = os.environ.get("CUESTIONARIO_URL", "https://manuelasesora.es/captacion")
@@ -153,8 +147,8 @@ def generar_mensaje_whatsapp(lead: dict) -> str:
 
     try:
         response = claude.messages.create(
-            model="claude-haiku-4-5",
-            max_tokens=200,
+            model="claude-haiku-4-5-20251001",
+            max_tokens=280,
             system=_SYSTEM_CACHED,
             messages=[{"role": "user", "content": user_prompt}],
         )
