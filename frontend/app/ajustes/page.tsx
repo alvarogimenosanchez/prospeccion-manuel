@@ -43,6 +43,90 @@ function aplicarVariables(texto: string): string {
   return resultado;
 }
 
+// ── Plantillas profesionales predefinidas ─────────────────────────────────────
+const PLANTILLAS_PREDEFINIDAS = [
+  {
+    titulo: "Hostelería — Primer contacto",
+    descripcion: "Autónomos de bar, restaurante o cafetería. Producto: Contigo Autónomo.",
+    categoria: "Primer contacto",
+    contenido: `Hola {{nombre}}! Vi que tienes {{empresa}} en {{ciudad}} y quería comentarte algo.
+
+¿Sabes que si un día te encuentras mal y no puedes abrir, dejarías de ingresar ese día? Tengo un seguro desde 5€/mes que te cubre desde el primer día de baja, incluidos accidentes.
+
+¿Tienes 5 minutos para que te lo cuente?`,
+  },
+  {
+    titulo: "Taller / Peluquería — Primer contacto",
+    descripcion: "Autónomos con trabajo manual. Riesgo de accidente alto. Precio muy competitivo.",
+    categoria: "Primer contacto",
+    contenido: `Hola {{nombre}}, soy Manuel de Nationale-Nederlanden.
+
+Vi que tienes {{empresa}} en {{ciudad}}. Como autónomo con trabajo físico, si un día te lesionas y no puedes trabajar, no hay ingresos. Tenemos un seguro que cubre eso desde 4€/mes, desde el primer día.
+
+¿Tienes un momento para que te lo explique?`,
+  },
+  {
+    titulo: "Clínica / Salud — Primer contacto",
+    descripcion: "Propietarios de clínica o consulta médica. Si el titular no trabaja, la consulta para.",
+    categoria: "Primer contacto",
+    contenido: `Hola {{nombre}}, vi que tenéis {{empresa}} en {{ciudad}} y quería compartiros algo.
+
+Como propietario de una clínica, si el médico titular cae de baja un día, la consulta para. Tenemos seguros específicos para proteger esos ingresos desde el primer día.
+
+¿Tienes 5 minutos para que te lo explique?`,
+  },
+  {
+    titulo: "Asesoría / Gestoría — Colaboración",
+    descripcion: "Prescriptores. Ofrecerles Contigo Autónomo para su cartera de clientes autónomos.",
+    categoria: "Colaboración",
+    contenido: `Hola {{nombre}}, soy Manuel de Nationale-Nederlanden.
+
+Muchos de vuestros clientes autónomos no saben que si se ponen enfermos y no pueden trabajar, no cobran nada. Tenemos un seguro desde 5€/mes que cubre eso.
+
+¿Os interesaría ofrecerlo como valor añadido a vuestra cartera? Hablaríamos de una comisión por cada cliente. Sin compromiso.`,
+  },
+  {
+    titulo: "Inmobiliaria — Hipotecas y colaboración",
+    descripcion: "Canal de derivación. Comisión por cada cliente que necesite hipoteca.",
+    categoria: "Colaboración",
+    contenido: `Hola {{nombre}}, te escribo de Nationale-Nederlanden España.
+
+Trabajo con varias inmobiliarias en {{ciudad}} y les ofrecemos un acuerdo de colaboración: cuando uno de vuestros clientes necesita hipoteca, lo gestionamos nosotros y vosotros recibís una comisión por cada operación.
+
+¿Te interesaría conocer cómo funciona?`,
+  },
+  {
+    titulo: "PYME — Seguro colectivo empleados",
+    descripcion: "Empresa con plantilla. Contigo Pyme: vida+accidente para todo el equipo, gasto deducible.",
+    categoria: "Primer contacto",
+    contenido: `Hola {{nombre}}, te escribo de Nationale-Nederlanden.
+
+Tenéis equipo en {{empresa}} y quería presentaros algo que muchas empresas ya usan: seguro colectivo de vida y accidente para toda la plantilla, sin reconocimiento médico. Es gasto deducible y un beneficio muy valorado por los empleados.
+
+¿Tienes 10 minutos esta semana para que os lo presente?`,
+  },
+  {
+    titulo: "Seguimiento — Sin respuesta",
+    descripcion: "Lead que no respondió al primer mensaje. Tono suave, sin presión.",
+    categoria: "Seguimiento",
+    contenido: `Hola {{nombre}}, soy Manuel de Nationale-Nederlanden. Te escribí hace unos días, entiendo que igual no era buen momento.
+
+Si en algún momento quieres que te cuente cómo proteger tus ingresos en caso de baja o accidente, aquí estoy.
+
+¿Hay algún momento mejor para hablar?`,
+  },
+  {
+    titulo: "Seguimiento — Después de llamada",
+    descripcion: "Recordatorio post-llamada. Mantener el interés y facilitar el siguiente paso.",
+    categoria: "Seguimiento",
+    contenido: `Hola {{nombre}}, encantado de hablar contigo hace un momento.
+
+Te confirmo lo que comentamos: {{producto}} cubre exactamente lo que necesitas y el coste es muy asequible. Te preparo una propuesta personalizada sin compromiso.
+
+¿Te va bien esta semana para que te la presente?`,
+  },
+];
+
 const CONFIG_DEFAULT = `{
   "titulo": "Descubre qué producto financiero se adapta a ti",
   "subtitulo": "Responde 5 preguntas y te recomiendo exactamente lo que necesitas. Sin compromiso, gratis.",
@@ -117,6 +201,7 @@ export default function AjustesPage() {
   const [formGlobal, setFormGlobal] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [importando, setImportando] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -307,6 +392,26 @@ export default function AjustesPage() {
     );
   }
 
+  async function importarPredefinidas() {
+    if (!miComercialId) return;
+    if (!confirm(`¿Importar ${PLANTILLAS_PREDEFINIDAS.length} plantillas profesionales? Se añadirán a las existentes.`)) return;
+    setImportando(true);
+    await supabase.from("recursos_rapidos").insert(
+      PLANTILLAS_PREDEFINIDAS.map((p, i) => ({
+        titulo: p.titulo,
+        tipo: "plantilla_wa",
+        contenido: p.contenido,
+        descripcion: p.descripcion,
+        categoria: p.categoria,
+        es_global: true,
+        creado_por: miComercialId,
+        orden: plantillas.length + i + 1,
+      }))
+    );
+    await cargarPlantillas(miComercialId);
+    setImportando(false);
+  }
+
   async function copiarTexto(texto: string) {
     await navigator.clipboard.writeText(texto);
   }
@@ -392,15 +497,30 @@ export default function AjustesPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={abrirNueva}
-            className="btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-            Nueva plantilla
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={importarPredefinidas}
+              disabled={importando}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50"
+              style={{ borderColor: "#e5ded9", color: "#6b6560", background: "#faf8f6" }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "#ea650d"; e.currentTarget.style.color = "#ea650d"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "#e5ded9"; e.currentTarget.style.color = "#6b6560"; }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+              </svg>
+              {importando ? "Importando..." : "Importar predefinidas"}
+            </button>
+            <button
+              onClick={abrirNueva}
+              className="btn-primary flex items-center gap-1.5 px-3 py-1.5 text-xs"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              Nueva plantilla
+            </button>
+          </div>
         </div>
 
         {/* Variable guide */}
@@ -441,29 +561,28 @@ export default function AjustesPage() {
           </div>
         ) : plantillas.length === 0 ? (
           <div className="py-12 flex flex-col items-center gap-3">
-            <div
-              style={{
-                width: 48,
-                height: 48,
-                borderRadius: "50%",
-                background: "#f5f0ec",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 22,
-              }}
-            >
+            <div style={{ width: 48, height: 48, borderRadius: "50%", background: "#f5f0ec", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>
               💬
             </div>
-            <p className="text-sm font-medium" style={{ color: "#414141" }}>
-              Sin plantillas todavía
+            <p className="text-sm font-medium" style={{ color: "#414141" }}>Sin plantillas todavía</p>
+            <p className="text-xs text-center max-w-xs" style={{ color: "#a09890" }}>
+              Importa las plantillas profesionales ya escritas para los sectores principales, o crea una desde cero.
             </p>
-            <p className="text-xs" style={{ color: "#a09890" }}>
-              Crea tu primera plantilla para usarla al enviar WhatsApp a leads
-            </p>
-            <button onClick={abrirNueva} className="btn-primary px-4 py-2 text-sm mt-1">
-              Crear primera plantilla
-            </button>
+            <div className="flex items-center gap-2 mt-1">
+              <button
+                onClick={importarPredefinidas}
+                disabled={importando}
+                className="btn-primary px-4 py-2 text-sm flex items-center gap-1.5 disabled:opacity-50"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                </svg>
+                {importando ? "Importando..." : `Importar ${PLANTILLAS_PREDEFINIDAS.length} plantillas profesionales`}
+              </button>
+              <button onClick={abrirNueva} className="btn-secondary px-4 py-2 text-sm">
+                Crear desde cero
+              </button>
+            </div>
           </div>
         ) : (
           <div>
