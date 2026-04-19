@@ -124,17 +124,30 @@ function infoProximaAccion(
 }
 
 function mensajePipelineWA(lead: Lead): string {
+  const n = lead.nombre;
+  const sec = (lead.sector || "").toLowerCase();
+  const ciu = lead.ciudad || "tu zona";
+  const esInmob = sec.includes("inmobil");
+  const esAsesoria = sec.includes("asesor") || sec.includes("gestor") || sec.includes("contab");
+
   switch (lead.estado) {
+    case "nuevo":
+    case "segmentado":
+      if (esInmob)
+        return `Hola ${n}, soy Manuel de Nationale-Nederlanden en ${ciu}. Trabajo con inmobiliarias en acuerdos de derivación hipotecaria — comisión por cada cliente que necesita hipoteca. ¿15 minutos esta semana?`;
+      if (esAsesoria)
+        return `Hola ${n}, soy Manuel de Nationale-Nederlanden. Muchos de vuestros clientes autónomos no tienen cubierta la baja desde el primer día. Desde 5€/mes, ¿lo vemos?`;
+      return `Hola ${n}, soy Manuel, asesor en ${ciu}. Si un día no puedes trabajar, ¿cuánto cobrarías? Tengo una solución desde ~5€/mes. ¿Tienes 5 minutos?`;
     case "mensaje_enviado":
-      return `Hola ${lead.nombre}, ¿has podido ver mi mensaje anterior? Quedo a tu disposición.`;
+      return `Hola ${n}, te escribí hace unos días sobre proteger tus ingresos. ¿Has podido verlo? Si no era buen momento, dímelo sin problema.`;
     case "respondio":
-      return `Hola ${lead.nombre}, ¿has podido pensar en lo que hablamos?`;
+      return `Hola ${n}, ¿has podido pensar en lo que hablamos? Quedo a tu disposición para prepararte una propuesta sin compromiso.`;
     case "cita_agendada":
-      return `Hola ${lead.nombre}, te recuerdo que tenemos cita próximamente. ¿Confirmas?`;
+      return `Hola ${n}, te confirmo nuestra cita próximamente. Si necesitas cambiar el horario o tienes alguna pregunta, dímelo. ¡Nos vemos pronto!`;
     case "en_negociacion":
-      return `Hola ${lead.nombre}, ¿has podido considerar la propuesta?`;
+      return `Hola ${n}, ¿has podido revisar la propuesta que te preparé? Si tienes dudas sobre coberturas o precio, estoy disponible para aclarártelas.`;
     default:
-      return `Hola ${lead.nombre}, soy de Nationale-Nederlanden. ¿Tienes un momento para hablar?`;
+      return `Hola ${n}, soy Manuel de Nationale-Nederlanden. ¿Tienes un momento para hablar?`;
   }
 }
 
