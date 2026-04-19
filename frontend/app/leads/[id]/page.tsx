@@ -255,6 +255,17 @@ export default function LeadDetailPage() {
   const prevId = currentIdx > 0 ? leadListIds[currentIdx - 1] : null;
   const nextId = currentIdx >= 0 && currentIdx < leadListIds.length - 1 ? leadListIds[currentIdx + 1] : null;
 
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "ArrowLeft" && prevId) router.push(`/leads/${prevId}`);
+      if (e.key === "ArrowRight" && nextId) router.push(`/leads/${nextId}`);
+    }
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [prevId, nextId, router]);
+
   const [lead, setLead] = useState<Lead | null>(null);
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -987,7 +998,7 @@ export default function LeadDetailPage() {
                 onClick={() => prevId && router.push(`/leads/${prevId}`)}
                 disabled={!prevId}
                 className="text-sm px-2 py-0.5 rounded border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:border-slate-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                title="Lead anterior"
+                title="Lead anterior (←)"
               >
                 ‹ Ant.
               </button>
@@ -996,7 +1007,7 @@ export default function LeadDetailPage() {
                 onClick={() => nextId && router.push(`/leads/${nextId}`)}
                 disabled={!nextId}
                 className="text-sm px-2 py-0.5 rounded border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:border-slate-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                title="Lead siguiente"
+                title="Lead siguiente (→)"
               >
                 Sig. ›
               </button>
