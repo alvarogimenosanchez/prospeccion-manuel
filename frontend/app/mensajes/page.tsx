@@ -22,6 +22,7 @@ type MensajePendiente = {
   canal: string;
   estado: string;
   editado_por_comercial: boolean;
+  campana_nombre: string | null;
   created_at: string;
   leads: Lead;
 };
@@ -63,7 +64,7 @@ export default function MensajesPage() {
     setLoading(true);
     const { data } = await supabase
       .from("mensajes_pendientes")
-      .select("*, leads(id, nombre, apellidos, empresa, sector, ciudad, telefono_whatsapp, cargo)")
+      .select("*, campana_nombre, leads(id, nombre, apellidos, empresa, sector, ciudad, telefono_whatsapp, cargo)")
       .eq("estado", "pendiente")
       .order("created_at", { ascending: true })
       .limit(50);
@@ -320,6 +321,11 @@ export default function MensajesPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {m.campana_nombre && (
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-medium max-w-32 truncate" title={m.campana_nombre}>
+                        📢 {m.campana_nombre}
+                      </span>
+                    )}
                     {lead.telefono_whatsapp ? (
                       <span className="text-xs text-green-600 font-mono bg-green-50 px-2 py-0.5 rounded">
                         {lead.telefono_whatsapp}
