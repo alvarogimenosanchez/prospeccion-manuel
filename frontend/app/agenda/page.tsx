@@ -689,9 +689,9 @@ export default function AgendaPage() {
           <div className="grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 divide-x divide-slate-100">
             {[
               { label: "Total citas", value: total, color: "text-slate-800", sub: `${citas.filter(c => c.tipo === "llamada").length} llamadas · ${citas.filter(c => c.tipo === "videollamada").length} video · ${citas.filter(c => c.tipo === "reunion_presencial").length} presencial` },
-              { label: "Tasa realización", value: `${tasaRealizacion}%`, color: tasaRealizacion >= 70 ? "text-emerald-600" : tasaRealizacion >= 50 ? "text-amber-600" : "text-red-600", sub: `${realizadas} realizadas de ${total}` },
-              { label: "No-show", value: `${tasaNoShow}%`, color: tasaNoShow === 0 ? "text-emerald-600" : tasaNoShow <= 15 ? "text-amber-600" : "text-red-600", sub: `${noShow} no asistieron · ${canceladas} canceladas` },
-              { label: "Conversión", value: `${tasaConversion}%`, color: tasaConversion >= 30 ? "text-emerald-600" : "text-slate-500", sub: `${cerradas} cierres sobre ${realizadas} realizadas` },
+              { label: "Tasa realización", value: total === 0 ? "—" : `${tasaRealizacion}%`, color: total === 0 ? "text-slate-300" : tasaRealizacion >= 70 ? "text-emerald-600" : tasaRealizacion >= 50 ? "text-amber-600" : "text-red-600", sub: `${realizadas} realizadas de ${total}` },
+              { label: "No-show", value: total === 0 ? "—" : `${tasaNoShow}%`, color: total === 0 ? "text-slate-300" : tasaNoShow === 0 ? "text-emerald-600" : tasaNoShow <= 15 ? "text-amber-600" : "text-red-600", sub: `${noShow} no asistieron · ${canceladas} canceladas` },
+              { label: "Conversión", value: realizadas === 0 ? "—" : `${tasaConversion}%`, color: realizadas === 0 ? "text-slate-300" : tasaConversion >= 30 ? "text-emerald-600" : "text-slate-500", sub: `${cerradas} cierres sobre ${realizadas} realizadas` },
             ].map(stat => (
               <div key={stat.label} className="p-4 text-center">
                 <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>

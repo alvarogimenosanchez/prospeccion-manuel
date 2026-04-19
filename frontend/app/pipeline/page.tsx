@@ -240,6 +240,16 @@ function PipelineContent() {
         </div>
       </div>
 
+      {/* Alerta columna Nuevo saturada */}
+      {!loading && leadsColumna("nuevo").length > 100 && (
+        <div className="flex items-center gap-3 rounded-xl border px-4 py-3" style={{ background: "#fffbeb", borderColor: "#fbbf24" }}>
+          <span className="text-lg">📬</span>
+          <p className="text-sm text-amber-800 flex-1">
+            <strong>{leadsColumna("nuevo").length} leads</strong> en Nuevo sin contactar — usa <a href="/mensajes" style={{ color: "#ea650d" }} className="underline">Mensajes IA</a> para procesarlos en lote
+          </p>
+        </div>
+      )}
+
       {loading ? (
         <div className="py-24 text-center text-sm text-slate-400">Cargando pipeline...</div>
       ) : (!comercialId && !verTodos) ? (

@@ -118,6 +118,7 @@ export default function MetricasPage() {
   const [soloTrabajados, setSoloTrabajados] = useState(false);
   const [leadsSinTocar, setLeadsSinTocar] = useState(0);
   const [funnelTrabajados, setFunnelTrabajados] = useState<FunnelStep[]>([]);
+  const [autoSwitched, setAutoSwitched] = useState(false);
 
   // Cargar comerciales una sola vez
   useEffect(() => {
@@ -135,7 +136,22 @@ export default function MetricasPage() {
   useEffect(() => {
     async function cargarDatos() {
       setLoading(true);
+      setAutoSwitched(false);
       const fechaInicio = inicioPeriodo(periodo);
+
+      // Detectar rápido si hay datos en el período antes de cargar todo
+      if (periodo !== "total" && fechaInicio) {
+        let qCheck = supabase.from("leads").select("*", { count: "exact", head: true }).gte("fecha_captacion", fechaInicio);
+        if (comercialId !== "todos") qCheck = qCheck.eq("comercial_asignado", comercialId);
+        const { count } = await qCheck;
+        if ((count ?? 0) === 0) {
+          setPeriodo("total");
+          setAutoSwitched(true);
+          setLoading(false);
+          return;
+        }
+      }
+
       await Promise.all([
         cargarFunnel(fechaInicio, comercialId),
         cargarStatsFuente(fechaInicio, comercialId),
@@ -466,6 +482,11 @@ export default function MetricasPage() {
           <p className="text-sm text-slate-500 mt-0.5">
             Análisis del pipeline, fuentes y seguimiento pendiente
           </p>
+          {autoSwitched && (
+            <p className="text-xs mt-1" style={{ color: "#ea650d" }}>
+              Sin leads en ese período — mostrando historial total
+            </p>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3">

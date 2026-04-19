@@ -149,6 +149,29 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* ── Banner leads nuevos sin trabajar ── */}
+      {(stats!.por_estado["nuevo"] ?? 0) > 50 && (
+        <div className="flex items-center gap-3 rounded-xl border px-4 py-3" style={{ background: "#fffbeb", borderColor: "#fbbf24" }}>
+          <span className="text-xl shrink-0">📬</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-amber-800">
+              {stats!.por_estado["nuevo"]} leads en estado "Nuevo" sin contactar
+            </p>
+            <p className="text-xs text-amber-600 mt-0.5">
+              Genera mensajes con IA para empezar a trabajarlos
+            </p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <a href="/mensajes" className="text-xs font-medium px-3 py-1.5 rounded-lg text-white" style={{ background: "#ea650d" }}>
+              Generar mensajes →
+            </a>
+            <a href="/pipeline" className="text-xs font-medium px-3 py-1.5 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50">
+              Ver pipeline
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* ── Alertas urgentes ── */}
       {(leadsUrgentes.length > 0 || accionesVencidas.length > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -203,8 +226,8 @@ export default function DashboardPage() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <StatBox label="Total activos" valor={stats!.leads_total} sub="en el sistema" href="/leads" />
-          <StatBox label="Nuevos hoy" valor={stats!.leads_nuevos_hoy} sub="captados hoy" href="/leads" color="orange" />
-          <StatBox label="Calientes" valor={stats!.leads_calientes} sub="alta intención" href="/leads?temperatura=caliente" color="red" />
+          <StatBox label="Nuevos hoy" valor={stats!.leads_nuevos_hoy} sub="captados hoy" href="/leads" color={stats!.leads_nuevos_hoy > 0 ? "orange" : undefined} />
+          <StatBox label="Calientes" valor={stats!.leads_calientes} sub="alta intención" href="/leads?temperatura=caliente" color={stats!.leads_calientes > 0 ? "red" : undefined} />
           <StatBox label="Sin atender" valor={stats!.sin_atencion} sub="+2h sin respuesta" href="/leads?temperatura=caliente" color={stats!.sin_atencion > 0 ? "red" : undefined} />
         </div>
       </div>

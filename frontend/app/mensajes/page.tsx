@@ -34,6 +34,7 @@ export default function MensajesPage() {
   const [textoEditado, setTextoEditado] = useState<Record<string, string>>({});
   const [procesando, setProcesando] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState({ pendientes: 0, aprobados: 0, enviados: 0 });
+  const [leadsElegibles, setLeadsElegibles] = useState(0);
 
   const cargarMensajes = useCallback(async () => {
     setLoading(true);
@@ -51,6 +52,13 @@ export default function MensajesPage() {
     const { count: aprobados } = await supabase.from("mensajes_pendientes").select("id", { count: "exact", head: true }).eq("estado", "aprobado");
     const { count: enviados } = await supabase.from("mensajes_pendientes").select("id", { count: "exact", head: true }).eq("estado", "enviado");
     setStats({ pendientes: pendientes ?? 0, aprobados: aprobados ?? 0, enviados: enviados ?? 0 });
+
+    // Leads que podrían recibir un mensaje (nuevos/enriquecidos/segmentados con teléfono)
+    const { count: elegibles } = await supabase.from("leads")
+      .select("id", { count: "exact", head: true })
+      .in("estado", ["nuevo", "enriquecido", "segmentado"])
+      .not("telefono_whatsapp", "is", null);
+    setLeadsElegibles(elegibles ?? 0);
 
     setLoading(false);
   }, []);
@@ -164,14 +172,27 @@ export default function MensajesPage() {
       {loading ? (
         <div className="py-16 text-center text-sm text-slate-400">Cargando mensajes...</div>
       ) : mensajes.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-xl py-16 text-center space-y-3">
+        <div className="bg-white border border-slate-200 rounded-xl py-12 text-center space-y-3 px-6">
           <p className="text-slate-500 text-sm">No hay mensajes pendientes de revisión</p>
-          <button
-            onClick={generarMensajes}
-            className="text-sm hover:underline" style={{ color: "#ea650d" }}
-          >
-            Generar mensajes para leads nuevos
-          </button>
+          {leadsElegibles > 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs text-slate-400">
+                Tienes <strong className="text-slate-700">{leadsElegibles} leads</strong> en el pipeline sin mensaje enviado
+              </p>
+              <button
+                onClick={generarMensajes}
+                disabled={generando}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-white text-sm font-medium rounded-lg disabled:opacity-50"
+                style={{ background: "#ea650d" }}
+              >
+                {generando ? "Generando..." : `✦ Generar mensajes para ${leadsElegibles} leads`}
+              </button>
+            </div>
+          ) : (
+            <button onClick={generarMensajes} className="text-sm hover:underline" style={{ color: "#ea650d" }}>
+              Generar mensajes para leads nuevos
+            </button>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
