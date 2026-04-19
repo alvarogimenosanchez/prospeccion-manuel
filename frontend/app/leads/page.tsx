@@ -250,16 +250,13 @@ function LeadsContent() {
       ) : (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           {/* Cabeceras */}
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-slate-50/50">
-            <span className="text-xs text-slate-400 font-medium">Estado · Nombre / Empresa</span>
-            <div className="hidden md:flex items-center gap-3 text-xs text-slate-400 pr-2">
-              <span className="w-28 hidden lg:block">Ciudad / Fuente</span>
-              <span className="w-28 hidden lg:block">Productos</span>
-              <span className="w-28 hidden sm:block">Interés</span>
-              <span className="w-14 text-center hidden sm:block">Prioridad</span>
-              <span className="w-36 text-right">Actividad / Acción</span>
-              <span className="w-20">—</span>
-            </div>
+          <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 bg-slate-50/50 text-xs text-slate-400 font-medium">
+            <span className="w-52 min-w-0">Estado · Nombre / Empresa</span>
+            <span className="w-28 min-w-0 hidden md:block">Ciudad / Fuente</span>
+            <span className="flex-1 min-w-0 hidden lg:block">Productos</span>
+            <span className="w-28 hidden sm:block">Interés</span>
+            <span className="w-14 text-center hidden sm:block">Prioridad</span>
+            <span className="w-36 text-right hidden md:block">Actividad / Acción</span>
           </div>
 
           {leads.map((lead) => (
