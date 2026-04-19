@@ -90,7 +90,7 @@ export default function DashboardPage() {
         supabase.from("leads").select("id", { count: "exact", head: true }).gte("fecha_captacion", inicioHoy),
         supabase.from("leads_dashboard").select("*").eq("temperatura", "caliente").gt("horas_sin_atencion", 2).order("horas_sin_atencion", { ascending: false }).limit(5),
         supabase.from("leads_dashboard").select("*").not("proxima_accion", "is", null).neq("proxima_accion", "ninguna").lt("proxima_accion_fecha", hoy.toISOString()).order("proxima_accion_fecha", { ascending: true }).limit(5),
-        supabase.from("interactions").select("id", { count: "exact", head: true }).eq("tipo", "mensaje_pendiente"),
+        supabase.from("mensajes_pendientes").select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
         supabase.from("appointments").select("id, tipo, fecha_hora, lead_id").gte("fecha_hora", inicioHoy).lt("fecha_hora", finHoy).in("estado", ["pendiente", "confirmada"]).order("fecha_hora"),
         supabase.from("appointments").select("id", { count: "exact", head: true }).gt("fecha_hora", finHoy).in("estado", ["pendiente", "confirmada"]),
         supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "activo"),
@@ -388,7 +388,7 @@ export default function DashboardPage() {
           <QuickLink href="/leads/nuevo" icon="➕" label="Nuevo lead" sub="Añadir manualmente" highlight />
           <QuickLink href="/mensajes" icon="💬" label="Mensajes" sub="WhatsApp pendientes" />
           <QuickLink href="/pipeline" icon="📊" label="Pipeline" sub="Vista Kanban" />
-          <QuickLink href="/ajustes?tab=formularios" icon="📋" label="Formularios" sub="Captación por anuncios" />
+          <QuickLink href="/ia" icon="✦" label="Asistente IA" sub="Scripts y mensajes" />
           <QuickLink href="/prospeccion" icon="📥" label="Prospectar" sub="Importar leads" />
           <QuickLink href="/ajustes" icon="⚙️" label="Ajustes" sub="Plantillas y config" />
         </div>
