@@ -49,6 +49,7 @@ const GRUPOS: Grupo[] = [
       { tecla: "/cross-sell",         descripcion: "Oportunidades de ampliación de cartera" },
       { tecla: "/calendario-equipo",  descripcion: "Vista semanal de citas del equipo" },
       { tecla: "/productos-analisis", descripcion: "Demanda y conversión por producto" },
+      { tecla: "/analisis-perdidas",  descripcion: "Por qué se pierden los leads — patrones y razones" },
       { tecla: "/automatizaciones",   descripcion: "Panel de control de agentes IA" },
       { tecla: "/ingresos",           descripcion: "Revenue y comisiones por comercial" },
       { tecla: "/perfil",             descripcion: "Tu perfil y objetivos del mes" },
