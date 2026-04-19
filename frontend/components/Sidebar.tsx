@@ -97,10 +97,11 @@ const NAV_GROUPS = [
   {
     label: "Cartera",
     items: [
-      { href: "/clientes",     label: "Clientes",     icon: "briefcase", permiso: "gestionar_clientes" },
-      { href: "/renovaciones", label: "Renovaciones", icon: "calendar",  permiso: "gestionar_clientes" },
-      { href: "/cross-sell",   label: "Cross-sell",   icon: "trending",  permiso: "gestionar_clientes" },
-      { href: "/recuperar",    label: "Recuperar",    icon: "target",    permiso: "asignar_leads" },
+      { href: "/clientes",      label: "Clientes",      icon: "briefcase", permiso: "gestionar_clientes" },
+      { href: "/renovaciones",  label: "Renovaciones",  icon: "calendar",  permiso: "gestionar_clientes" },
+      { href: "/presupuestos",  label: "Presupuestos",  icon: "clipboard", permiso: "gestionar_clientes" },
+      { href: "/cross-sell",    label: "Cross-sell",    icon: "trending",  permiso: "gestionar_clientes" },
+      { href: "/recuperar",     label: "Recuperar",     icon: "target",    permiso: "asignar_leads" },
     ],
   },
   {
