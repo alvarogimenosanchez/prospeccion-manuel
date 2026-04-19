@@ -11,6 +11,25 @@ const SECTORES_SUGERIDOS = [
   "Comercio / Retail", "Construcción", "Transporte", "Otro",
 ];
 
+function sugerirProducto(sector: string, tipoLead: string): { value: string; label: string; razon: string } | null {
+  const s = sector.toLowerCase();
+  const esPyme = tipoLead === "pyme" || tipoLead === "empresa";
+  if (s.includes("inmobil")) return { value: "hipotecas", label: "Hipotecas", razon: "Canal de derivación hipotecaria" };
+  if (s.includes("asesor") || s.includes("gestor") || s.includes("contab"))
+    return { value: "contigo_pyme", label: "Contigo Pyme", razon: "Prescriptor de autónomos — seguro colectivo" };
+  if (s.includes("hostel") || s.includes("restaur") || s.includes("bar") || s.includes("café") || s.includes("cafe"))
+    return esPyme ? { value: "contigo_pyme", label: "Contigo Pyme", razon: "Empresa hostelera con plantilla" } : { value: "contigo_autonomo", label: "Contigo Autónomo", razon: "Autónomo hostelero, alta dependencia personal" };
+  if (s.includes("taller") || s.includes("mecán") || s.includes("mecan"))
+    return { value: "contigo_autonomo", label: "Contigo Autónomo", razon: "Trabajo manual, alto riesgo de accidente" };
+  if (s.includes("peluq") || s.includes("estétic") || s.includes("estetic") || s.includes("belleza"))
+    return { value: "contigo_autonomo", label: "Contigo Autónomo", razon: "Autónomo, ingresos dependen de presencia física" };
+  if (s.includes("clínica") || s.includes("clinica") || s.includes("salud") || s.includes("médic") || s.includes("dental"))
+    return esPyme ? { value: "contigo_pyme", label: "Contigo Pyme", razon: "Clínica con personal — seguro colectivo" } : { value: "contigo_autonomo", label: "Contigo Autónomo", razon: "Sanitario autónomo, baja = cierre de consulta" };
+  if (esPyme) return { value: "contigo_pyme", label: "Contigo Pyme", razon: "Empresa con plantilla — seguro colectivo" };
+  if (tipoLead === "autonomo") return { value: "contigo_autonomo", label: "Contigo Autónomo", razon: "Autónomo — protección ante baja" };
+  return null;
+}
+
 const PRODUCTOS = [
   { value: "contigo_autonomo", label: "Contigo Autónomo" },
   { value: "contigo_pyme", label: "Contigo Pyme" },
@@ -45,6 +64,8 @@ export default function NuevoLeadPage() {
     producto_interes_principal: "",
     notas: "",
   });
+
+  const productoSugerido = sugerirProducto(form.sector, form.tipo_lead);
 
   function set(field: string, value: string) {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -252,6 +273,19 @@ export default function NuevoLeadPage() {
                 <option value="">Sin especificar</option>
                 {PRODUCTOS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
               </select>
+              {productoSugerido && form.producto_interes_principal !== productoSugerido.value && (
+                <div className="mt-1.5 flex items-center gap-2">
+                  <span className="text-xs text-slate-500">💡 Sugerido: <strong className="text-slate-700">{productoSugerido.label}</strong> · {productoSugerido.razon}</span>
+                  <button
+                    type="button"
+                    onClick={() => set("producto_interes_principal", productoSugerido.value)}
+                    className="text-xs font-medium px-2 py-0.5 rounded border transition-colors shrink-0"
+                    style={{ color: "#ea650d", borderColor: "#f5c5a8", background: "#fff5f0" }}
+                  >
+                    Usar →
+                  </button>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-xs text-slate-500 mb-1">¿Cómo lo encontraste?</label>
