@@ -40,6 +40,7 @@ function LeadsContent() {
   const [temperatura,  setTemperatura ] = useState(searchParams.get("temperatura") ?? "");
   const [fuente,       setFuente      ] = useState(searchParams.get("fuente") ?? "");
   const [ordenar,      setOrdenar     ] = useState(searchParams.get("ordenar") ?? "reciente");
+  const [sinActividad, setSinActividad] = useState(searchParams.get("inactivos") ?? "");
 
   // ── Comercial del usuario logueado ────────────────────────────────────────
   const [comercialId, setComercialId] = useState<string | null>(null);
@@ -101,11 +102,12 @@ function LeadsContent() {
     if (nuevoOffset === 0) setLoading(true);
 
     const ORDEN_CFG: Record<string, { col: string; asc: boolean }> = {
-      reciente:       { col: "created_at",   asc: false },
-      actividad:      { col: "updated_at",   asc: false },
-      interes_alto:   { col: "nivel_interes", asc: false },
-      interes_bajo:   { col: "nivel_interes", asc: true  },
-      prioridad_alta: { col: "prioridad",    asc: true  },
+      reciente:        { col: "created_at",        asc: false },
+      actividad:       { col: "updated_at",        asc: false },
+      interes_alto:    { col: "nivel_interes",     asc: false },
+      interes_bajo:    { col: "nivel_interes",     asc: true  },
+      prioridad_alta:  { col: "prioridad",         asc: true  },
+      mas_inactivos:   { col: "horas_sin_atencion", asc: false },
     };
     const ord = ORDEN_CFG[ordenar] ?? ORDEN_CFG.reciente;
 
@@ -120,6 +122,10 @@ function LeadsContent() {
     if (teamId)      query = query.eq("team_id",     teamId);
     if (temperatura) query = query.eq("temperatura", temperatura);
     if (fuente)      query = query.eq("fuente",      fuente);
+    if (sinActividad) {
+      const horas = sinActividad === "7d" ? 168 : sinActividad === "14d" ? 336 : sinActividad === "30d" ? 720 : 0;
+      if (horas) query = query.gte("horas_sin_atencion", horas);
+    }
 
     // "Mis leads": filtrar por comercial asignado
     if (soloMios && comercialId) {
@@ -150,7 +156,7 @@ function LeadsContent() {
     setOffset(nuevoOffset);
     setHayMas(nuevoOffset + PAGE_SIZE < totalCount);
     setLoading(false);
-  }, [prioridad, busqueda, estado, soloMios, comercialId, comercialCargado, teamId, temperatura, fuente, ordenar]);
+  }, [prioridad, busqueda, estado, soloMios, comercialId, comercialCargado, teamId, temperatura, fuente, ordenar, sinActividad]);
 
   // Reset y recargar cuando cambian los filtros
   useEffect(() => {
@@ -202,11 +208,12 @@ function LeadsContent() {
     setTemperatura("");
     setFuente("");
     setTeamId("");
+    setSinActividad("");
     setOrdenar("reciente");
   }
 
   // Calcular texto de resumen
-  const hayFiltrosActivos = !!(prioridad || estado || teamId || temperatura || fuente || busqueda);
+  const hayFiltrosActivos = !!(prioridad || estado || teamId || temperatura || fuente || busqueda || sinActividad);
   const sinFiltros = !prioridad && !estado && !teamId && !temperatura;
   const labelFiltrado = [
     soloMios ? "mis leads" : null,
@@ -241,6 +248,18 @@ function LeadsContent() {
             <option value="interes_alto">Mayor interés</option>
             <option value="interes_bajo">Menor interés</option>
             <option value="prioridad_alta">Prioridad</option>
+            <option value="mas_inactivos">Más inactivos</option>
+          </select>
+          <select
+            value={sinActividad}
+            onChange={(e) => setSinActividad(e.target.value)}
+            className="text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-600 focus:outline-none focus:border-slate-400"
+            title="Filtrar por tiempo sin actividad"
+          >
+            <option value="">Todos</option>
+            <option value="7d">Sin contactar +7 días</option>
+            <option value="14d">Sin contactar +14 días</option>
+            <option value="30d">Sin contactar +30 días</option>
           </select>
           {leads.length > 0 && (
             <button
