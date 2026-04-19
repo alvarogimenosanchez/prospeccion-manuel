@@ -56,6 +56,8 @@ export default function MensajesPage() {
   const [plantillas, setPlantillas] = useState<PlantillaWA[]>([]);
   const [plantillaPickerAbierto, setPlantillaPickerAbierto] = useState<string | null>(null);
   const pickerRef = useRef<HTMLDivElement>(null);
+  const [filtroSector, setFiltroSector] = useState("");
+  const [filtroCiudad, setFiltroCiudad] = useState("");
 
   const cargarMensajes = useCallback(async () => {
     setLoading(true);
@@ -169,6 +171,14 @@ export default function MensajesPage() {
     cargarMensajes();
   };
 
+  const sectores = Array.from(new Set(mensajes.map(m => m.leads.sector).filter(Boolean) as string[])).sort();
+  const ciudades = Array.from(new Set(mensajes.map(m => m.leads.ciudad).filter(Boolean) as string[])).sort();
+  const mensajesFiltrados = mensajes.filter(m => {
+    if (filtroSector && m.leads.sector !== filtroSector) return false;
+    if (filtroCiudad && m.leads.ciudad !== filtroCiudad) return false;
+    return true;
+  });
+
   return (
     <div className="space-y-6">
       {/* Cabecera */}
@@ -224,6 +234,36 @@ export default function MensajesPage() {
         </div>
       </div>
 
+      {/* Filtros rápidos */}
+      {!loading && mensajes.length > 0 && (sectores.length > 1 || ciudades.length > 1) && (
+        <div className="flex flex-wrap items-center gap-2 pb-1">
+          <span className="text-xs text-slate-400 font-medium">Filtrar:</span>
+          {sectores.length > 1 && (
+            <select value={filtroSector} onChange={e => setFiltroSector(e.target.value)}
+              className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:border-orange-300">
+              <option value="">Todos los sectores</option>
+              {sectores.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          )}
+          {ciudades.length > 1 && (
+            <select value={filtroCiudad} onChange={e => setFiltroCiudad(e.target.value)}
+              className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:border-orange-300">
+              <option value="">Todas las ciudades</option>
+              {ciudades.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
+          {(filtroSector || filtroCiudad) && (
+            <button onClick={() => { setFiltroSector(""); setFiltroCiudad(""); }}
+              className="text-xs text-slate-400 hover:text-slate-700 underline">
+              Limpiar
+            </button>
+          )}
+          {(filtroSector || filtroCiudad) && (
+            <span className="text-xs text-slate-500 ml-1">{mensajesFiltrados.length} de {mensajes.length}</span>
+          )}
+        </div>
+      )}
+
       {/* Lista de mensajes */}
       {loading ? (
         <div className="py-16 text-center text-sm text-slate-400">Cargando mensajes...</div>
@@ -252,7 +292,7 @@ export default function MensajesPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {mensajes.map(m => {
+          {mensajesFiltrados.map(m => {
             const lead = m.leads;
             const nombreCompleto = lead.nombre && lead.apellidos
               ? `${lead.nombre} ${lead.apellidos}`
