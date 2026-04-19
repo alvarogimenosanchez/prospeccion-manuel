@@ -180,6 +180,8 @@ function PipelineContent() {
   const [verTodos, setVerTodos] = useState(false);
   const [filtroProducto, setFiltroProducto] = useState("");
   const [ganadosMes, setGanadosMes] = useState(0);
+  const [draggedLeadId, setDraggedLeadId] = useState<string | null>(null);
+  const [dragOverEstado, setDragOverEstado] = useState<Estado | null>(null);
 
   const CARDS_PER_COL = 25;
 
@@ -458,7 +460,17 @@ function PipelineContent() {
                       </span>
                     </div>
                   ) : (
-                    <div className={`min-h-64 rounded-b-xl border ${col.color} ${col.bg} p-2 space-y-2`}>
+                    <div
+                      className={`min-h-64 rounded-b-xl border ${col.color} p-2 space-y-2 transition-colors ${dragOverEstado === col.estado ? "ring-2 ring-inset ring-orange-400 bg-orange-50" : col.bg}`}
+                      onDragOver={e => { e.preventDefault(); setDragOverEstado(col.estado); }}
+                      onDragLeave={() => setDragOverEstado(null)}
+                      onDrop={e => {
+                        e.preventDefault();
+                        setDragOverEstado(null);
+                        if (draggedLeadId && draggedLeadId !== col.estado) moverLead(draggedLeadId, col.estado);
+                        setDraggedLeadId(null);
+                      }}
+                    >
                       {leadsVisibles.map(lead => (
                         <TarjetaLead
                           key={lead.id}
@@ -466,6 +478,8 @@ function PipelineContent() {
                           columnas={COLUMNAS}
                           moviendo={moviendo === lead.id}
                           onMover={moverLead}
+                          onDragStart={() => setDraggedLeadId(lead.id)}
+                          onDragEnd={() => { setDraggedLeadId(null); setDragOverEstado(null); }}
                         />
                       ))}
                       {hayMas && (
@@ -489,12 +503,14 @@ function PipelineContent() {
 }
 
 function TarjetaLead({
-  lead, columnas, moviendo, onMover,
+  lead, columnas, moviendo, onMover, onDragStart, onDragEnd,
 }: {
   lead: Lead;
   columnas: Columna[];
   moviendo: boolean;
   onMover: (id: string, estado: Estado) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }) {
   const nombre = [lead.nombre, lead.apellidos].filter(Boolean).join(" ");
   const colActual = columnas.findIndex(c => c.estado === lead.estado);
@@ -520,7 +536,10 @@ function TarjetaLead({
 
   return (
     <div
-      className={`bg-white rounded-xl border shadow-sm hover:shadow-md transition-all relative ${moviendo ? "opacity-50" : ""} ${esUrgente ? "border-red-300 ring-1 ring-red-200" : "border-slate-200"}`}
+      draggable
+      onDragStart={e => { e.dataTransfer.effectAllowed = "move"; onDragStart?.(); }}
+      onDragEnd={onDragEnd}
+      className={`bg-white rounded-xl border shadow-sm hover:shadow-md transition-all relative cursor-grab active:cursor-grabbing ${moviendo ? "opacity-50" : ""} ${esUrgente ? "border-red-300 ring-1 ring-red-200" : "border-slate-200"}`}
     >
       {/* Badge urgencia */}
       {esUrgente && (
