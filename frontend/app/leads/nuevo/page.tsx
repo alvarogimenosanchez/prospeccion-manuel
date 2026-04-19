@@ -28,6 +28,7 @@ export default function NuevoLeadPage() {
   const router = useRouter();
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
+  const [duplicado, setDuplicado] = useState<{ id: string; nombre: string } | null>(null);
 
   const [form, setForm] = useState({
     nombre: "",
@@ -47,6 +48,18 @@ export default function NuevoLeadPage() {
 
   function set(field: string, value: string) {
     setForm(prev => ({ ...prev, [field]: value }));
+    if (field === "telefono_whatsapp" || field === "telefono") setDuplicado(null);
+  }
+
+  async function checkDuplicado(telefono: string) {
+    if (!telefono.trim()) return;
+    const { data } = await supabase
+      .from("leads")
+      .select("id, nombre, apellidos")
+      .or(`telefono_whatsapp.eq.${telefono.trim()},telefono.eq.${telefono.trim()}`)
+      .limit(1)
+      .maybeSingle();
+    if (data) setDuplicado({ id: data.id, nombre: `${data.nombre} ${data.apellidos ?? ""}`.trim() });
   }
 
   async function guardar(e: React.FormEvent) {
@@ -143,6 +156,7 @@ export default function NuevoLeadPage() {
               <label className="block text-xs text-slate-500 mb-1">WhatsApp</label>
               <input
                 value={form.telefono_whatsapp} onChange={e => set("telefono_whatsapp", e.target.value)}
+                onBlur={e => checkDuplicado(e.target.value)}
                 placeholder="+34 600 000 000"
                 type="tel"
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300"
@@ -152,6 +166,7 @@ export default function NuevoLeadPage() {
               <label className="block text-xs text-slate-500 mb-1">Teléfono</label>
               <input
                 value={form.telefono} onChange={e => set("telefono", e.target.value)}
+                onBlur={e => checkDuplicado(e.target.value)}
                 placeholder="+34 910 000 000"
                 type="tel"
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300"
@@ -258,6 +273,14 @@ export default function NuevoLeadPage() {
           </div>
         </div>
 
+        {duplicado && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700 flex items-center justify-between">
+            <span>⚠️ Este teléfono ya existe: <strong>{duplicado.nombre}</strong></span>
+            <Link href={`/leads/${duplicado.id}`} className="underline font-medium ml-2 flex-shrink-0">
+              Ver lead →
+            </Link>
+          </div>
+        )}
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
             {error}
