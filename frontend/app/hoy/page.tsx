@@ -152,12 +152,13 @@ export default function HoyPage() {
   // ─── Get logged comercial ──────────────────────────────────────────────────
   useEffect(() => {
     async function obtenerComercial() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user?.email) { setComercialCargado(true); return; }
+      const { data: { session } } = await supabase.auth.getSession();
+      const email = session?.user?.email;
+      if (!email) { setComercialCargado(true); return; }
       const { data } = await supabase
         .from("comerciales")
         .select("id")
-        .eq("email", user.email)
+        .eq("email", email)
         .single();
       setComercialId(data?.id ?? null);
       setComercialCargado(true);
@@ -303,16 +304,18 @@ export default function HoyPage() {
     setGuardandoAccion(key);
     try {
       const nuevaFecha = addDays(new Date(), dias).toISOString();
-      await supabase.from("leads").update({
-        proxima_accion_fecha: nuevaFecha,
-        updated_at: new Date().toISOString(),
-      }).eq("id", leadId);
-      await supabase.from("interactions").insert({
-        lead_id: leadId,
-        tipo: "nota_manual",
-        mensaje: `Acción pospuesta ${dias === 1 ? "1 día" : `${dias} días`}`,
-        origen: "comercial",
-      });
+      await Promise.all([
+        supabase.from("leads").update({
+          proxima_accion_fecha: nuevaFecha,
+          updated_at: new Date().toISOString(),
+        }).eq("id", leadId),
+        supabase.from("interactions").insert({
+          lead_id: leadId,
+          tipo: "nota_manual",
+          mensaje: `Acción pospuesta ${dias === 1 ? "1 día" : `${dias} días`}`,
+          origen: "comercial",
+        }),
+      ]);
       setSeccionesData(prev => {
         const updated = { ...prev };
         if (seccion !== "citasHoy") {
@@ -328,8 +331,10 @@ export default function HoyPage() {
   const accionCita = useCallback(async (citaId: string, leadId: string, nuevoEstado: string, mensaje: string) => {
     setGuardandoAccion(`cita-${citaId}`);
     try {
-      await supabase.from("appointments").update({ estado: nuevoEstado, updated_at: new Date().toISOString() }).eq("id", citaId);
-      await supabase.from("interactions").insert({ lead_id: leadId, tipo: "nota_manual", mensaje, origen: "comercial" });
+      await Promise.all([
+        supabase.from("appointments").update({ estado: nuevoEstado, updated_at: new Date().toISOString() }).eq("id", citaId),
+        supabase.from("interactions").insert({ lead_id: leadId, tipo: "nota_manual", mensaje, origen: "comercial" }),
+      ]);
       setSeccionesData(prev => ({ ...prev, citasHoy: prev.citasHoy.filter(c => c.id !== citaId) }));
     } finally {
       setGuardandoAccion(null);
@@ -341,27 +346,31 @@ export default function HoyPage() {
     notas_post: string; resultado: string; proxima_accion: string;
     proxima_accion_nota: string; proxima_accion_fecha: string;
   }) {
+    const cita = seccionesData.citasHoy.find(c => c.id === citaId);
+
     await supabase.from("appointments").update({
       estado: "realizada", notas_post: datos.notas_post, resultado: datos.resultado,
     }).eq("id", citaId);
 
-    const cita = seccionesData.citasHoy.find(c => c.id === citaId);
     if (cita) {
-      await supabase.from("interactions").insert({
-        lead_id: cita.lead_id, tipo: "nota_manual",
-        mensaje: `📋 Post-cita: ${datos.notas_post}`, origen: "comercial",
-      });
       const leadUpdates: Record<string, string | null> = {
         proxima_accion: datos.proxima_accion !== "ninguna" ? datos.proxima_accion : null,
         proxima_accion_nota: datos.proxima_accion_nota || null,
         proxima_accion_fecha: datos.proxima_accion_fecha || null,
         updated_at: new Date().toISOString(),
+        ...(datos.resultado === "cerrado_ganado" && { estado: "cerrado_ganado" }),
+        ...(datos.resultado === "no_interesado" && { estado: "cerrado_perdido" }),
+        ...(["interesado", "necesita_mas_info"].includes(datos.resultado) && { estado: "en_negociacion" }),
       };
-      if (datos.resultado === "cerrado_ganado") leadUpdates.estado = "cerrado_ganado";
-      else if (datos.resultado === "no_interesado") leadUpdates.estado = "cerrado_perdido";
-      else if (["interesado", "necesita_mas_info"].includes(datos.resultado)) leadUpdates.estado = "en_negociacion";
-      await supabase.from("leads").update(leadUpdates).eq("id", cita.lead_id);
+      await Promise.all([
+        supabase.from("interactions").insert({
+          lead_id: cita.lead_id, tipo: "nota_manual",
+          mensaje: `📋 Post-cita: ${datos.notas_post}`, origen: "comercial",
+        }),
+        supabase.from("leads").update(leadUpdates).eq("id", cita.lead_id),
+      ]);
     }
+
     setSeccionesData(prev => ({ ...prev, citasHoy: prev.citasHoy.filter(c => c.id !== citaId) }));
     setCitaParaRegistrar(null);
   }
@@ -376,6 +385,28 @@ export default function HoyPage() {
     seccionesData.citasHoy.length;
 
   // ─── Render ───────────────────────────────────────────────────────────────
+  const hoy = new Date();
+  const hora = hoy.getHours();
+  const saludo = hora < 13 ? "Buenos días" : hora < 20 ? "Buenas tardes" : "Buenas noches";
+  const emojiSaludo = hora < 13 ? "☀️" : hora < 20 ? "🌤" : "🌙";
+
+  const FRASES_EXITO = [
+    "Buen trabajo — tienes todo bajo control.",
+    "Todo despejado. Hora de generar nuevas oportunidades.",
+    "Sin pendientes. ¿A por nuevos leads?",
+    "Impecable. El pipeline está en tus manos.",
+  ];
+  const fraseExito = FRASES_EXITO[hoy.getDay() % FRASES_EXITO.length];
+
+  const resumenItems = [
+    { label: "Vencidas",    count: seccionesData.accionesVencidas.length,           color: "#ef4444" },
+    { label: "Hoy",         count: seccionesData.accionesHoy.length,                color: "#ea650d" },
+    { label: "Alta prio",   count: seccionesData.altaPrioridadSinTocar.length,      color: "#d97706" },
+    { label: "Respondieron",count: seccionesData.respondieronSinSeguimiento.length, color: "#16a34a" },
+    { label: "Sin resp.",   count: seccionesData.mensajeEnviadoSinRespuesta.length, color: "#2563eb" },
+    { label: "Citas",       count: seccionesData.citasHoy.length,                   color: "#0d9488" },
+  ].filter(i => i.count > 0);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50">
@@ -391,34 +422,49 @@ export default function HoyPage() {
     <div className="min-h-screen bg-slate-50 pb-16">
       {/* ── Header ── */}
       <div className="border-b border-slate-200 bg-white px-6 py-4">
-        <div className="mx-auto max-w-4xl flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900">Trabajo de hoy</h1>
-            {totalTareas > 0 ? (
-              <p className="mt-0.5 text-sm text-slate-500">
-                <span className="font-semibold text-slate-700">{totalTareas}</span> tareas pendientes
-                {!comercialId && (
-                  <span className="ml-2 text-xs text-amber-600">(mostrando todos los comerciales)</span>
-                )}
-              </p>
-            ) : (
-              <p className="mt-0.5 text-sm text-green-600 font-medium">Todo al día ✓</p>
-            )}
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={cargarDatos}
-              className="text-sm text-slate-400 hover:text-slate-700 transition-colors"
-            >
-              ↺
-            </button>
-            <div className="text-right">
-              <p className="text-sm font-medium text-slate-700">
-                {format(new Date(), "EEEE d 'de' MMMM", { locale: es })}
-              </p>
-              <p className="text-xs text-slate-400">{format(new Date(), "yyyy")}</p>
+        <div className="mx-auto max-w-4xl">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-slate-900">
+                {emojiSaludo} {saludo}, Manuel
+              </h1>
+              {totalTareas > 0 ? (
+                <p className="mt-0.5 text-sm text-slate-500">
+                  Tienes <span className="font-semibold text-slate-700">{totalTareas}</span> tareas pendientes para hoy
+                  {!comercialId && (
+                    <span className="ml-2 text-xs text-amber-600">(todos los comerciales)</span>
+                  )}
+                </p>
+              ) : (
+                <p className="mt-0.5 text-sm text-green-600 font-medium">Todo al día ✓ {fraseExito}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={cargarDatos}
+                className="text-sm text-slate-400 hover:text-slate-700 transition-colors"
+              >
+                ↺
+              </button>
+              <div className="text-right">
+                <p className="text-sm font-medium text-slate-700">{format(hoy, "EEEE d 'de' MMMM", { locale: es })}</p>
+                <p className="text-xs text-slate-400">{format(hoy, "yyyy")}</p>
+              </div>
             </div>
           </div>
+          {/* ── Mini resumen por sección ── */}
+          {resumenItems.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {resumenItems.map(item => (
+                <span key={item.label}
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+                  style={{ background: item.color + "18", color: item.color }}>
+                  <span className="font-bold">{item.count}</span>
+                  {item.label}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -426,10 +472,25 @@ export default function HoyPage() {
 
         {/* ── Empty state ── */}
         {totalTareas === 0 && (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-green-200 bg-green-50 py-16">
-            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">✅</div>
+          <div className="flex flex-col items-center justify-center rounded-xl border border-green-200 bg-green-50 py-14 px-8 text-center">
+            <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-green-100 text-3xl">🏆</div>
             <p className="text-lg font-semibold text-green-800">Todo al día</p>
-            <p className="mt-1 text-sm text-green-600">No tienes tareas pendientes por ahora.</p>
+            <p className="mt-1 text-sm text-green-600 max-w-sm">{fraseExito}</p>
+            <div className="mt-6 flex flex-wrap gap-3 justify-center">
+              <Link href="/leads?estado=nuevo"
+                className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
+                style={{ background: "#ea650d" }}>
+                Ver leads nuevos →
+              </Link>
+              <Link href="/mensajes"
+                className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium border border-slate-200 text-slate-600 hover:bg-white transition-colors">
+                Revisar mensajes pendientes
+              </Link>
+              <Link href="/agenda"
+                className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium border border-slate-200 text-slate-600 hover:bg-white transition-colors">
+                Ver agenda
+              </Link>
+            </div>
           </div>
         )}
 
@@ -444,7 +505,7 @@ export default function HoyPage() {
               return (
                 <FilaLead key={lead.id}>
                   <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 transition-colors truncate" style={{ color: "#414141" }} onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "#414141")}>
+                    <Link href={`/leads/${lead.id}`} className="lead-link font-medium truncate">
                       {nombreCompleto(lead)}
                       {lead.empresa && <span className="ml-1 font-normal text-slate-500">· {lead.empresa}</span>}
                     </Link>
@@ -506,7 +567,7 @@ export default function HoyPage() {
               return (
                 <FilaLead key={lead.id}>
                   <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 transition-colors truncate" style={{ color: "#414141" }} onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "#414141")}>
+                    <Link href={`/leads/${lead.id}`} className="lead-link font-medium truncate">
                       {nombreCompleto(lead)}
                       {lead.empresa && <span className="ml-1 font-normal text-slate-500">· {lead.empresa}</span>}
                     </Link>
@@ -562,7 +623,7 @@ export default function HoyPage() {
               return (
                 <FilaLead key={lead.id}>
                   <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 transition-colors truncate" style={{ color: "#414141" }} onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "#414141")}>
+                    <Link href={`/leads/${lead.id}`} className="lead-link font-medium truncate">
                       {nombreCompleto(lead)}
                       {lead.empresa && <span className="ml-1 font-normal text-slate-500">· {lead.empresa}</span>}
                     </Link>
@@ -610,7 +671,7 @@ export default function HoyPage() {
               return (
                 <FilaLead key={lead.id}>
                   <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 transition-colors truncate" style={{ color: "#414141" }} onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "#414141")}>
+                    <Link href={`/leads/${lead.id}`} className="lead-link font-medium truncate">
                       {nombreCompleto(lead)}
                       {lead.empresa && <span className="ml-1 font-normal text-slate-500">· {lead.empresa}</span>}
                     </Link>
@@ -650,7 +711,7 @@ export default function HoyPage() {
               return (
                 <FilaLead key={lead.id}>
                   <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
-                    <Link href={`/leads/${lead.id}`} className="font-medium text-slate-900 transition-colors truncate" style={{ color: "#414141" }} onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "#414141")}>
+                    <Link href={`/leads/${lead.id}`} className="lead-link font-medium truncate">
                       {nombreCompleto(lead)}
                       {lead.empresa && <span className="ml-1 font-normal text-slate-500">· {lead.empresa}</span>}
                     </Link>
@@ -700,7 +761,7 @@ export default function HoyPage() {
                     </span>
                     <span className="text-xs text-slate-500">{TIPO_CITA_LABEL[cita.tipo] ?? cita.tipo}</span>
                     {lead && (
-                      <Link href={`/leads/${cita.lead_id}`} className="font-medium text-slate-900 transition-colors truncate" style={{ color: "#414141" }} onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")} onMouseLeave={e => (e.currentTarget.style.color = "#414141")}>
+                      <Link href={`/leads/${cita.lead_id}`} className="lead-link font-medium truncate">
                         {nombreCompleto(lead)}
                         {lead.empresa && <span className="ml-1 font-normal text-slate-500">· {lead.empresa}</span>}
                       </Link>
