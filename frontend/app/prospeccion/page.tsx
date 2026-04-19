@@ -95,7 +95,7 @@ export default function ProspeccionPage() {
   const [estadoCampana, setEstadoCampana] = useState<EstadoCampana>("idle");
   const [mensajeCampana, setMensajeCampana] = useState("");
   const [mostrarConfig, setMostrarConfig] = useState(false);
-  const [historialCampanas, setHistorialCampanas] = useState<{zona: string, categoria: string, fecha: string}[]>([]);
+  const [historialCampanas, setHistorialCampanas] = useState<{zona: string, categoria: string, fecha: string, leadsEstimados?: number}[]>([]);
 
   useEffect(() => {
     const stored = localStorage.getItem("historial_campanas");
@@ -255,11 +255,14 @@ export default function ProspeccionPage() {
         setMensajeCampana(`✅ Campaña lanzada — leads en proceso`);
 
         // Guardar en historial local
+        const leadsEstimados = data?.nuevos_leads ?? 0;
+        const porEntrada = todasLasZonas.length * categoriasElegidas.length;
         const nuevasEntradas = todasLasZonas.flatMap(zona =>
           categoriasElegidas.map(cat => ({
             zona,
             categoria: cat,
             fecha: new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "2-digit" }),
+            leadsEstimados: porEntrada > 0 ? Math.round(leadsEstimados / porEntrada) : leadsEstimados,
           }))
         );
         const historialActualizado = [...nuevasEntradas, ...historialCampanas].slice(0, 10);
@@ -931,6 +934,7 @@ export default function ProspeccionPage() {
                     <div key={i} className="flex items-center gap-3 px-3 py-2 text-xs text-slate-600 hover:bg-slate-50 transition-colors">
                       <span className="font-medium text-slate-700 w-24 truncate">{h.zona}</span>
                       <span className="bg-slate-100 px-1.5 py-0.5 rounded text-slate-500">{h.categoria.replace(/_/g, " ")}</span>
+                      {h.leadsEstimados ? <span className="text-xs font-medium" style={{ color: "#ea650d" }}>~{h.leadsEstimados} leads</span> : null}
                       <span className="text-slate-400 ml-auto">{h.fecha}</span>
                       <button
                         onClick={() => {
@@ -964,9 +968,10 @@ export default function ProspeccionPage() {
           </div>
           <div className="divide-y divide-slate-50">
             {historialCampanas.slice(0, 10).map((h) => (
-              <div key={`${h.zona}-${h.categoria}-${h.fecha}`} className="grid grid-cols-[1fr_1fr_auto_auto] gap-4 px-4 py-2.5 items-center">
+              <div key={`${h.zona}-${h.categoria}-${h.fecha}`} className="grid grid-cols-[1fr_1fr_auto_auto_auto] gap-4 px-4 py-2.5 items-center">
                 <span className="text-sm font-medium text-slate-700">{h.zona}</span>
                 <span className="text-xs text-slate-500 bg-slate-100 px-2 py-0.5 rounded w-fit">{h.categoria.replace(/_/g, " ")}</span>
+                {h.leadsEstimados ? <span className="text-xs font-semibold" style={{ color: "#ea650d" }}>~{h.leadsEstimados}</span> : <span />}
                 <span className="text-xs text-slate-400">{h.fecha}</span>
                 <button
                   onClick={() => {
