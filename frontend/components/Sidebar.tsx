@@ -143,7 +143,7 @@ const NAV_GROUPS = [
   },
 ];
 
-type Badges = { mensajes: number; hoy: number; agenda: number; };
+type Badges = { mensajes: number; hoy: number; agenda: number; anuncios: number; formaciones: number; };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function Sidebar({ onClose }: { onClose?: () => void }) {
@@ -151,7 +151,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
-  const [badges, setBadges] = useState<Badges>({ mensajes: 0, hoy: 0, agenda: 0 });
+  const [badges, setBadges] = useState<Badges>({ mensajes: 0, hoy: 0, agenda: 0, anuncios: 0, formaciones: 0 });
   const [chatNoLeidos, setChatNoLeidos] = useState(0);
   const { puede, cargando: cargandoPermisos } = usePermisos();
 
@@ -187,10 +187,26 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         qCalientes,
         supabase.from("appointments").select("id", { count: "exact", head: true }).gte("fecha_hora", inicioDia.toISOString()).lte("fecha_hora", finDia.toISOString()).not("estado", "in", "(cancelada,no_asistio)"),
       ]);
+      // Anuncios no leídos y formaciones obligatorias pendientes
+      let anunciosBadge = 0;
+      let formacionesBadge = 0;
+      if (comId) {
+        const [{ data: anunciosData }, { data: formData }, { data: progData }] = await Promise.all([
+          supabase.from("anuncios").select("id, lecturas").eq("activo", true).is("fecha_expira", null).or(`fecha_expira.gt.${new Date().toISOString()},fecha_expira.is.null`),
+          supabase.from("formaciones").select("id").eq("activa", true).eq("obligatoria", true),
+          supabase.from("formaciones_progreso").select("formacion_id, estado").eq("comercial_id", comId).eq("estado", "completada"),
+        ]);
+        const completadasIds = new Set((progData ?? []).map(p => p.formacion_id));
+        formacionesBadge = (formData ?? []).filter(f => !completadasIds.has(f.id)).length;
+        anunciosBadge = (anunciosData ?? []).filter(a => !((a.lecturas as string[]) ?? []).includes(comId)).length;
+      }
+
       setBadges({
         mensajes: mensajes ?? 0,
         hoy: (accionesVencidas ?? 0) + (calientes ?? 0),
         agenda: citasHoy ?? 0,
+        anuncios: anunciosBadge,
+        formaciones: formacionesBadge,
       });
     }
     fetchBadges();
@@ -310,7 +326,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             <div className="space-y-0.5">
               {itemsVisibles.map(({ href, label, icon }) => {
                 const active = isActive(href);
-                const badge = href === "/mensajes" ? badges.mensajes : href === "/hoy" ? badges.hoy : href === "/agenda" ? badges.agenda : href === "/mensajes-internos" ? chatNoLeidos : 0;
+                const badge = href === "/mensajes" ? badges.mensajes : href === "/hoy" ? badges.hoy : href === "/agenda" ? badges.agenda : href === "/mensajes-internos" ? chatNoLeidos : href === "/anuncios" ? badges.anuncios : href === "/formaciones" ? badges.formaciones : 0;
                 return (
                   <Link
                     key={href}
@@ -340,7 +356,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                     <span className="flex-1">{label}</span>
                     {badge > 0 && (
                       <span style={{
-                        background: href === "/mensajes" ? "#ea650d" : href === "/agenda" ? "#f59e0b" : "#ef4444",
+                        background: href === "/mensajes" ? "#ea650d" : href === "/agenda" ? "#f59e0b" : href === "/formaciones" ? "#7c3aed" : "#ef4444",
                         color: "#fff",
                         borderRadius: "9999px",
                         fontSize: "10px",
