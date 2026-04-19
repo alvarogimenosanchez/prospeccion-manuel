@@ -279,6 +279,7 @@ export default function LeadDetailPage() {
   const [mostrarEnvio, setMostrarEnvio] = useState(false);
   const [productoActivoMsg, setProductoActivoMsg] = useState<string | null>(null);
   const [copiado, setCopiado] = useState(false);
+  const [copiadoBrief, setCopiadoBrief] = useState(false);
   const [enviandoWhatsapp, setEnviandoWhatsapp] = useState(false);
   const [enviadoOk, setEnviadoOk] = useState(false);
   const [errorEnvio, setErrorEnvio] = useState("");
@@ -742,6 +743,37 @@ export default function LeadDetailPage() {
     return Math.max(0, Math.floor((Date.now() - fechaRef.getTime()) / (1000 * 60 * 60 * 24)));
   })();
 
+  function copiarBriefLlamada() {
+    const l = lead!;
+    const PROD: Record<string, string> = {
+      contigo_autonomo: "Contigo Autónomo", contigo_pyme: "Contigo Pyme", contigo_familia: "Contigo Familia",
+      contigo_futuro: "Contigo Futuro", contigo_senior: "Contigo Senior", sialp: "SIALP",
+      liderplus: "LiderPlus", sanitas_salud: "Sanitas Salud", mihogar: "MiHogar", hipotecas: "Hipotecas",
+    };
+    const productos = (l.productos_recomendados ?? []).map(p => PROD[p] ?? p).join(", ");
+    const ultimasInteracciones = interactions.slice(-3).map(i =>
+      `  • ${new Date(i.created_at).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}: ${i.mensaje?.slice(0, 80)}`
+    ).join("\n");
+
+    const brief = [
+      `📞 BRIEFING LLAMADA — ${[l.nombre, l.apellidos].filter(Boolean).join(" ") || "Sin nombre"}`,
+      `${"─".repeat(40)}`,
+      l.empresa ? `Empresa: ${l.empresa}` : null,
+      l.sector  ? `Sector: ${l.sector}` : null,
+      l.ciudad  ? `Ciudad: ${l.ciudad}` : null,
+      l.tipo_lead ? `Tipo: ${l.tipo_lead}` : null,
+      ``,
+      `Interés: ${l.nivel_interes}/10 · Temperatura: ${l.temperatura ?? "—"} · Estado: ${l.estado.replace(/_/g, " ")}`,
+      productos ? `Productos: ${productos}` : null,
+      l.notas ? `Notas: ${l.notas}` : null,
+      ultimasInteracciones ? `\nÚltimas interacciones:\n${ultimasInteracciones}` : null,
+    ].filter(Boolean).join("\n");
+
+    navigator.clipboard.writeText(brief);
+    setCopiadoBrief(true);
+    setTimeout(() => setCopiadoBrief(false), 2500);
+  }
+
   function generarMensaje(tipo: "primer_contacto" | "recordatorio_1" | "recordatorio_2") {
     const nombre = lead!.nombre || "Hola";
     const empresa = lead!.empresa || "";
@@ -1095,14 +1127,25 @@ export default function LeadDetailPage() {
                   )}
                 </div>
               </div>
-              <button
-                onClick={abrirEdicion}
-                className="flex-shrink-0 text-xs text-slate-500 border border-slate-200 hover:border-orange-300 px-2.5 py-1.5 rounded-lg transition-colors"
-                onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")}
-                onMouseLeave={e => (e.currentTarget.style.color = "")}
-              >
-                Editar
-              </button>
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <button
+                  onClick={copiarBriefLlamada}
+                  title="Copiar briefing para llamada al portapapeles"
+                  className="text-xs text-slate-500 border border-slate-200 hover:border-blue-300 px-2.5 py-1.5 rounded-lg transition-colors"
+                  onMouseEnter={e => (e.currentTarget.style.color = "#2563eb")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "")}
+                >
+                  {copiadoBrief ? "✓ Copiado" : "📋 Brief"}
+                </button>
+                <button
+                  onClick={abrirEdicion}
+                  className="text-xs text-slate-500 border border-slate-200 hover:border-orange-300 px-2.5 py-1.5 rounded-lg transition-colors"
+                  onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")}
+                  onMouseLeave={e => (e.currentTarget.style.color = "")}
+                >
+                  Editar
+                </button>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2 mb-4">
