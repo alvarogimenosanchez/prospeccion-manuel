@@ -117,6 +117,7 @@ const NAV_GROUPS = [
       { href: "/ingresos",          label: "Ingresos",    icon: "chart",    permiso: "ver_metricas" },
       { href: "/forecast",          label: "Forecast",    icon: "trending", permiso: "ver_metricas" },
       { href: "/objetivos",         label: "Objetivos",   icon: "target",   permiso: "ver_metricas" },
+      { href: "/capacidad",          label: "Capacidad",   icon: "pipeline", permiso: "gestionar_equipo" },
       { href: "/coaching",          label: "Coaching",    icon: "users",    permiso: "gestionar_equipo" },
       { href: "/calendario-equipo", label: "Cal. equipo", icon: "calendar", permiso: "gestionar_equipo" },
       { href: "/equipos",           label: "Equipos",     icon: "team",     permiso: "gestionar_equipo" },
