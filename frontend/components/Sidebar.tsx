@@ -70,6 +70,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/prospeccion",  label: "Prospección",  icon: "search",    permiso: "usar_scraping" },
       { href: "/mapa",         label: "Mapa",          icon: "map",       permiso: "usar_scraping" },
+      { href: "/importar",     label: "Importar CSV",  icon: "download",  permiso: "asignar_leads" },
       { href: "/cuestionario", label: "Cuestionario",  icon: "clipboard", permiso: null },
     ],
   },
