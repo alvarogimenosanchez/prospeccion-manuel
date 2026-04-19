@@ -90,8 +90,7 @@ function LeadsContent() {
     let query = supabase
       .from("leads_dashboard")
       .select("*", { count: "exact" })
-      .order("nivel_interes", { ascending: false })
-      .order("updated_at",    { ascending: false })
+      .order("created_at", { ascending: false })
       .range(nuevoOffset, nuevoOffset + PAGE_SIZE - 1);
 
     if (prioridad)   query = query.eq("prioridad",   prioridad);
