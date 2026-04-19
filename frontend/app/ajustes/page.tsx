@@ -184,7 +184,10 @@ export default function AjustesPage() {
   const [miNombre, setMiNombre] = useState("");
   const [plantillas, setPlantillas] = useState<PlantillaWA[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [tabActiva, setTabActiva] = useState<"plantillas" | "cuestionario" | "formularios" | "scraping" | "roles">("plantillas");
+  const [tabActiva, setTabActiva] = useState<"plantillas" | "cuestionario" | "formularios" | "scraping" | "roles" | "productos">("plantillas");
+  const [productos, setProductos] = useState<{ id: string; nombre: string; comision_pct: number | null; activo: boolean }[]>([]);
+  const [guardandoProducto, setGuardandoProducto] = useState<string | null>(null);
+  const [comisionEdits, setComisionEdits] = useState<Record<string, string>>({});
   const [formularios, setFormularios] = useState<{id:string;slug:string;nombre:string;titulo:string;subtitulo:string|null;emoji:string;color_hex:string;pedir_email:boolean;pedir_ciudad:boolean;texto_cta:string;activo:boolean}[]>([]);
   const [editandoFormId, setEditandoFormId] = useState<string|null>(null);
   const [fTitulo, setFTitulo] = useState(""); const [fSubtitulo, setFSubtitulo] = useState(""); const [fTextoCta, setFTextoCta] = useState(""); const [fPedirEmail, setFPedirEmail] = useState(false); const [fActivo, setFActivo] = useState(true);
@@ -230,6 +233,7 @@ export default function AjustesPage() {
               if (c.rol === "director" || c.rol === "admin" || c.rol === "manager") {
                 setEsDirector(true);
                 cargarComerciales();
+                cargarProductos();
               }
               if (c.rol === "admin") {
                 setEsAdmin(true);
@@ -263,6 +267,24 @@ export default function AjustesPage() {
     await supabase.from("comerciales").update({ limite_leads_mes: nuevoLimite }).eq("id", id);
     setComerciales(prev => prev.map(c => c.id === id ? { ...c, limite_leads_mes: nuevoLimite } : c));
     setGuardandoLimite(null);
+  }
+
+  async function cargarProductos() {
+    const { data } = await supabase.from("products").select("id, nombre, comision_pct, activo").order("nombre");
+    if (data) {
+      setProductos(data as { id: string; nombre: string; comision_pct: number | null; activo: boolean }[]);
+      const edits: Record<string, string> = {};
+      for (const p of data) edits[p.id] = String(p.comision_pct ?? 20);
+      setComisionEdits(edits);
+    }
+  }
+
+  async function guardarComision(id: string) {
+    setGuardandoProducto(id);
+    const pct = parseFloat(comisionEdits[id] ?? "20");
+    await supabase.from("products").update({ comision_pct: isNaN(pct) ? 20 : pct }).eq("id", id);
+    setProductos(prev => prev.map(p => p.id === id ? { ...p, comision_pct: pct } : p));
+    setGuardandoProducto(null);
   }
 
   async function cargarRolePermisos() {
@@ -484,6 +506,7 @@ export default function AjustesPage() {
           { id: "formularios",  label: "Formularios de captación" },
           { id: "cuestionario", label: "Cuestionario" },
           ...(esDirector ? [{ id: "scraping" as const, label: "Límites scraping" }] : []),
+          ...(esDirector ? [{ id: "productos" as const, label: "Productos" }] : []),
           ...(esAdmin ? [{ id: "roles" as const, label: "Roles y permisos" }] : []),
         ]) as { id: "plantillas" | "cuestionario" | "formularios" | "scraping" | "roles"; label: string }[]).map(t => (
           <button
@@ -1496,6 +1519,61 @@ export default function AjustesPage() {
           </div>
         );
       })()}
+
+      {/* ── Tab: Productos ──────────────────────────────────────────────── */}
+      {tabActiva === "productos" && esDirector && (
+        <div className="space-y-4">
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100">
+              <p className="text-sm font-semibold text-slate-700">Catálogo de productos y tasas de comisión</p>
+              <p className="text-xs text-slate-400 mt-0.5">Configura la tasa de comisión estimada por producto para los cálculos en Ingresos</p>
+            </div>
+            {productos.length === 0 ? (
+              <div className="py-12 text-center text-sm text-slate-400">Cargando productos...</div>
+            ) : (
+              <div className="divide-y divide-slate-50">
+                {productos.map(p => (
+                  <div key={p.id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-slate-800">{p.nombre}</p>
+                      <p className="text-xs text-slate-400 font-mono mt-0.5">{p.id}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.5"
+                          value={comisionEdits[p.id] ?? String(p.comision_pct ?? 20)}
+                          onChange={e => setComisionEdits(prev => ({ ...prev, [p.id]: e.target.value }))}
+                          className="w-20 text-sm border border-slate-200 rounded-lg px-3 py-1.5 text-right focus:outline-none focus:border-orange-400"
+                        />
+                        <span className="text-xs text-slate-500">%</span>
+                      </div>
+                      <button
+                        onClick={() => guardarComision(p.id)}
+                        disabled={guardandoProducto === p.id || comisionEdits[p.id] === String(p.comision_pct)}
+                        className="text-xs px-3 py-1.5 rounded-lg font-medium text-white disabled:opacity-40 transition-opacity"
+                        style={{ background: "#ea650d" }}
+                      >
+                        {guardandoProducto === p.id ? "…" : "Guardar"}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <p className="text-xs text-amber-700">
+              <span className="font-semibold">Nota:</span> Las tasas de comisión son estimaciones para uso interno.
+              Las comisiones reales pueden variar según acuerdos con NN España.
+              Consulta con dirección para los valores exactos.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
