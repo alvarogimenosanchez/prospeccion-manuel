@@ -4,6 +4,22 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { usePermisos } from "@/components/PermisosProvider";
 
+type LogroReciente = {
+  id: string;
+  nombre: string;
+  empresa: string | null;
+  producto: string | null;
+  comercial: string;
+  updated_at: string;
+};
+
+const PRODUCTO_LABEL: Record<string, string> = {
+  contigo_autonomo: "Contigo Autónomo", contigo_pyme: "Contigo Pyme",
+  contigo_familia: "Contigo Familia", contigo_futuro: "Contigo Futuro",
+  contigo_senior: "Contigo Senior", sialp: "SIALP", liderplus: "LiderPlus",
+  sanitas_salud: "Sanitas Salud", mihogar: "MiHogar", hipotecas: "Hipoteca",
+};
+
 type PuestoComercial = {
   id: string;
   nombre: string;
@@ -32,6 +48,7 @@ const PODIUM_CONFIG = [
 export default function ClasificacionPage() {
   const { cargando: cargandoPermisos } = usePermisos();
   const [puestos, setPuestos] = useState<PuestoComercial[]>([]);
+  const [logros, setLogros] = useState<LogroReciente[]>([]);
   const [loading, setLoading] = useState(true);
   const [metrica, setMetrica] = useState<"cierres" | "citas">("cierres");
   const [miId, setMiId] = useState<string | null>(null);
@@ -68,6 +85,7 @@ export default function ClasificacionPage() {
       { data: cierresData },
       { data: citasData },
       { data: leadsData },
+      { data: logrosData },
     ] = await Promise.all([
       supabase.from("leads").select("comercial_asignado")
         .eq("estado", "cerrado_ganado")
@@ -80,6 +98,13 @@ export default function ClasificacionPage() {
       supabase.from("leads").select("comercial_asignado")
         .not("estado", "in", '("cerrado_ganado","cerrado_perdido","descartado")')
         .in("comercial_asignado", ids),
+      supabase.from("leads")
+        .select("id, nombre, empresa, producto_interes_principal, comercial_asignado, updated_at")
+        .eq("estado", "cerrado_ganado")
+        .in("comercial_asignado", ids)
+        .gte("updated_at", inicioMes)
+        .order("updated_at", { ascending: false })
+        .limit(10),
     ]);
 
     const cierresPorComercial: Record<string, number> = {};
@@ -114,7 +139,20 @@ export default function ClasificacionPage() {
 
     resultado.sort((a, b) => metrica === "cierres" ? b.cierres - a.cierres : b.citas - a.citas);
 
+    const comercialesMap: Record<string, string> = {};
+    for (const c of comerciales) comercialesMap[c.id] = c.nombre;
+
+    const logrosArr: LogroReciente[] = (logrosData ?? []).map(l => ({
+      id: l.id,
+      nombre: l.nombre,
+      empresa: l.empresa ?? null,
+      producto: l.producto_interes_principal ?? null,
+      comercial: comercialesMap[l.comercial_asignado] ?? "Comercial",
+      updated_at: l.updated_at,
+    }));
+
     setPuestos(resultado);
+    setLogros(logrosArr);
     setLoading(false);
   }, [metrica, inicioMes]);
 
@@ -261,6 +299,43 @@ export default function ClasificacionPage() {
           {puestos.length === 0 && (
             <div className="bg-white rounded-xl border border-slate-200 py-16 text-center">
               <p className="text-slate-400 text-sm">No hay datos aún para este mes.</p>
+            </div>
+          )}
+
+          {/* Logros recientes */}
+          {logros.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
+                <span className="text-base">🏆</span>
+                <p className="text-sm font-medium text-slate-700">Logros del mes</p>
+                <p className="text-xs text-slate-400 ml-1">Cierres recientes del equipo</p>
+              </div>
+              <div className="divide-y divide-slate-50">
+                {logros.map(l => {
+                  const diasAtras = Math.round((Date.now() - new Date(l.updated_at).getTime()) / 86_400_000);
+                  return (
+                    <div key={l.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors">
+                      <div className="text-xl shrink-0">🎉</div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-slate-800">
+                          <span className="font-semibold">{l.comercial}</span>
+                          {" cerró "}
+                          <span className="font-medium">{l.nombre}</span>
+                          {l.empresa && <span className="text-slate-500"> ({l.empresa})</span>}
+                        </p>
+                        {l.producto && (
+                          <p className="text-xs text-slate-400 mt-0.5">
+                            {PRODUCTO_LABEL[l.producto] ?? l.producto}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs text-slate-300 shrink-0">
+                        {diasAtras === 0 ? "hoy" : `hace ${diasAtras}d`}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           )}
         </>
