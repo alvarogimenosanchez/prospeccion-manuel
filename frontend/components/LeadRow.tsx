@@ -134,7 +134,18 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
   // Número para WhatsApp / llamada
   const tel = lead.telefono_whatsapp ?? lead.telefono ?? null;
   const telLimpio = tel ? tel.replace(/\D/g, "") : null;
-  const mensajeWA = `Hola ${lead.nombre}, soy de Nationale-Nederlanden. ¿Tienes un momento?`;
+  const sec = (lead.sector || "").toLowerCase();
+  const ciu = lead.ciudad || "tu zona";
+  const esFollowUp = ["respondio","cita_agendada","en_negociacion","mensaje_enviado"].includes(estadoActual);
+  const esInmob = sec.includes("inmobil");
+  const esAsesoria = sec.includes("asesor") || sec.includes("gestor") || sec.includes("contab");
+  const mensajeWA = esFollowUp
+    ? `Hola ${lead.nombre}, ¿has podido revisar lo que te comenté${lead.empresa ? ` sobre ${lead.empresa}` : ""}? Quedo a tu disposición para cualquier duda.`
+    : esInmob
+    ? `Hola ${lead.nombre}, soy Manuel de Nationale-Nederlanden en ${ciu}. Trabajo con inmobiliarias en acuerdos de derivación hipotecaria — cuando tu cliente necesita hipoteca, generáis comisión sin trabajo extra. ¿15 minutos esta semana?`
+    : esAsesoria
+    ? `Hola ${lead.nombre}, soy Manuel de Nationale-Nederlanden. Muchos de vuestros clientes autónomos no tienen cubierta la baja desde el primer día. Tengo un seguro desde 5€/mes — ¿lo vemos juntos?`
+    : `Hola ${lead.nombre}, soy Manuel, asesor en ${ciu}. Si un día no puedes trabajar por enfermedad o accidente, ¿cuánto cobrarías? Tengo una solución desde ~5€/mes. ¿Tienes 5 minutos?`;
   const waLink = telLimpio
     ? `https://wa.me/${telLimpio}?text=${encodeURIComponent(mensajeWA)}`
     : null;
