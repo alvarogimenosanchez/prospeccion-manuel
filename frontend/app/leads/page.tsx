@@ -32,11 +32,12 @@ function LeadsContent() {
   const searchParams = useSearchParams();
 
   // ── Filtros ────────────────────────────────────────────────────────────────
-  const [prioridad, setPrioridad] = useState(searchParams.get("prioridad") ?? "");
-  const [busqueda,  setBusqueda ] = useState("");
-  const [teamId,    setTeamId   ] = useState(searchParams.get("team") ?? "");
-  const [estado,    setEstado   ] = useState<EstadoFiltro>((searchParams.get("estado") as EstadoFiltro) ?? "");
-  const [soloMios,  setSoloMios ] = useState(true);
+  const [prioridad,    setPrioridad   ] = useState(searchParams.get("prioridad") ?? "");
+  const [busqueda,     setBusqueda    ] = useState("");
+  const [teamId,       setTeamId      ] = useState(searchParams.get("team") ?? "");
+  const [estado,       setEstado      ] = useState<EstadoFiltro>((searchParams.get("estado") as EstadoFiltro) ?? "");
+  const [soloMios,     setSoloMios    ] = useState(true);
+  const [temperatura,  setTemperatura ] = useState(searchParams.get("temperatura") ?? "");
 
   // ── Comercial del usuario logueado ────────────────────────────────────────
   const [comercialId, setComercialId] = useState<string | null>(null);
@@ -93,9 +94,10 @@ function LeadsContent() {
       .order("updated_at",    { ascending: false })
       .range(nuevoOffset, nuevoOffset + PAGE_SIZE - 1);
 
-    if (prioridad) query = query.eq("prioridad", prioridad);
-    if (estado)    query = query.eq("estado",    estado);
-    if (teamId)    query = query.eq("team_id",   teamId);
+    if (prioridad)   query = query.eq("prioridad",   prioridad);
+    if (estado)      query = query.eq("estado",      estado);
+    if (teamId)      query = query.eq("team_id",     teamId);
+    if (temperatura) query = query.eq("temperatura", temperatura);
 
     // "Mis leads": filtrar por comercial asignado
     if (soloMios && comercialId) {
@@ -121,7 +123,7 @@ function LeadsContent() {
     setOffset(nuevoOffset);
     setHayMas(nuevoOffset + PAGE_SIZE < totalCount);
     setLoading(false);
-  }, [prioridad, busqueda, estado, soloMios, comercialId, comercialCargado, teamId]);
+  }, [prioridad, busqueda, estado, soloMios, comercialId, comercialCargado, teamId, temperatura]);
 
   // Reset y recargar cuando cambian los filtros
   useEffect(() => {
@@ -133,11 +135,12 @@ function LeadsContent() {
   }
 
   // Calcular texto de resumen
-  const sinFiltros = !prioridad && !estado && !teamId;
+  const sinFiltros = !prioridad && !estado && !teamId && !temperatura;
   const labelFiltrado = [
     soloMios ? "mis leads" : null,
     estado ? `en "${estado}"` : null,
     prioridad ? `prioridad ${prioridad}` : null,
+    temperatura ? `${temperatura === "caliente" ? "🔴" : temperatura === "templado" ? "🟡" : "🔵"} ${temperatura}` : null,
   ].filter(Boolean).join(", ");
 
   return (
@@ -206,11 +209,13 @@ function LeadsContent() {
           estado={estado}
           soloMios={soloMios}
           teamId={teamId}
-          onPrioridad={(v) => setPrioridad(v)}
-          onBusqueda={(v)  => setBusqueda(v)}
-          onEstado={(v)    => setEstado(v)}
-          onSoloMios={(v)  => setSoloMios(v)}
-          onTeam={(v)      => setTeamId(v)}
+          temperatura={temperatura}
+          onPrioridad={(v)    => setPrioridad(v)}
+          onBusqueda={(v)     => setBusqueda(v)}
+          onEstado={(v)       => setEstado(v)}
+          onSoloMios={(v)     => setSoloMios(v)}
+          onTeam={(v)         => setTeamId(v)}
+          onTemperatura={(v)  => setTemperatura(v)}
         />
       </div>
 

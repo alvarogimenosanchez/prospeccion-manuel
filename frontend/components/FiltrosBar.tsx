@@ -21,11 +21,13 @@ type FiltrosBarProps = {
   estado: EstadoFiltro;
   soloMios: boolean;
   teamId?: string;
+  temperatura?: string;
   onPrioridad: (v: string) => void;
   onBusqueda: (v: string) => void;
   onEstado: (v: EstadoFiltro) => void;
   onSoloMios: (v: boolean) => void;
   onTeam?: (v: string) => void;
+  onTemperatura?: (v: string) => void;
 };
 
 const ESTADO_BTNS: { value: EstadoFiltro; label: string }[] = [
@@ -48,17 +50,26 @@ const PRIORIDAD_BTNS = [
   { value: "baja",  label: "Baja"  },
 ];
 
+const TEMPERATURA_BTNS = [
+  { value: "",         label: "Todas",   dot: "" },
+  { value: "caliente", label: "Caliente", dot: "🔴" },
+  { value: "templado", label: "Templado", dot: "🟡" },
+  { value: "frio",     label: "Frío",     dot: "🔵" },
+];
+
 export function FiltrosBar({
   prioridad,
   busqueda,
   estado,
   soloMios,
   teamId = "",
+  temperatura = "",
   onPrioridad,
   onBusqueda,
   onEstado,
   onSoloMios,
   onTeam,
+  onTemperatura,
 }: FiltrosBarProps) {
   const [teams, setTeams] = useState<{ id: string; nombre: string }[]>([]);
 
@@ -134,6 +145,30 @@ export function FiltrosBar({
             </button>
           ))}
         </div>
+
+        {/* Temperatura */}
+        {onTemperatura && (
+          <>
+            <div className="hidden sm:block w-px h-6 bg-slate-200" />
+            <div className="flex gap-1">
+              {TEMPERATURA_BTNS.map((b) => (
+                <button
+                  key={b.value}
+                  onClick={() => onTemperatura(b.value)}
+                  className={pill(temperatura === b.value)}
+                  style={temperatura === b.value ? {
+                    background: b.value === "caliente" ? "#ef4444"
+                      : b.value === "templado" ? "#f59e0b"
+                      : b.value === "frio" ? "#3b82f6"
+                      : "#ea650d"
+                  } : undefined}
+                >
+                  {b.dot ? `${b.dot} ${b.label}` : b.label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Fila 2: estado del pipeline */}
