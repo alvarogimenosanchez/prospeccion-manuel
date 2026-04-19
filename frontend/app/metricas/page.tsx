@@ -56,7 +56,7 @@ type Periodo = "semana" | "mes" | "total";
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
 
-const FUENTES = ["scraping", "linkedin", "inbound", "referido", "base_existente", "manual"];
+const FUENTES = ["scraping", "linkedin", "inbound", "referido", "base_existente", "manual", "formulario_web"];
 
 const PRODUCTOS = [
   { key: "contigo_autonomo", label: "Contigo Autónomo" },

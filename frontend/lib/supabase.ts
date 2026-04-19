@@ -22,7 +22,8 @@ export type Lead = {
   edad_estimada: number | null;
   tiene_hijos: boolean | null;
   tiene_hipoteca: boolean | null;
-  fuente: "linkedin" | "scraping" | "inbound" | "base_existente" | "referido" | "manual" | null;
+  fuente: "linkedin" | "scraping" | "inbound" | "base_existente" | "referido" | "manual" | "formulario_web" | null;
+  formulario_id: string | null;
   fuente_detalle: string | null;
   fecha_captacion: string;
   ciudad: string | null;

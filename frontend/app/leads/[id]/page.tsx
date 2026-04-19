@@ -302,6 +302,7 @@ export default function LeadDetailPage() {
   // Estado history + IA
   const [stateHistory, setStateHistory] = useState<{ id: string; estado_anterior: string; estado_nuevo: string; created_at: string }[]>([]);
   const [generandoMensajeIA, setGenerandoMensajeIA] = useState(false);
+  const [formularioNombre, setFormularioNombre] = useState<string | null>(null);
 
   // Asistente IA en ficha de lead
   const [mensajesIA, setMensajesIA] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
@@ -326,11 +327,16 @@ export default function LeadDetailPage() {
         supabase.from("lead_state_history").select("id, estado_anterior, estado_nuevo, created_at").eq("lead_id", id).order("created_at"),
         supabase.auth.getUser(),
       ]);
-      setLead(leadRes.data as Lead);
+      const leadData = leadRes.data as Lead;
+      setLead(leadData);
       setInteractions((interRes.data as Interaction[]) ?? []);
       setAppointments((apptRes.data as Appointment[]) ?? []);
       setClienteExistente(clienteRes.data as { id: string } | null);
       setStateHistory((historyRes.data as { id: string; estado_anterior: string; estado_nuevo: string; created_at: string }[]) ?? []);
+      if (leadData?.formulario_id) {
+        supabase.from("formularios_captacion").select("nombre, emoji").eq("id", leadData.formulario_id).single()
+          .then(({ data }) => { if (data) setFormularioNombre(`${data.emoji} ${data.nombre}`); });
+      }
 
       // Obtener ID del comercial logueado por email
       if (user?.email) {
@@ -1057,6 +1063,11 @@ export default function LeadDetailPage() {
               {lead.temperatura && <TemperaturaBadge temperatura={lead.temperatura as "caliente" | "templado" | "frio"} />}
               <PrioridadBadge prioridad={prioridadDeNivel(lead.nivel_interes)} />
               <FuenteBadge fuente={lead.fuente ?? null} />
+              {formularioNombre && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium bg-violet-50 text-violet-700">
+                  {formularioNombre}
+                </span>
+              )}
               {lead.fecha_captacion && (
                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border bg-slate-50 text-slate-500 border-slate-200">
                   📅 {new Date(lead.fecha_captacion).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}

@@ -1,4 +1,4 @@
-type Fuente = "linkedin" | "scraping" | "inbound" | "base_existente" | "referido" | "manual" | null;
+type Fuente = "linkedin" | "scraping" | "inbound" | "base_existente" | "referido" | "manual" | "formulario_web" | null;
 
 const config: Record<string, { label: string; class: string }> = {
   linkedin: { label: "LinkedIn", class: "bg-blue-100 text-blue-700" },
@@ -7,6 +7,7 @@ const config: Record<string, { label: string; class: string }> = {
   base_existente: { label: "BD", class: "bg-slate-100 text-slate-600" },
   referido: { label: "Referido", class: "bg-amber-100 text-amber-700" },
   manual: { label: "Manual", class: "bg-slate-100 text-slate-500" },
+  formulario_web: { label: "Formulario", class: "bg-violet-100 text-violet-700" },
 };
 
 export function FuenteBadge({ fuente }: { fuente: Fuente }) {
