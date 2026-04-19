@@ -5,6 +5,7 @@ import { format, startOfWeek, addDays, isToday, isSameDay, parseISO, startOfDay,
 import { es } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import { usePermisos } from "@/components/PermisosProvider";
 
 type CitaConLead = {
   id: string;
@@ -178,6 +179,7 @@ function ModalPostCita({ cita, onGuardar, onCerrar }: ModalPostCitaProps) {
 }
 
 export default function AgendaPage() {
+  const { puede, cargando: cargandoPermisos } = usePermisos();
   const [citas, setCitas] = useState<CitaConLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [semanaBase, setSemanaBase] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
@@ -210,6 +212,16 @@ export default function AgendaPage() {
       setEquipos(teamRes.data ?? []);
     });
   }, []);
+
+  // Auto-filtrar por comercial actual para usuarios sin ver_todos_leads
+  useEffect(() => {
+    if (cargandoPermisos || puede("ver_todos_leads")) return;
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user?.email) return;
+      supabase.from("comerciales").select("id").eq("email", user.email).single()
+        .then(({ data }) => { if (data) setFiltroComercial(data.id); });
+    });
+  }, [cargandoPermisos, puede]);
 
   const cargarCitas = useCallback(async () => {
     setLoading(true);
@@ -494,8 +506,8 @@ export default function AgendaPage() {
               ))}
             </select>
           )}
-          {/* Filtro comercial */}
-          {comerciales.length > 1 && (
+          {/* Filtro comercial — solo para usuarios con ver_todos_leads */}
+          {comerciales.length > 1 && !cargandoPermisos && puede("ver_todos_leads") && (
             <select
               value={filtroComercial}
               onChange={e => { setFiltroComercial(e.target.value); setFiltroEquipo(""); }}
