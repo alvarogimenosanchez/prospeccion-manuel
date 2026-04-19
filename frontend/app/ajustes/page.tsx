@@ -43,6 +43,56 @@ function aplicarVariables(texto: string): string {
   return resultado;
 }
 
+const CONFIG_DEFAULT = `{
+  "titulo": "Descubre qué producto financiero se adapta a ti",
+  "subtitulo": "Responde 5 preguntas y te recomiendo exactamente lo que necesitas. Sin compromiso, gratis.",
+  "nombre_asesor": "Manuel García",
+  "cargo_asesor": "Asesor Financiero · Nationale-Nederlanden",
+  "pasos": [
+    {
+      "id": "situacion",
+      "titulo": "¿Cuál es tu situación?",
+      "subtitulo": "Elige la opción que mejor te describe",
+      "opciones": [
+        { "valor": "autonomo", "etiqueta": "Soy autónomo o freelance", "descripcion": "Trabajas por cuenta propia", "emoji": "🧑‍💼" },
+        { "valor": "pyme", "etiqueta": "Tengo una empresa con empleados", "descripcion": "Eres empresario o diriges un equipo", "emoji": "🏢" },
+        { "valor": "particular", "etiqueta": "Soy empleado / particular", "descripcion": "Trabajas por cuenta ajena", "emoji": "👨‍👩‍👧" },
+        { "valor": "hipoteca", "etiqueta": "Busco financiación o hipoteca", "descripcion": "Quieres comprar vivienda", "emoji": "🏠" }
+      ]
+    },
+    {
+      "id": "preocupaciones",
+      "titulo": "¿Qué te preocupa más?",
+      "subtitulo": "Puedes elegir varias opciones",
+      "opciones": [
+        { "id": "no_trabajar", "emoji": "🤒", "texto": "Qué pasa si me pongo enfermo y no puedo trabajar" },
+        { "id": "familia", "emoji": "👨‍👩‍👧", "texto": "Dejar protegida económicamente a mi familia" },
+        { "id": "accidente", "emoji": "🦺", "texto": "Protegerme ante un accidente grave" },
+        { "id": "ahorro", "emoji": "💰", "texto": "Ahorrar o invertir de forma segura" },
+        { "id": "medico", "emoji": "🏥", "texto": "Tener médico privado sin esperas" },
+        { "id": "hipoteca", "emoji": "🏠", "texto": "Comprar una vivienda o conseguir hipoteca" },
+        { "id": "irpf", "emoji": "📉", "texto": "Pagar menos impuestos (IRPF)" }
+      ]
+    },
+    {
+      "id": "datos",
+      "titulo": "Un poco más sobre ti",
+      "subtitulo": "Para que Manuel pueda contactarte",
+      "campos": ["nombre", "telefono", "ciudad", "tiene_hijos", "tiene_hipoteca", "mayor_55"]
+    },
+    {
+      "id": "urgencia",
+      "titulo": "¿Cuándo prefieres que te contactemos?",
+      "subtitulo": "Manuel se ajusta a tu ritmo",
+      "opciones": [
+        { "valor": "hoy_manana", "emoji": "⚡", "titulo": "Lo antes posible", "desc": "Hoy o mañana" },
+        { "valor": "esta_semana", "emoji": "📅", "titulo": "Esta semana, sin prisa", "desc": "En los próximos días" },
+        { "valor": "dos_tres_semanas", "emoji": "🗓️", "titulo": "En 2-3 semanas", "desc": "Cuando sea conveniente" }
+      ]
+    }
+  ]
+}`;
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function AjustesPage() {
   const supabase = createClient();
@@ -50,6 +100,11 @@ export default function AjustesPage() {
   const [miNombre, setMiNombre] = useState("");
   const [plantillas, setPlantillas] = useState<PlantillaWA[]>([]);
   const [cargando, setCargando] = useState(true);
+  const [tabActiva, setTabActiva] = useState<"plantillas" | "cuestionario">("plantillas");
+  const [configCuestionario, setConfigCuestionario] = useState(CONFIG_DEFAULT);
+  const [guardandoConfig, setGuardandoConfig] = useState(false);
+  const [configOk, setConfigOk] = useState(false);
+  const [errorConfig, setErrorConfig] = useState("");
 
   // Form state
   const [editandoId, setEditandoId] = useState<string | null>(null);
@@ -95,8 +150,49 @@ export default function AjustesPage() {
   }
 
   useEffect(() => {
-    if (miComercialId) cargarPlantillas(miComercialId);
+    if (miComercialId) {
+      cargarPlantillas(miComercialId);
+      cargarConfig();
+    }
   }, [miComercialId]);
+
+  async function cargarConfig() {
+    const { data } = await supabase
+      .from("recursos_rapidos")
+      .select("contenido")
+      .eq("tipo", "cuestionario_config")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data?.contenido) setConfigCuestionario(data.contenido);
+  }
+
+  async function guardarConfig() {
+    if (!miComercialId) return;
+    setErrorConfig("");
+    try { JSON.parse(configCuestionario); } catch {
+      setErrorConfig("JSON no válido — revisa la sintaxis antes de guardar."); return;
+    }
+    setGuardandoConfig(true);
+    const { data: existing } = await supabase
+      .from("recursos_rapidos").select("id").eq("tipo", "cuestionario_config").maybeSingle();
+    const payload = {
+      titulo: "Config cuestionario captación",
+      tipo: "cuestionario_config",
+      contenido: configCuestionario,
+      es_global: true,
+      creado_por: miComercialId,
+      orden: 0,
+    };
+    if (existing) {
+      await supabase.from("recursos_rapidos").update(payload).eq("id", existing.id);
+    } else {
+      await supabase.from("recursos_rapidos").insert(payload);
+    }
+    setGuardandoConfig(false);
+    setConfigOk(true);
+    setTimeout(() => setConfigOk(false), 3000);
+  }
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
   function abrirNueva() {
@@ -200,8 +296,35 @@ export default function AjustesPage() {
         )}
       </div>
 
+      {/* ── Tabs ──────────────────────────────────────────────────────────── */}
+      <div className="flex gap-1 mb-6 border-b border-slate-200">
+        {([
+          { id: "plantillas",   label: "Plantillas WA" },
+          { id: "cuestionario", label: "Cuestionario de captación" },
+        ] as const).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTabActiva(t.id)}
+            style={{
+              padding: "8px 16px",
+              fontSize: 14,
+              fontWeight: tabActiva === t.id ? 600 : 400,
+              color: tabActiva === t.id ? "#ea650d" : "#6b6560",
+              background: "transparent",
+              border: "none",
+              borderBottom: tabActiva === t.id ? "2px solid #ea650d" : "2px solid transparent",
+              cursor: "pointer",
+              marginBottom: -1,
+              transition: "color 0.1s",
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
       {/* ── Sección plantillas WhatsApp ────────────────────────────────────── */}
-      <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+      {tabActiva === "plantillas" && <div className="card" style={{ padding: 0, overflow: "hidden" }}>
         {/* Section header */}
         <div
           style={{
@@ -512,6 +635,100 @@ export default function AjustesPage() {
           </div>
         )}
       </div>
+
+      }
+
+      {/* ── Sección cuestionario ───────────────────────────────────────────── */}
+      {tabActiva === "cuestionario" && (
+        <div className="space-y-4">
+          {/* Info + enlace */}
+          <div className="card" style={{ padding: "16px 20px" }}>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "#414141" }}>Formulario público de captación</p>
+                <p className="text-xs mt-0.5" style={{ color: "#a09890" }}>
+                  Comparte este enlace en redes sociales, email o WhatsApp para captar leads automáticamente
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <code className="text-xs px-2 py-1 rounded" style={{ background: "#f5f0ec", color: "#ea650d" }}>
+                    prospeccion-manuel.vercel.app/captacion
+                  </code>
+                  <button
+                    onClick={() => navigator.clipboard.writeText("https://prospeccion-manuel.vercel.app/captacion")}
+                    className="text-xs font-medium hover:underline" style={{ color: "#ea650d" }}>
+                    Copiar
+                  </button>
+                </div>
+              </div>
+              <a href="/captacion" target="_blank" rel="noopener noreferrer"
+                className="btn-primary px-3 py-1.5 text-xs flex-shrink-0 flex items-center gap-1.5">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
+                </svg>
+                Ver formulario
+              </a>
+            </div>
+          </div>
+
+          {/* Editor JSON */}
+          <div className="card" style={{ padding: 0, overflow: "hidden" }}>
+            <div style={{ padding: "14px 20px", borderBottom: "1px solid #e5ded9", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "#414141" }}>Configuración del cuestionario</p>
+                <p className="text-xs mt-0.5" style={{ color: "#a09890" }}>
+                  Edita los textos, opciones y pasos del formulario público en formato JSON
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                {configOk && (
+                  <span className="text-xs font-medium" style={{ color: "#16a34a" }}>✓ Guardado</span>
+                )}
+                <button
+                  onClick={() => setConfigCuestionario(CONFIG_DEFAULT)}
+                  className="btn-secondary px-3 py-1.5 text-xs">
+                  Restaurar por defecto
+                </button>
+                <button
+                  onClick={guardarConfig}
+                  disabled={guardandoConfig}
+                  className="btn-primary px-3 py-1.5 text-xs disabled:opacity-50">
+                  {guardandoConfig ? "Guardando..." : "Guardar config"}
+                </button>
+              </div>
+            </div>
+            <div style={{ padding: "16px 20px" }}>
+              {errorConfig && (
+                <p className="text-xs mb-2 px-3 py-2 rounded" style={{ background: "#fef2f2", color: "#dc2626", border: "1px solid #fecaca" }}>
+                  ⚠ {errorConfig}
+                </p>
+              )}
+              <textarea
+                value={configCuestionario}
+                onChange={e => { setConfigCuestionario(e.target.value); setErrorConfig(""); }}
+                rows={30}
+                spellCheck={false}
+                style={{
+                  width: "100%",
+                  fontFamily: "monospace",
+                  fontSize: 12,
+                  lineHeight: "18px",
+                  padding: "12px",
+                  border: "1px solid #e5ded9",
+                  borderRadius: 4,
+                  background: "#faf8f6",
+                  color: "#414141",
+                  resize: "vertical",
+                  outline: "none",
+                  boxSizing: "border-box",
+                }}
+              />
+              <p className="text-xs mt-2" style={{ color: "#c7bdb7" }}>
+                El formulario en <code>/captacion</code> cargará esta configuración automáticamente (requiere actualización del código).
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal editor ───────────────────────────────────────────────────── */}
       {modalAbierto && (
