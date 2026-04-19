@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { usePermisos } from "@/components/PermisosProvider";
+import { SinAcceso } from "@/components/SinAcceso";
 import type { Team, TeamMember, Comercial } from "@/lib/supabase";
 
 type TeamConMiembros = Team & {
@@ -26,11 +28,13 @@ type FormEditComercial = {
   id: string;
   nombre: string;
   apellidos: string;
-  rol: "director" | "comercial";
+  rol: "admin" | "director" | "manager" | "comercial";
   max_leads_activos: number;
 };
 
 export default function EquiposPage() {
+  const { puede, cargando: cargandoPermisos } = usePermisos();
+  if (!cargandoPermisos && !puede("gestionar_equipo")) return <SinAcceso />;
   const [equipos, setEquipos] = useState<TeamConMiembros[]>([]);
   const [comerciales, setComerciales] = useState<ComercialConCarga[]>([]);
   const [loading, setLoading] = useState(true);

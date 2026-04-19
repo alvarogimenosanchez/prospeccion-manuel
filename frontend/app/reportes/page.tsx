@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { usePermisos } from "@/components/PermisosProvider";
+import { SinAcceso } from "@/components/SinAcceso";
 import { formatDistanceToNow } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
@@ -47,6 +49,8 @@ const FILTROS = [
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ReportesPage() {
+  const { puede, cargando: cargandoPermisos } = usePermisos();
+  if (!cargandoPermisos && !puede("ver_reportes")) return <SinAcceso />;
   const [comercialId, setComercialId] = useState<string | null>(null);
   const [reportes, setReportes] = useState<Reporte[]>([]);
   const [loading, setLoading] = useState(true);

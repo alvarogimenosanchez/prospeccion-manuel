@@ -3,6 +3,8 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Lead } from "@/lib/supabase";
+import { usePermisos } from "@/components/PermisosProvider";
+import { SinAcceso } from "@/components/SinAcceso";
 import Link from "next/link";
 import * as XLSX from "xlsx";
 
@@ -72,6 +74,8 @@ type HeaderStats = {
 };
 
 export default function ProspeccionPage() {
+  const { puede, cargando: cargandoPermisos } = usePermisos();
+  if (!cargandoPermisos && !puede("usar_scraping")) return <SinAcceso />;
   const [leads, setLeads] = useState<LeadNuevo[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);

@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { usePermisos } from "@/components/PermisosProvider";
+import { SinAcceso } from "@/components/SinAcceso";
 
 function vaAtrasado(valorActual: number, objetivo: number): boolean {
   if (objetivo === 0) return false;
@@ -68,6 +70,8 @@ const PRODUCTOS_NOMBRE: Record<string, string> = {
 };
 
 export default function DesempenoPage() {
+  const { puede, cargando: cargandoPermisos } = usePermisos();
+  if (!cargandoPermisos && !puede("ver_metricas")) return <SinAcceso />;
   const [stats, setStats] = useState<StatsComercial[]>([]);
   const [alertas, setAlertas] = useState<AlertaDecision[]>([]);
   const [loading, setLoading] = useState(true);

@@ -3,6 +3,8 @@
 import { useEffect, useState, useRef, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabase";
+import { usePermisos } from "@/components/PermisosProvider";
+import { SinAcceso } from "@/components/SinAcceso";
 
 // ── Coordenadas estáticas para ciudades españolas principales ──────────────
 const COORDS_ESPANA: Record<string, [number, number]> = {
@@ -110,6 +112,8 @@ const MapaLeads = dynamic(() => import("./MapaLeads"), {
 });
 
 export default function MapaPage() {
+  const { puede, cargando: cargandoPermisos } = usePermisos();
+  if (!cargandoPermisos && !puede("usar_scraping")) return <SinAcceso />;
   const [leads, setLeads] = useState<LeadMapa[]>([]);
   const [loading, setLoading] = useState(true);
   const [geocoding, setGeocoding] = useState(false);

@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Sidebar } from "./Sidebar";
+import { PermisosProvider } from "./PermisosProvider";
 
 const PUBLIC_ROUTES = ["/login", "/auth"];
 
@@ -14,6 +15,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (isPublic) return <>{children}</>;
 
   return (
+    <PermisosProvider>
     <div className="flex min-h-screen" style={{ background: "#f1edeb" }}>
       {/* Mobile overlay */}
       {sidebarOpen && (
@@ -61,5 +63,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </main>
     </div>
+    </PermisosProvider>
   );
 }

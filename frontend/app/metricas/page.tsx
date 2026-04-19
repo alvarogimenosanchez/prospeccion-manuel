@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { usePermisos } from "@/components/PermisosProvider";
+import { SinAcceso } from "@/components/SinAcceso";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -132,6 +134,8 @@ function inicioPeriodo(periodo: Periodo): string | null {
 // ─── Componente principal ─────────────────────────────────────────────────────
 
 export default function MetricasPage() {
+  const { puede, cargando: cargandoPermisos } = usePermisos();
+  if (!cargandoPermisos && !puede("ver_metricas")) return <SinAcceso />;
   const [periodo, setPeriodo] = useState<Periodo>("mes");
   const [comercialId, setComercialId] = useState<string>("todos");
   const [comerciales, setComercialesState] = useState<Comercial[]>([]);

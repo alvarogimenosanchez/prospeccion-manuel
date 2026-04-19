@@ -184,13 +184,18 @@ export default function AjustesPage() {
   const [miNombre, setMiNombre] = useState("");
   const [plantillas, setPlantillas] = useState<PlantillaWA[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [tabActiva, setTabActiva] = useState<"plantillas" | "cuestionario" | "formularios" | "scraping">("plantillas");
+  const [tabActiva, setTabActiva] = useState<"plantillas" | "cuestionario" | "formularios" | "scraping" | "roles">("plantillas");
   const [formularios, setFormularios] = useState<{id:string;slug:string;nombre:string;titulo:string;subtitulo:string|null;emoji:string;color_hex:string;pedir_email:boolean;pedir_ciudad:boolean;texto_cta:string;activo:boolean}[]>([]);
   const [editandoFormId, setEditandoFormId] = useState<string|null>(null);
   const [fTitulo, setFTitulo] = useState(""); const [fSubtitulo, setFSubtitulo] = useState(""); const [fTextoCta, setFTextoCta] = useState(""); const [fPedirEmail, setFPedirEmail] = useState(false); const [fActivo, setFActivo] = useState(true);
   const [guardandoForm, setGuardandoForm] = useState(false);
   const [esDirector, setEsDirector] = useState(false);
+  const [esAdmin, setEsAdmin] = useState(false);
   const [comercialesLimites, setComerciales] = useState<{id: string; nombre: string; email: string; limite_leads_mes: number; usoMes?: number}[]>([]);
+  const [rolePermisos, setRolePermisos] = useState<{ rol: string; permiso: string; activo: boolean }[]>([]);
+  const [comercialesRoles, setComercialRoles] = useState<{ id: string; nombre: string; apellidos: string | null; email: string | null; rol: string }[]>([]);
+  const [guardandoPermiso, setGuardandoPermiso] = useState<string | null>(null);
+  const [guardandoRolId, setGuardandoRolId] = useState<string | null>(null);
   const [guardandoLimite, setGuardandoLimite] = useState<string | null>(null);
   const [configCuestionario, setConfigCuestionario] = useState(CONFIG_DEFAULT);
   const [guardandoConfig, setGuardandoConfig] = useState(false);
@@ -222,9 +227,14 @@ export default function AjustesPage() {
             if (c) {
               setMiComercialId(c.id);
               setMiNombre(c.nombre);
-              if (c.rol === "director") {
+              if (c.rol === "director" || c.rol === "admin" || c.rol === "manager") {
                 setEsDirector(true);
                 cargarComerciales();
+              }
+              if (c.rol === "admin") {
+                setEsAdmin(true);
+                cargarRolePermisos();
+                cargarComercialRoles();
               }
             }
           });
@@ -253,6 +263,32 @@ export default function AjustesPage() {
     await supabase.from("comerciales").update({ limite_leads_mes: nuevoLimite }).eq("id", id);
     setComerciales(prev => prev.map(c => c.id === id ? { ...c, limite_leads_mes: nuevoLimite } : c));
     setGuardandoLimite(null);
+  }
+
+  async function cargarRolePermisos() {
+    const { data } = await supabase.from("role_permissions").select("rol, permiso, activo").order("rol").order("permiso");
+    if (data) setRolePermisos(data);
+  }
+
+  async function cargarComercialRoles() {
+    const { data } = await supabase.from("comerciales").select("id, nombre, apellidos, email, rol").eq("activo", true).order("nombre");
+    if (data) setComercialRoles(data);
+  }
+
+  async function togglePermiso(rol: string, permiso: string, nuevoActivo: boolean) {
+    if (rol === "admin") return; // admin always has all permissions
+    const key = `${rol}:${permiso}`;
+    setGuardandoPermiso(key);
+    await supabase.from("role_permissions").update({ activo: nuevoActivo, updated_at: new Date().toISOString() }).eq("rol", rol).eq("permiso", permiso);
+    setRolePermisos(prev => prev.map(p => p.rol === rol && p.permiso === permiso ? { ...p, activo: nuevoActivo } : p));
+    setGuardandoPermiso(null);
+  }
+
+  async function cambiarRolComercial(id: string, nuevoRol: string) {
+    setGuardandoRolId(id);
+    await supabase.from("comerciales").update({ rol: nuevoRol }).eq("id", id);
+    setComercialRoles(prev => prev.map(c => c.id === id ? { ...c, rol: nuevoRol } : c));
+    setGuardandoRolId(null);
   }
 
   // ── Load plantillas ─────────────────────────────────────────────────────────
@@ -448,7 +484,8 @@ export default function AjustesPage() {
           { id: "formularios",  label: "Formularios de captación" },
           { id: "cuestionario", label: "Cuestionario" },
           ...(esDirector ? [{ id: "scraping" as const, label: "Límites scraping" }] : []),
-        ]) as { id: "plantillas" | "cuestionario" | "formularios" | "scraping"; label: string }[]).map(t => (
+          ...(esAdmin ? [{ id: "roles" as const, label: "Roles y permisos" }] : []),
+        ]) as { id: "plantillas" | "cuestionario" | "formularios" | "scraping" | "roles"; label: string }[]).map(t => (
           <button
             key={t.id}
             onClick={() => setTabActiva(t.id)}
@@ -1337,6 +1374,128 @@ export default function AjustesPage() {
           </div>
         </div>
       )}
+
+      {/* ── Sección roles y permisos (solo admin) ─────────────────────────── */}
+      {tabActiva === "roles" && esAdmin && (() => {
+        const PERMISOS_LABELS: Record<string, string> = {
+          ver_todos_leads: "Ver todos los leads",
+          ver_metricas: "Ver métricas y desempeño",
+          gestionar_equipo: "Gestionar equipo",
+          gestionar_ajustes: "Acceder a ajustes",
+          gestionar_roles: "Gestionar roles y permisos",
+          exportar_datos: "Exportar datos (CSV)",
+          ver_reportes: "Ver reportes",
+          borrar_leads: "Eliminar / descartar leads",
+          gestionar_clientes: "Gestionar clientes",
+          usar_scraping: "Usar prospección y mapa",
+          asignar_leads: "Asignar y reasignar leads",
+        };
+        const ROLES = ["admin", "director", "manager", "comercial"] as const;
+        const ROL_LABELS: Record<string, string> = {
+          admin: "Admin", director: "Director", manager: "Manager", comercial: "Comercial",
+        };
+        const permisosPorRol = (rol: string, permiso: string) =>
+          rolePermisos.find(p => p.rol === rol && p.permiso === permiso);
+
+        return (
+          <div className="space-y-6">
+            {/* Matriz de permisos */}
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100">
+                <p className="text-sm font-semibold text-slate-800">Permisos por rol</p>
+                <p className="text-xs text-slate-500 mt-0.5">Admin tiene todos los permisos activados y no se pueden modificar.</p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100">
+                      <th className="px-5 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Permiso</th>
+                      {ROLES.map(r => (
+                        <th key={r} className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">{ROL_LABELS[r]}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {Object.entries(PERMISOS_LABELS).map(([permiso, label]) => (
+                      <tr key={permiso} className="hover:bg-slate-50">
+                        <td className="px-5 py-3 text-sm text-slate-700">{label}</td>
+                        {ROLES.map(rol => {
+                          const entry = permisosPorRol(rol, permiso);
+                          const activo = entry?.activo ?? false;
+                          const isAdmin = rol === "admin";
+                          const key = `${rol}:${permiso}`;
+                          const saving = guardandoPermiso === key;
+                          return (
+                            <td key={rol} className="px-4 py-3 text-center">
+                              <button
+                                onClick={() => !isAdmin && togglePermiso(rol, permiso, !activo)}
+                                disabled={isAdmin || saving}
+                                className={`w-10 h-5 rounded-full relative transition-colors ${isAdmin ? "cursor-not-allowed opacity-70" : "cursor-pointer"}`}
+                                style={{ background: activo ? "#ea650d" : "#e2e8f0" }}
+                                title={isAdmin ? "Admin siempre tiene este permiso" : activo ? "Desactivar" : "Activar"}
+                              >
+                                <span
+                                  className="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow-sm transition-all"
+                                  style={{ left: activo ? "calc(100% - 18px)" : 2 }}
+                                />
+                              </button>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Asignación de roles por usuario */}
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100">
+                <p className="text-sm font-semibold text-slate-800">Asignación de roles</p>
+                <p className="text-xs text-slate-500 mt-0.5">Cambia el rol de cada comercial. Los cambios se aplican en su próximo inicio de sesión.</p>
+              </div>
+              <div className="divide-y divide-slate-50">
+                {comercialesRoles.map(c => {
+                  const iniciales = [c.nombre, c.apellidos].filter(Boolean).join(" ").split(" ").map(n => n[0]).slice(0, 2).join("").toUpperCase();
+                  return (
+                    <div key={c.id} className="flex items-center gap-4 px-5 py-3">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                        style={{ background: "#fff5f0", color: "#ea650d" }}>
+                        {iniciales}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800">{c.nombre} {c.apellidos ?? ""}</p>
+                        {c.email && <p className="text-xs text-slate-400 truncate">{c.email}</p>}
+                      </div>
+                      <select
+                        value={c.rol}
+                        onChange={e => cambiarRolComercial(c.id, e.target.value)}
+                        disabled={guardandoRolId === c.id}
+                        className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:border-orange-300 text-slate-700 disabled:opacity-50"
+                      >
+                        <option value="admin">Admin</option>
+                        <option value="director">Director</option>
+                        <option value="manager">Manager</option>
+                        <option value="comercial">Comercial</option>
+                      </select>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Info */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-500 space-y-1">
+              <p className="font-medium text-slate-700">Jerarquía de roles</p>
+              <p><strong>Admin:</strong> acceso total, gestión de roles y permisos (solo tú)</p>
+              <p><strong>Director:</strong> acceso completo a análisis, equipos, ajustes, scraping y clientes</p>
+              <p><strong>Manager:</strong> ve todos los leads y métricas, usa scraping, gestiona clientes</p>
+              <p><strong>Comercial:</strong> solo sus leads, agenda, mensajes y asistente IA</p>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

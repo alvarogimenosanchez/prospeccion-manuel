@@ -112,7 +112,7 @@ export type Comercial = {
   telefono: string | null;
   whatsapp: string | null;
   activo: boolean;
-  rol: "director" | "comercial";
+  rol: "admin" | "director" | "manager" | "comercial";
   max_leads_activos: number;
   objetivo_cierres_mes: number | null;
   objetivo_citas_mes: number | null;

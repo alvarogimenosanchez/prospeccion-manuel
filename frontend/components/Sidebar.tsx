@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase-browser";
 import type { User } from "@supabase/supabase-js";
+import { usePermisos } from "./PermisosProvider";
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
 function NavIcon({ name }: { name: string }) {
@@ -46,43 +47,43 @@ const NAV_GROUPS = [
   {
     label: "Diario",
     items: [
-      { href: "/hoy",      label: "Hoy",         icon: "target"    },
-      { href: "/leads",    label: "Leads",        icon: "users"     },
-      { href: "/pipeline", label: "Pipeline",     icon: "pipeline"  },
+      { href: "/hoy",      label: "Hoy",         icon: "target",   permiso: null },
+      { href: "/leads",    label: "Leads",        icon: "users",    permiso: null },
+      { href: "/pipeline", label: "Pipeline",     icon: "pipeline", permiso: null },
     ],
   },
   {
     label: "Comunicación",
     items: [
-      { href: "/mensajes",           label: "Mensajes WA",     icon: "message"   },
-      { href: "/ia",                 label: "Asistente IA",    icon: "sparkle"   },
-      { href: "/mensajes-internos",  label: "Chat interno",    icon: "chat"      },
-      { href: "/agenda",             label: "Agenda",          icon: "calendar"  },
-      { href: "/recursos",           label: "Acceso rápido",   icon: "bookmark"  },
+      { href: "/mensajes",           label: "Mensajes WA",     icon: "message",  permiso: null },
+      { href: "/ia",                 label: "Asistente IA",    icon: "sparkle",  permiso: null },
+      { href: "/mensajes-internos",  label: "Chat interno",    icon: "chat",     permiso: null },
+      { href: "/agenda",             label: "Agenda",          icon: "calendar", permiso: null },
+      { href: "/recursos",           label: "Acceso rápido",   icon: "bookmark", permiso: null },
     ],
   },
   {
     label: "Captación",
     items: [
-      { href: "/prospeccion",  label: "Prospección",   icon: "search"    },
-      { href: "/mapa",         label: "Mapa",           icon: "map"       },
-      { href: "/cuestionario", label: "Cuestionario",    icon: "clipboard" },
+      { href: "/prospeccion",  label: "Prospección",  icon: "search",    permiso: "usar_scraping" },
+      { href: "/mapa",         label: "Mapa",          icon: "map",       permiso: "usar_scraping" },
+      { href: "/cuestionario", label: "Cuestionario",  icon: "clipboard", permiso: null },
     ],
   },
   {
     label: "Análisis",
     items: [
-      { href: "/metricas",  label: "Métricas",   icon: "chart"     },
-      { href: "/desempeno", label: "Desempeño",  icon: "trending"  },
+      { href: "/metricas",  label: "Métricas",   icon: "chart",    permiso: "ver_metricas" },
+      { href: "/desempeno", label: "Desempeño",  icon: "trending", permiso: "ver_metricas" },
     ],
   },
   {
     label: "Gestión",
     items: [
-      { href: "/clientes", label: "Clientes",    icon: "briefcase" },
-      { href: "/equipos",  label: "Equipos",     icon: "team"      },
-      { href: "/ajustes",  label: "Ajustes",     icon: "settings"  },
-    { href: "/reportes", label: "Reportes",    icon: "flag"      },
+      { href: "/clientes", label: "Clientes",  icon: "briefcase", permiso: "gestionar_clientes" },
+      { href: "/equipos",  label: "Equipos",   icon: "team",      permiso: "gestionar_equipo" },
+      { href: "/ajustes",  label: "Ajustes",   icon: "settings",  permiso: "gestionar_ajustes" },
+      { href: "/reportes", label: "Reportes",  icon: "flag",      permiso: "ver_reportes" },
     ],
   },
 ];
@@ -96,6 +97,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
   const [badges, setBadges] = useState<Badges>({ mensajes: 0, hoy: 0, agenda: 0 });
+  const { puede, cargando: cargandoPermisos } = usePermisos();
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
@@ -205,7 +207,10 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
 
       {/* Nav groups */}
       <nav className="flex-1 px-2 space-y-4 pb-4">
-        {NAV_GROUPS.map((group) => (
+        {NAV_GROUPS.map((group) => {
+          const itemsVisibles = group.items.filter(item => !item.permiso || cargandoPermisos || puede(item.permiso));
+          if (itemsVisibles.length === 0) return null;
+          return (
           <div key={group.label}>
             <p
               className="px-3 mb-1 uppercase text-[10px] tracking-[0.14em] font-semibold"
@@ -214,7 +219,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               {group.label}
             </p>
             <div className="space-y-0.5">
-              {group.items.map(({ href, label, icon }) => {
+              {itemsVisibles.map(({ href, label, icon }) => {
                 const active = isActive(href);
                 const badge = href === "/mensajes" ? badges.mensajes : href === "/hoy" ? badges.hoy : href === "/agenda" ? badges.agenda : 0;
                 return (
@@ -264,7 +269,8 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
       </nav>
 
       {/* User footer */}
