@@ -202,6 +202,14 @@ function ClientesContent() {
   const vencidas = clientes.filter(c => c.fecha_renovacion && diasParaRenovacion(c.fecha_renovacion) < 0 && c.estado === "activo").length;
   const valorTotal = clientes.filter(c => c.estado === "activo").reduce((sum, c) => sum + (c.valor_contrato ?? 0), 0);
 
+  // Renovaciones urgentes (próximos 7 días)
+  const renovacionesUrgentes = clientes.filter(c =>
+    c.estado === "activo" &&
+    c.fecha_renovacion != null &&
+    diasParaRenovacion(c.fecha_renovacion) >= 0 &&
+    diasParaRenovacion(c.fecha_renovacion) <= 7
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -229,6 +237,52 @@ function ClientesContent() {
           color="text-green-600"
         />
       </div>
+
+      {/* Banner renovaciones urgentes */}
+      {renovacionesUrgentes.length > 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+          <span className="text-base shrink-0 mt-0.5">🔔</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-red-800">
+              {renovacionesUrgentes.length} {renovacionesUrgentes.length === 1 ? "cliente renueva" : "clientes renuevan"} en los próximos 7 días
+            </p>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {renovacionesUrgentes.map(c => {
+                const dias = diasParaRenovacion(c.fecha_renovacion!);
+                const waMsg = `Hola ${c.nombre}, soy Manuel de Nationale-Nederlanden. Quería hablar contigo sobre la renovación de tu ${productoLabel(c.producto)} que vence en ${dias === 0 ? "hoy" : `${dias} días`}. ¿Tienes un momento?`;
+                return (
+                  <div key={c.id} className="flex items-center gap-2 bg-white rounded-lg border border-red-200 px-2.5 py-1.5">
+                    <div>
+                      <span className="text-xs font-semibold text-slate-800">{c.nombre} {c.apellidos ?? ""}</span>
+                      <span className="mx-1.5 text-slate-300">·</span>
+                      <span className="text-xs text-slate-500">{productoLabel(c.producto)}</span>
+                      <span className="mx-1.5 text-slate-300">·</span>
+                      <span className={`text-xs font-semibold ${dias <= 1 ? "text-red-600" : "text-amber-600"}`}>
+                        {dias === 0 ? "hoy" : `${dias}d`}
+                      </span>
+                    </div>
+                    {c.telefono && (
+                      <a
+                        href={`https://wa.me/${c.telefono.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(waMsg)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="shrink-0 text-xs font-medium text-green-700 bg-green-100 hover:bg-green-200 rounded px-2 py-0.5 transition-colors"
+                      >
+                        WA →
+                      </a>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <button
+            onClick={() => setFiltro("renovacion_proxima")}
+            className="shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg border border-red-300 text-red-700 hover:bg-red-100 transition-colors"
+          >
+            Filtrar →
+          </button>
+        </div>
+      )}
 
       {/* Filtros + búsqueda */}
       <div className="flex flex-col sm:flex-row gap-3">
