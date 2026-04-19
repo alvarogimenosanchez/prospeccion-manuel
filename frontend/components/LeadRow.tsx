@@ -92,6 +92,7 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
   const sublinea = [lead.cargo, lead.empresa].filter(Boolean).join(" · ");
   const [estadoActual, setEstadoActual] = useState(lead.estado);
   const [avanzando, setAvanzando] = useState(false);
+  const [generandoMsg, setGenerandoMsg] = useState<"idle" | "generando" | "ok" | "error">("idle");
 
   const siguienteTransicion = TRANSICIONES[estadoActual]?.[0] ?? null;
 
@@ -103,6 +104,24 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
     setAvanzando(false);
     onEstadoCambiado?.(lead.id, siguienteTransicion.estado);
   }
+
+  async function generarMensajeIA() {
+    setGenerandoMsg("generando");
+    try {
+      const resp = await fetch("/api/backend/mensajes/generar-uno", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lead_id: lead.id }),
+      });
+      setGenerandoMsg(resp.ok ? "ok" : "error");
+      setTimeout(() => setGenerandoMsg("idle"), 3000);
+    } catch {
+      setGenerandoMsg("error");
+      setTimeout(() => setGenerandoMsg("idle"), 3000);
+    }
+  }
+
+  const puedeGenerarMsg = ["nuevo", "enriquecido", "segmentado"].includes(estadoActual) && !!lead.telefono_whatsapp;
 
   const accionInfo = proximaAccionTexto(lead.proxima_accion, lead.proxima_accion_fecha);
 
@@ -198,6 +217,21 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
 
       {/* Acciones rápidas — visibles al hacer hover */}
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {puedeGenerarMsg && (
+          <button
+            onClick={(e) => { e.stopPropagation(); generarMensajeIA(); }}
+            disabled={generandoMsg === "generando"}
+            title="Generar mensaje IA"
+            className="px-2 py-1 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50"
+            style={
+              generandoMsg === "ok" ? { color: "#16a34a", borderColor: "#bbf7d0", background: "#f0fdf4" }
+              : generandoMsg === "error" ? { color: "#dc2626", borderColor: "#fca5a5", background: "#fef2f2" }
+              : { color: "#ea650d", borderColor: "#f5a677", background: "#fff5f0" }
+            }
+          >
+            {generandoMsg === "generando" ? "..." : generandoMsg === "ok" ? "✓ Listo" : generandoMsg === "error" ? "Error" : "✦ IA"}
+          </button>
+        )}
         {waLink && (
           <a
             href={waLink}
