@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 
@@ -26,6 +26,24 @@ type MensajePendiente = {
   leads: Lead;
 };
 
+type PlantillaWA = {
+  id: string;
+  titulo: string;
+  contenido: string;
+  descripcion: string | null;
+  orden: number;
+};
+
+function aplicarVariables(texto: string, lead: Lead): string {
+  const nombre = [lead.nombre, lead.apellidos].filter(Boolean).join(" ") || "";
+  return texto
+    .replaceAll("{{nombre}}", lead.nombre || nombre)
+    .replaceAll("{{empresa}}", lead.empresa || "")
+    .replaceAll("{{ciudad}}", lead.ciudad || "")
+    .replaceAll("{{sector}}", lead.sector || "")
+    .replaceAll("{{cargo}}", lead.cargo || "");
+}
+
 export default function MensajesPage() {
   const [mensajes, setMensajes] = useState<MensajePendiente[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +53,9 @@ export default function MensajesPage() {
   const [procesando, setProcesando] = useState<Set<string>>(new Set());
   const [stats, setStats] = useState({ pendientes: 0, aprobados: 0, enviados: 0 });
   const [leadsElegibles, setLeadsElegibles] = useState(0);
+  const [plantillas, setPlantillas] = useState<PlantillaWA[]>([]);
+  const [plantillaPickerAbierto, setPlantillaPickerAbierto] = useState<string | null>(null);
+  const pickerRef = useRef<HTMLDivElement>(null);
 
   const cargarMensajes = useCallback(async () => {
     setLoading(true);
@@ -64,6 +85,22 @@ export default function MensajesPage() {
   }, []);
 
   useEffect(() => { cargarMensajes(); }, [cargarMensajes]);
+
+  useEffect(() => {
+    supabase.from("recursos_rapidos").select("id, titulo, contenido, descripcion, orden")
+      .eq("tipo", "plantilla_wa").order("orden", { ascending: true }).order("created_at", { ascending: true })
+      .then(({ data }) => setPlantillas((data as PlantillaWA[]) ?? []));
+  }, []);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setPlantillaPickerAbierto(null);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
 
   const generarMensajes = async () => {
     setGenerando(true);
@@ -257,6 +294,50 @@ export default function MensajesPage() {
 
                 {/* Mensaje */}
                 <div className="px-5 py-4">
+                  {estaEditando && plantillas.length > 0 && (
+                    <div className="relative mb-2" ref={plantillaPickerAbierto === m.id ? pickerRef : undefined}>
+                      <button
+                        onClick={() => setPlantillaPickerAbierto(prev => prev === m.id ? null : m.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-orange-200 transition-colors hover:bg-orange-50"
+                        style={{ color: "#ea650d" }}
+                      >
+                        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                        </svg>
+                        Usar plantilla
+                        <span className="text-orange-300">({plantillas.length})</span>
+                      </button>
+                      {plantillaPickerAbierto === m.id && (
+                        <div ref={pickerRef} className="absolute left-0 top-full mt-1 z-20 w-80 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+                          <div className="px-3 py-2 bg-slate-50 border-b border-slate-100">
+                            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Selecciona una plantilla</p>
+                            <p className="text-xs text-slate-400 mt-0.5">Las variables se rellenan con los datos del lead</p>
+                          </div>
+                          <div className="max-h-56 overflow-y-auto">
+                            {plantillas.map(p => (
+                              <button
+                                key={p.id}
+                                onClick={() => {
+                                  setTextoEditado(prev => ({ ...prev, [m.id]: aplicarVariables(p.contenido, lead) }));
+                                  setPlantillaPickerAbierto(null);
+                                }}
+                                className="w-full text-left px-3 py-2.5 hover:bg-orange-50 border-b border-slate-50 transition-colors"
+                              >
+                                <p className="text-xs font-semibold text-slate-800">{p.titulo}</p>
+                                {p.descripcion && <p className="text-xs text-slate-400 mt-0.5">{p.descripcion}</p>}
+                                <p className="text-xs text-slate-300 mt-0.5 truncate">{p.contenido.slice(0, 60)}…</p>
+                              </button>
+                            ))}
+                          </div>
+                          <div className="px-3 py-2 bg-slate-50 border-t border-slate-100">
+                            <Link href="/ajustes" className="text-xs hover:underline" style={{ color: "#ea650d" }}>
+                              Gestionar plantillas en Ajustes →
+                            </Link>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {estaEditando ? (
                     <textarea
                       value={mensajeActual}
@@ -270,7 +351,9 @@ export default function MensajesPage() {
                     </p>
                   )}
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-slate-400">{mensajeActual.length} caracteres</span>
+                    <span className={`text-xs ${mensajeActual.length > 1000 ? "text-amber-500 font-medium" : "text-slate-400"}`}>
+                      {mensajeActual.length} caracteres{mensajeActual.length > 1000 ? " · largo para WA" : ""}
+                    </span>
                     <div className="flex items-center gap-2">
                       {m.editado_por_comercial && (
                         <span className="text-xs text-amber-600">✏ Editado</span>
