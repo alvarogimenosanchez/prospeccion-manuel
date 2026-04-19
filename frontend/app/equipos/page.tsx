@@ -49,6 +49,10 @@ export default function EquiposPage() {
   const [equipoDestinoId, setEquipoDestinoId] = useState("");
   const [comercialEditando, setComercialEditando] = useState<FormEditComercial | null>(null);
   const [guardandoComercial, setGuardandoComercial] = useState(false);
+  const [mostrarNuevoComercial, setMostrarNuevoComercial] = useState(false);
+  const [formNuevoComercial, setFormNuevoComercial] = useState({ nombre: "", apellidos: "", email: "", rol: "comercial" as "admin" | "director" | "manager" | "comercial" });
+  const [guardandoNuevoComercial, setGuardandoNuevoComercial] = useState(false);
+  const [errorNuevoComercial, setErrorNuevoComercial] = useState("");
 
   const cargarDatos = useCallback(async () => {
     setLoading(true);
@@ -187,6 +191,16 @@ export default function EquiposPage() {
     cargarDatos();
   }
 
+  async function crearComercial() {
+    const { nombre, apellidos, email, rol } = formNuevoComercial;
+    if (!nombre.trim() || !email.trim()) { setErrorNuevoComercial("Nombre y email son obligatorios."); return; }
+    setGuardandoNuevoComercial(true); setErrorNuevoComercial("");
+    const { error } = await supabase.from("comerciales").insert({ nombre: nombre.trim(), apellidos: apellidos.trim() || null, email: email.trim().toLowerCase(), rol, activo: true });
+    if (error) { setErrorNuevoComercial(error.message.includes("duplicate") ? "Ya existe un comercial con ese email." : "Error al crear el comercial."); }
+    else { setFormNuevoComercial({ nombre: "", apellidos: "", email: "", rol: "comercial" }); setMostrarNuevoComercial(false); cargarDatos(); }
+    setGuardandoNuevoComercial(false);
+  }
+
   function toggleMiembroEnForm(comercialId: string) {
     setFormEquipo(prev => ({
       ...prev,
@@ -215,6 +229,14 @@ export default function EquiposPage() {
             className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors" style={{ background: "#ea650d" }}
           >
             + Nuevo equipo
+          </button>
+        )}
+        {tab === "comerciales" && (
+          <button
+            onClick={() => setMostrarNuevoComercial(true)}
+            className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors" style={{ background: "#ea650d" }}
+          >
+            + Nuevo comercial
           </button>
         )}
       </div>
@@ -869,6 +891,61 @@ export default function EquiposPage() {
                 {guardandoComercial ? "Guardando..." : "Guardar cambios"}
               </button>
               <button onClick={() => setComercialEditando(null)} className="px-5 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal nuevo comercial */}
+      {mostrarNuevoComercial && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-base font-bold text-slate-800">Añadir comercial</h2>
+              <button onClick={() => { setMostrarNuevoComercial(false); setErrorNuevoComercial(""); }} className="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-xs text-slate-500">El comercial podrá acceder con Google OAuth usando el email registrado.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Nombre *</label>
+                  <input value={formNuevoComercial.nombre} onChange={e => setFormNuevoComercial(p => ({...p, nombre: e.target.value}))}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" placeholder="Juan" />
+                </div>
+                <div>
+                  <label className="block text-xs text-slate-500 mb-1">Apellidos</label>
+                  <input value={formNuevoComercial.apellidos} onChange={e => setFormNuevoComercial(p => ({...p, apellidos: e.target.value}))}
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" placeholder="García" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Email Google *</label>
+                <input type="email" value={formNuevoComercial.email} onChange={e => setFormNuevoComercial(p => ({...p, email: e.target.value}))}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300" placeholder="juan@gmail.com" />
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1.5">Rol</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["comercial", "manager", "director", "admin"] as const).map(r => (
+                    <button key={r} type="button"
+                      onClick={() => setFormNuevoComercial(p => ({...p, rol: r}))}
+                      className={`py-2 rounded-lg border text-sm font-medium transition-all ${formNuevoComercial.rol === r ? "text-white border-transparent" : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"}`}
+                      style={formNuevoComercial.rol === r ? { background: "#ea650d" } : undefined}>
+                      {r.charAt(0).toUpperCase() + r.slice(1)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {errorNuevoComercial && <p className="text-xs text-red-600">{errorNuevoComercial}</p>}
+            </div>
+            <div className="px-6 pb-6 flex gap-3">
+              <button onClick={crearComercial} disabled={guardandoNuevoComercial}
+                className="flex-1 py-2.5 text-white text-sm font-medium rounded-xl transition-colors disabled:opacity-50"
+                style={{ background: "#ea650d" }}>
+                {guardandoNuevoComercial ? "Creando..." : "Crear comercial"}
+              </button>
+              <button onClick={() => { setMostrarNuevoComercial(false); setErrorNuevoComercial(""); }} className="px-5 py-2.5 border border-slate-200 text-slate-600 text-sm rounded-xl hover:bg-slate-50">
                 Cancelar
               </button>
             </div>
