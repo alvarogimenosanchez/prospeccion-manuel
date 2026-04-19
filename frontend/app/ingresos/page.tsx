@@ -84,19 +84,43 @@ function BarraHorizontal({ pct, color = "bg-orange-500" }: { pct: number; color?
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
+type PipelineStage = {
+  estado: string;
+  label: string;
+  count: number;
+  prob: number;
+};
+
 export default function IngresosPage() {
   const { puede, cargando: cargandoPermisos } = usePermisos();
   const [clientes, setClientes] = useState<ClienteRow[]>([]);
+  const [pipeline, setPipeline] = useState<PipelineStage[]>([]);
   const [loading, setLoading] = useState(true);
   const [periodoMeses, setPeriodoMeses] = useState(6);
 
+  const PIPELINE_STAGES: { estado: string; label: string; prob: number }[] = [
+    { estado: "respondio",      label: "Respondió",      prob: 0.15 },
+    { estado: "cita_agendada",  label: "Cita agendada",  prob: 0.35 },
+    { estado: "en_negociacion", label: "En negociación", prob: 0.65 },
+  ];
+
   const cargar = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from("clientes")
-      .select("id, nombre, apellidos, producto, valor_contrato, fecha_inicio, estado, comercial_asignado, comerciales(nombre, apellidos)")
-      .order("fecha_inicio", { ascending: false });
-    setClientes((data as ClienteRow[]) ?? []);
+    const [{ data: clientesData }, ...pipelineCounts] = await Promise.all([
+      supabase
+        .from("clientes")
+        .select("id, nombre, apellidos, producto, valor_contrato, fecha_inicio, estado, comercial_asignado, comerciales(nombre, apellidos)")
+        .order("fecha_inicio", { ascending: false }),
+      ...PIPELINE_STAGES.map(s =>
+        supabase.from("leads").select("id", { count: "exact", head: true })
+          .eq("estado", s.estado)
+      ),
+    ]);
+    setClientes((clientesData as ClienteRow[]) ?? []);
+    setPipeline(PIPELINE_STAGES.map((s, i) => ({
+      ...s,
+      count: (pipelineCounts[i] as { count: number | null }).count ?? 0,
+    })));
     setLoading(false);
   }, []);
 
@@ -267,6 +291,52 @@ export default function IngresosPage() {
               )}
             </div>
           </div>
+
+          {/* Pipeline forecast */}
+          {pipeline.some(s => s.count > 0) && (
+            <div className="bg-white rounded-xl border border-slate-200 p-5">
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-sm font-semibold text-slate-700">Previsión de pipeline</h2>
+                <span className="text-xs text-slate-400">Basado en ticket medio {promedioContrato > 0 ? fmt(promedioContrato) : "—"}</span>
+              </div>
+              <p className="text-xs text-slate-400 mb-4">Estimación ponderada por probabilidad de cierre por etapa</p>
+              <div className="space-y-3">
+                {pipeline.map(s => {
+                  const estimado = s.count * (promedioContrato || 0) * s.prob;
+                  return (
+                    <div key={s.estado} className="flex items-center gap-4">
+                      <div className="w-28 flex-shrink-0">
+                        <p className="text-xs font-medium text-slate-700">{s.label}</p>
+                        <p className="text-xs text-slate-400">{Math.round(s.prob * 100)}% prob.</p>
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-slate-500">{s.count} lead{s.count !== 1 ? "s" : ""}</span>
+                          <span className="text-xs font-semibold text-slate-700">
+                            {promedioContrato > 0 ? `~${fmt(estimado)}` : `${s.count} leads`}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-emerald-400 transition-all"
+                            style={{ width: `${Math.min(100, s.count * 4)}%` }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {promedioContrato > 0 && (
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <p className="text-xs font-semibold text-slate-600">Total pipeline estimado</p>
+                    <p className="text-base font-bold text-emerald-700">
+                      {fmt(pipeline.reduce((s, st) => s + st.count * promedioContrato * st.prob, 0))}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Revenue por comercial */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">

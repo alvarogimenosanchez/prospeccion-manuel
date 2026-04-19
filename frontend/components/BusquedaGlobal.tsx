@@ -54,13 +54,13 @@ export function BusquedaGlobal() {
 
     const [{ data: leads }, { data: clientes }] = await Promise.all([
       supabase.from("leads")
-        .select("id, nombre, apellidos, empresa, estado")
-        .or(`nombre.ilike.${termino},empresa.ilike.${termino}`)
-        .limit(5),
+        .select("id, nombre, apellidos, empresa, estado, telefono, telefono_whatsapp")
+        .or(`nombre.ilike.${termino},empresa.ilike.${termino},telefono.ilike.${termino},telefono_whatsapp.ilike.${termino}`)
+        .limit(6),
       supabase.from("clientes")
         .select("id, nombre, apellidos, empresa, producto")
         .or(`nombre.ilike.${termino},empresa.ilike.${termino}`)
-        .limit(5),
+        .limit(4),
     ]);
 
     const items: Resultado[] = [
