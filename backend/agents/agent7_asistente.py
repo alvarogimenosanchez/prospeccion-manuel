@@ -121,8 +121,8 @@ def responder_asistente(
 
     try:
         response = _client.messages.create(
-            model="claude-haiku-4-5",
-            max_tokens=600,
+            model="claude-sonnet-4-6",
+            max_tokens=800,
             system=SYSTEM_ASISTENTE,
             messages=mensajes_con_contexto,
         )
