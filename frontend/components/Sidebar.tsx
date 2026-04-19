@@ -87,6 +87,7 @@ const NAV_GROUPS = [
       { href: "/productos-analisis", label: "Productos",       icon: "briefcase", permiso: "ver_metricas" },
       { href: "/analisis-perdidas",  label: "Pérdidas",        icon: "flag",      permiso: "ver_metricas" },
       { href: "/fuentes",            label: "Fuentes",         icon: "target",    permiso: "ver_metricas" },
+      { href: "/tendencias",         label: "Tendencias",      icon: "trending",  permiso: "ver_metricas" },
       { href: "/actividad",          label: "Actividad",       icon: "sparkle",   permiso: "ver_metricas" },
     ],
   },
