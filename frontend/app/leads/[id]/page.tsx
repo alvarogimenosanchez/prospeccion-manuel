@@ -1574,8 +1574,54 @@ export default function LeadDetailPage() {
             )}
           </div>
 
+          {/* Panel cuestionario — solo si el lead vino del formulario */}
+          {lead.fuente_detalle === "formulario_captacion" && (() => {
+            const notas = lead.notas ?? "";
+            const urgenciaMatch = notas.match(/Urgencia:\s*([^.]+)/);
+            const preocupacionesMatch = notas.match(/Preocupaciones:\s*([^.]+)/);
+            const hijosMatch = notas.match(/Hijos:\s*(Sí|No|sí|no|true|false)/i);
+            const mayor55Match = notas.match(/Mayor 55:\s*(Sí|No|sí|no|true|false)/i);
+            const urgencia = urgenciaMatch?.[1]?.trim();
+            const preocupaciones = preocupacionesMatch?.[1]?.trim();
+            const tieneHijos = hijosMatch?.[1]?.toLowerCase().startsWith("s") ? "Sí" : hijosMatch ? "No" : null;
+            const mayor55 = mayor55Match?.[1]?.toLowerCase().startsWith("s") ? "Sí" : mayor55Match ? "No" : null;
+            const situacion = lead.tipo_lead;
+            const rows = [
+              situacion && { label: "Situación", value: situacion.replace("_", " ").charAt(0).toUpperCase() + situacion.replace("_", " ").slice(1), icon: "👤" },
+              urgencia && { label: "Urgencia", value: urgencia, icon: "⏱" },
+              preocupaciones && { label: "Preocupaciones", value: preocupaciones, icon: "💭" },
+              tieneHijos !== null && { label: "Tiene hijos", value: tieneHijos, icon: "👨‍👩‍👧" },
+              mayor55 !== null && { label: "Mayor de 55", value: mayor55, icon: "🎂" },
+            ].filter(Boolean) as { label: string; value: string; icon: string }[];
+            if (rows.length === 0) return null;
+            return (
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between"
+                  style={{ background: "#fff5f0" }}>
+                  <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#ea650d" }}>
+                    📋 Respuestas del cuestionario
+                  </h3>
+                  <Link href="/cuestionario" className="text-xs hover:underline" style={{ color: "#ea650d" }}>
+                    Ver todos →
+                  </Link>
+                </div>
+                <div className="divide-y divide-slate-50">
+                  {rows.map(row => (
+                    <div key={row.label} className="flex items-start gap-3 px-4 py-2.5">
+                      <span className="text-base flex-shrink-0 w-5 text-center">{row.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-slate-400">{row.label}</p>
+                        <p className="text-sm text-slate-700 mt-0.5">{row.value}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Notas */}
-          {lead.notas && (
+          {lead.notas && lead.fuente_detalle !== "formulario_captacion" && (
             <div className="bg-white rounded-xl border border-slate-200 p-5">
               <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Notas</h3>
               <p className="text-sm text-slate-600">{lead.notas}</p>
