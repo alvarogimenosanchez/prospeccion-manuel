@@ -145,6 +145,8 @@ function PipelineContent() {
   const [busqueda, setBusqueda] = useState("");
   const [limiteColumna, setLimiteColumna] = useState<Record<string, number>>({});
   const [verTodos, setVerTodos] = useState(false);
+  const [filtroProducto, setFiltroProducto] = useState("");
+  const [ganadosMes, setGanadosMes] = useState(0);
 
   const CARDS_PER_COL = 25;
 
@@ -169,6 +171,10 @@ function PipelineContent() {
   const cargarLeads = useCallback(async () => {
     if (!comercialId && !verTodos) return;
     setLoading(true);
+    const inicioMes = new Date();
+    inicioMes.setDate(1);
+    inicioMes.setHours(0, 0, 0, 0);
+
     let query = supabase
       .from("leads")
       .select("id, nombre, apellidos, empresa, sector, nivel_interes, ciudad, estado, updated_at, comercial_asignado, proxima_accion, proxima_accion_fecha, telefono_whatsapp, tipo_lead, productos_recomendados, producto_interes_principal")
@@ -178,6 +184,13 @@ function PipelineContent() {
     if (!verTodos && comercialId) query = query.eq("comercial_asignado", comercialId);
     const { data } = await query;
     setLeads((data as Lead[]) ?? []);
+
+    // Leads cerrados ganados este mes
+    let ganadosQ = supabase.from("leads").select("id", { count: "exact", head: true }).eq("estado", "cerrado_ganado").gte("updated_at", inicioMes.toISOString());
+    if (!verTodos && comercialId) ganadosQ = ganadosQ.eq("comercial_asignado", comercialId);
+    const { count: ganados } = await ganadosQ;
+    setGanadosMes(ganados ?? 0);
+
     setLoading(false);
   }, [comercialId, verTodos]);
 
@@ -220,19 +233,35 @@ function PipelineContent() {
     });
   }
 
-  const leadsFiltrados = busqueda.trim()
-    ? leads.filter(l => {
-        const q = busqueda.toLowerCase();
-        return (
-          l.nombre?.toLowerCase().includes(q) ||
-          l.apellidos?.toLowerCase().includes(q) ||
-          l.empresa?.toLowerCase().includes(q) ||
-          l.ciudad?.toLowerCase().includes(q)
-        );
-      })
-    : leads;
+  const leadsFiltrados = leads.filter(l => {
+    if (busqueda.trim()) {
+      const q = busqueda.toLowerCase();
+      const matchesSearch = l.nombre?.toLowerCase().includes(q) ||
+        l.apellidos?.toLowerCase().includes(q) ||
+        l.empresa?.toLowerCase().includes(q) ||
+        l.ciudad?.toLowerCase().includes(q);
+      if (!matchesSearch) return false;
+    }
+    if (filtroProducto) {
+      const matchesProd = l.producto_interes_principal === filtroProducto ||
+        (l.productos_recomendados ?? []).includes(filtroProducto);
+      if (!matchesProd) return false;
+    }
+    return true;
+  });
 
   const leadsColumna = (estado: Estado) => leadsFiltrados.filter(l => l.estado === estado);
+
+  // Stats del pipeline
+  const totalActivos = leadsFiltrados.filter(l => !["cerrado_ganado", "cerrado_perdido"].includes(l.estado)).length;
+  const enNegociacion = leadsFiltrados.filter(l => l.estado === "en_negociacion").length;
+  const conCita = leadsFiltrados.filter(l => l.estado === "cita_agendada").length;
+  const avgInteres = totalActivos > 0
+    ? Math.round(leadsFiltrados.filter(l => !["cerrado_ganado", "cerrado_perdido"].includes(l.estado)).reduce((s, l) => s + l.nivel_interes, 0) / totalActivos * 10) / 10
+    : 0;
+
+  // Productos únicos para el filtro
+  const productosEnPipeline = [...new Set(leadsFiltrados.flatMap(l => l.productos_recomendados ?? []))].sort();
 
   return (
     <div className="space-y-6">
@@ -263,6 +292,48 @@ function PipelineContent() {
           </button>
         </div>
       </div>
+
+      {/* Stats del pipeline */}
+      {!loading && totalActivos > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: "Activos", value: totalActivos, color: "#ea650d", sub: "en pipeline" },
+            { label: "Con cita", value: conCita, color: "#f59e0b", sub: "agendada" },
+            { label: "Negociando", value: enNegociacion, color: "#8b5cf6", sub: "ofertas abiertas" },
+            { label: "Ganados", value: ganadosMes, color: "#16a34a", sub: "este mes" },
+          ].map(s => (
+            <div key={s.label} className="bg-white rounded-xl border border-slate-200 px-4 py-3">
+              <p className="text-xs text-slate-400 font-medium">{s.label}</p>
+              <p className="text-2xl font-bold mt-0.5" style={{ color: s.color }}>{s.value}</p>
+              <p className="text-xs text-slate-400">{s.sub}</p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Filtro por producto */}
+      {!loading && productosEnPipeline.length > 1 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-slate-400 font-medium">Filtrar por producto:</span>
+          <button
+            onClick={() => setFiltroProducto("")}
+            className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${!filtroProducto ? "text-white border-transparent" : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"}`}
+            style={!filtroProducto ? { background: "#ea650d" } : undefined}
+          >
+            Todos
+          </button>
+          {productosEnPipeline.map(p => (
+            <button
+              key={p}
+              onClick={() => setFiltroProducto(filtroProducto === p ? "" : p)}
+              className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${filtroProducto === p ? "text-white border-transparent" : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"}`}
+              style={filtroProducto === p ? { background: "#ea650d" } : undefined}
+            >
+              {PRODUCTOS_CORTO[p] ?? p}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Alerta columna Nuevo saturada */}
       {!loading && leadsColumna("nuevo").length > 100 && (
@@ -428,7 +499,7 @@ function TarjetaLead({
           </div>
         </div>
 
-        {/* Ciudad + tipo lead */}
+        {/* Ciudad + tipo lead + sector */}
         <div className="mt-1.5 flex items-center flex-wrap gap-1">
           {lead.ciudad && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
@@ -439,6 +510,11 @@ function TarjetaLead({
             <span className="text-xs px-2 py-0.5 rounded-full font-medium"
               style={{ background: TIPO_LEAD_CFG[lead.tipo_lead].color + "15", color: TIPO_LEAD_CFG[lead.tipo_lead].color }}>
               {TIPO_LEAD_CFG[lead.tipo_lead].label}
+            </span>
+          )}
+          {lead.sector && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 text-slate-400 border border-slate-100">
+              {lead.sector}
             </span>
           )}
         </div>
