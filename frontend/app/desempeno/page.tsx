@@ -71,7 +71,6 @@ const PRODUCTOS_NOMBRE: Record<string, string> = {
 
 export default function DesempenoPage() {
   const { puede, cargando: cargandoPermisos } = usePermisos();
-  if (!cargandoPermisos && !puede("ver_metricas")) return <SinAcceso />;
   const [stats, setStats] = useState<StatsComercial[]>([]);
   const [alertas, setAlertas] = useState<AlertaDecision[]>([]);
   const [loading, setLoading] = useState(true);
@@ -380,6 +379,7 @@ export default function DesempenoPage() {
   });
 
   const todosEnCeroFiltrado = statsFiltrados.every(s => s.cerradosGanados === 0);
+  if (!cargandoPermisos && !puede("ver_metricas")) return <SinAcceso />;
 
   return (
     <div className="space-y-8">

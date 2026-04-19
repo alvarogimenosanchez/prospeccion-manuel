@@ -50,7 +50,6 @@ const FILTROS = [
 
 export default function ReportesPage() {
   const { puede, cargando: cargandoPermisos } = usePermisos();
-  if (!cargandoPermisos && !puede("ver_reportes")) return <SinAcceso />;
   const [comercialId, setComercialId] = useState<string | null>(null);
   const [reportes, setReportes] = useState<Reporte[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,6 +164,7 @@ export default function ReportesPage() {
     return r.estado === filtro;
   });
 
+  if (!cargandoPermisos && !puede("ver_reportes")) return <SinAcceso />;
   return (
     <div className="min-h-screen bg-slate-50 pb-16">
       {/* Header */}

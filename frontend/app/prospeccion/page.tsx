@@ -75,7 +75,6 @@ type HeaderStats = {
 
 export default function ProspeccionPage() {
   const { puede, cargando: cargandoPermisos } = usePermisos();
-  if (!cargandoPermisos && !puede("usar_scraping")) return <SinAcceso />;
   const [leads, setLeads] = useState<LeadNuevo[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -518,6 +517,7 @@ export default function ProspeccionPage() {
     return d.toLocaleDateString("es-ES", { day: "numeric", month: "short" });
   };
 
+  if (!cargandoPermisos && !puede("usar_scraping")) return <SinAcceso />;
   return (
     <div className="space-y-6">
       {/* Cabecera */}

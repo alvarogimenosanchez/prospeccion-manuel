@@ -113,7 +113,6 @@ const MapaLeads = dynamic(() => import("./MapaLeads"), {
 
 export default function MapaPage() {
   const { puede, cargando: cargandoPermisos } = usePermisos();
-  if (!cargandoPermisos && !puede("usar_scraping")) return <SinAcceso />;
   const [leads, setLeads] = useState<LeadMapa[]>([]);
   const [loading, setLoading] = useState(true);
   const [geocoding, setGeocoding] = useState(false);
@@ -208,6 +207,7 @@ export default function MapaPage() {
   const totalLeads = leads.length;
   const leadsConCiudad = leads.filter(l => l.ciudad).length;
   const topCiudades = ciudades.slice(0, 10);
+  if (!cargandoPermisos && !puede("usar_scraping")) return <SinAcceso />;
 
   return (
     <div className="h-[calc(100vh-56px)] flex flex-col">

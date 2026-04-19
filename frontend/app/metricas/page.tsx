@@ -135,7 +135,6 @@ function inicioPeriodo(periodo: Periodo): string | null {
 
 export default function MetricasPage() {
   const { puede, cargando: cargandoPermisos } = usePermisos();
-  if (!cargandoPermisos && !puede("ver_metricas")) return <SinAcceso />;
   const [periodo, setPeriodo] = useState<Periodo>("mes");
   const [comercialId, setComercialId] = useState<string>("todos");
   const [comerciales, setComercialesState] = useState<Comercial[]>([]);
@@ -581,6 +580,7 @@ export default function MetricasPage() {
   };
 
   // ─── Render ─────────────────────────────────────────────────────────────────
+  if (!cargandoPermisos && !puede("ver_metricas")) return <SinAcceso />;
 
   return (
     <div className="space-y-8">

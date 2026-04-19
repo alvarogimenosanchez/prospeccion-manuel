@@ -34,7 +34,6 @@ type FormEditComercial = {
 
 export default function EquiposPage() {
   const { puede, cargando: cargandoPermisos } = usePermisos();
-  if (!cargandoPermisos && !puede("gestionar_equipo")) return <SinAcceso />;
   const [equipos, setEquipos] = useState<TeamConMiembros[]>([]);
   const [comerciales, setComerciales] = useState<ComercialConCarga[]>([]);
   const [loading, setLoading] = useState(true);
@@ -201,6 +200,7 @@ export default function EquiposPage() {
     c => !equipoSeleccionado?.miembros.some(m => m.comercial_id === c.id)
   );
 
+  if (!cargandoPermisos && !puede("gestionar_equipo")) return <SinAcceso />;
   return (
     <div className="space-y-6">
       {/* Header */}
