@@ -30,6 +30,7 @@ function NavIcon({ name }: { name: string }) {
     logout:     ["M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4", "M16 17l5-5-5-5M21 12H9"],
     download:   ["M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4", "M7 10l5 5 5-5M12 15V3"],
     sparkle:    ["M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z"],
+    trophy:     ["M6 9H4a2 2 0 01-2-2V5h4M18 9h2a2 2 0 002-2V5h-4", "M12 9a6 6 0 000 12v0M12 21h0", "M8 21h8M10 17h4", "M12 3v6"],
   };
 
   const d = icons[name] ?? "M12 12h.01";
@@ -75,9 +76,10 @@ const NAV_GROUPS = [
   {
     label: "Análisis",
     items: [
-      { href: "/metricas",   label: "Métricas",   icon: "chart",    permiso: "ver_metricas" },
-      { href: "/desempeno",  label: "Desempeño",  icon: "trending", permiso: "ver_metricas" },
-      { href: "/actividad",  label: "Actividad",  icon: "sparkle",  permiso: "ver_metricas" },
+      { href: "/clasificacion", label: "Clasificación", icon: "trophy",   permiso: null },
+      { href: "/metricas",      label: "Métricas",      icon: "chart",    permiso: "ver_metricas" },
+      { href: "/desempeno",     label: "Desempeño",     icon: "trending", permiso: "ver_metricas" },
+      { href: "/actividad",     label: "Actividad",     icon: "sparkle",  permiso: "ver_metricas" },
     ],
   },
   {
