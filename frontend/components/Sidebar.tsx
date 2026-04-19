@@ -121,6 +121,7 @@ const NAV_GROUPS = [
       { href: "/objetivos",         label: "Objetivos",   icon: "target",   permiso: "ver_metricas" },
       { href: "/capacidad",          label: "Capacidad",   icon: "pipeline", permiso: "gestionar_equipo" },
       { href: "/coaching",          label: "Coaching",    icon: "users",    permiso: "gestionar_equipo" },
+      { href: "/formaciones",       label: "Formaciones", icon: "bookmark", permiso: null },
       { href: "/calendario-equipo", label: "Cal. equipo", icon: "calendar", permiso: "gestionar_equipo" },
       { href: "/equipos",           label: "Equipos",     icon: "team",     permiso: "gestionar_equipo" },
     ],
