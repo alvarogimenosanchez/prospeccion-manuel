@@ -22,6 +22,11 @@ type CitaConLead = {
     empresa: string | null;
     telefono_whatsapp: string | null;
     temperatura: string;
+    sector: string | null;
+    tipo_lead: string | null;
+    nivel_interes: number | null;
+    estado: string | null;
+    ciudad: string | null;
   } | null;
   comercial: {
     nombre: string;
@@ -216,7 +221,7 @@ export default function AgendaPage() {
       .from("appointments")
       .select(`
         *,
-        lead:leads(nombre, apellidos, empresa, telefono_whatsapp, temperatura, team_id),
+        lead:leads(nombre, apellidos, empresa, telefono_whatsapp, temperatura, sector, tipo_lead, nivel_interes, estado, ciudad, team_id),
         comercial:comerciales(nombre, apellidos)
       `)
       .gte("fecha_hora", base.toISOString())
@@ -772,9 +777,44 @@ function mensajeConfirmacion(cita: CitaConLead): string {
   return `Hola ${nombre}, te confirmo nuestra ${tipo} el ${fecha}. ¿Te viene bien? 😊`;
 }
 
+function talkingPointSector(sector: string | null): string {
+  const s = (sector || "").toLowerCase();
+  if (s.includes("inmobil")) return "Canal derivación hipotecaria — presentar Hipotecas NN y Contigo Pyme para agencia";
+  if (s.includes("asesor") || s.includes("gestor") || s.includes("contable")) return "Prescriptor autónomos — cartera de clientes que necesitan Contigo Autónomo";
+  if (s.includes("hostel") || s.includes("restaur") || s.includes("bar") || s.includes("café")) return "Hostelería — Contigo Autónomo desde ~5€/mes, baja de autónomo clave";
+  if (s.includes("taller") || s.includes("mecán")) return "Taller — Contigo Autónomo + RC profesional, riesgo de baja por accidente";
+  if (s.includes("peluq") || s.includes("esté")) return "Belleza — Contigo Autónomo, trabajadores autónomos sensibles a baja larga";
+  if (s.includes("clín") || s.includes("médi") || s.includes("dental") || s.includes("fisio")) return "Salud — Contigo Pyme + Sanitas, complementa su seguro de responsabilidad civil";
+  if (s.includes("farmac")) return "Farmacia — Contigo Autónomo/Pyme + SIALP para jubilación complementaria";
+  if (s.includes("construc") || s.includes("obra") || s.includes("albañil")) return "Construcción — Contigo Autónomo esencial, alta siniestralidad laboral";
+  if (s.includes("transpor") || s.includes("logíst") || s.includes("mensajer")) return "Transporte — Contigo Autónomo + RC vehículo, gran exposición a accidentes";
+  if (s.includes("tecnol") || s.includes("informát") || s.includes("soft")) return "Tech freelance — SIALP para ahorro fiscal + Contigo Autónomo";
+  return "Identificar necesidad principal: cobertura baja, salud o ahorro fiscal (SIALP/LiderPlus)";
+}
+
 function TarjetaCitaCompleta({ cita, onActualizar }: { cita: CitaConLead; onActualizar: (id: string, estado: string) => void }) {
   const nombre = [cita.lead?.nombre, cita.lead?.apellidos].filter(Boolean).join(" ") || "Lead";
   const esPasada = new Date(cita.fecha_hora) < new Date();
+  const [copiado, setCopiado] = useState(false);
+
+  function copiarBrief() {
+    const l = cita.lead;
+    const lines = [
+      `📞 BRIEF — ${nombre} · ${format(parseISO(cita.fecha_hora), "d MMM HH:mm", { locale: es })}`,
+      "─".repeat(38),
+      l?.empresa ? `Empresa: ${l.empresa}` : null,
+      l?.sector ? `Sector: ${l.sector}` : null,
+      l?.ciudad ? `Ciudad: ${l.ciudad}` : null,
+      l?.tipo_lead ? `Tipo: ${l.tipo_lead}` : null,
+      l?.nivel_interes != null ? `Interés: ${l.nivel_interes}/10` : null,
+      l?.temperatura ? `Temperatura: ${l.temperatura}` : null,
+      cita.notas_previas ? `\nNotas: ${cita.notas_previas}` : null,
+      `\n💡 ${talkingPointSector(l?.sector ?? null)}`,
+    ].filter(Boolean).join("\n");
+    navigator.clipboard.writeText(lines);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+  }
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-start gap-4">
@@ -795,8 +835,28 @@ function TarjetaCitaCompleta({ cita, onActualizar }: { cita: CitaConLead; onActu
             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${TEMP_DOT[cita.lead.temperatura] ?? "bg-slate-300"}`} />
           )}
         </div>
-        {cita.lead?.empresa && (
-          <p className="text-xs text-slate-500">{cita.lead.empresa}</p>
+        {/* Lead meta */}
+        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+          {cita.lead?.empresa && (
+            <span className="text-xs text-slate-500">{cita.lead.empresa}</span>
+          )}
+          {cita.lead?.sector && (
+            <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full">{cita.lead.sector}</span>
+          )}
+          {cita.lead?.tipo_lead && (
+            <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full capitalize">{cita.lead.tipo_lead}</span>
+          )}
+          {cita.lead?.nivel_interes != null && (
+            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${cita.lead.nivel_interes >= 7 ? "bg-green-100 text-green-700" : cita.lead.nivel_interes >= 4 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"}`}>
+              {cita.lead.nivel_interes}/10
+            </span>
+          )}
+        </div>
+        {/* Talking point */}
+        {(cita.lead?.sector || cita.lead?.tipo_lead) && (
+          <p className="text-xs text-slate-400 mt-1.5 italic leading-relaxed">
+            💡 {talkingPointSector(cita.lead?.sector ?? null)}
+          </p>
         )}
         {cita.notas_previas && (
           <p className="text-xs text-slate-400 mt-1 italic">{cita.notas_previas}</p>
@@ -808,6 +868,12 @@ function TarjetaCitaCompleta({ cita, onActualizar }: { cita: CitaConLead; onActu
         )}
         {/* Acciones */}
         <div className="flex items-center gap-3 mt-2">
+          <button
+            onClick={copiarBrief}
+            className="text-xs font-medium text-slate-500 hover:text-slate-800 transition-colors"
+          >
+            {copiado ? "✓ Copiado" : "📋 Brief"}
+          </button>
           {cita.lead?.telefono_whatsapp && (
             <a
               href={`https://wa.me/${cita.lead.telefono_whatsapp.replace("+", "")}?text=${encodeURIComponent(mensajeConfirmacion(cita))}`}
