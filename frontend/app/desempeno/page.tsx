@@ -533,10 +533,64 @@ export default function DesempenoPage() {
             </div>
           </section>
 
+          {/* Comparativa por equipo */}
+          {equipos.length > 1 && !filtroEquipo && (
+            <section>
+              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">Comparativa por equipo</h2>
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                      <th className="px-4 py-3 text-left">Equipo</th>
+                      <th className="px-4 py-3 text-right">Miembros</th>
+                      <th className="px-4 py-3 text-right">Leads</th>
+                      <th className="px-4 py-3 text-right">Contactados</th>
+                      <th className="px-4 py-3 text-right">Respondieron</th>
+                      <th className="px-4 py-3 text-right">Citas</th>
+                      <th className="px-4 py-3 text-right">Cierres</th>
+                      <th className="px-4 py-3 text-right">T. conversión</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {equipos.map(eq => {
+                      const miembrosDelEquipo = teamMembers.filter(m => m.team_id === eq.id).map(m => m.comercial_id);
+                      const statsEquipo = statsFiltrados.filter(s => miembrosDelEquipo.includes(s.comercial.id));
+                      if (statsEquipo.length === 0) return null;
+                      const totales = statsEquipo.reduce((acc, s) => ({
+                        leads: acc.leads + s.totalLeads,
+                        contactados: acc.contactados + s.leadsContactados,
+                        respondieron: acc.respondieron + s.respondieron,
+                        citas: acc.citas + s.citasAgendadas,
+                        cierres: acc.cierres + s.cerradosGanados,
+                      }), { leads: 0, contactados: 0, respondieron: 0, citas: 0, cierres: 0 });
+                      const tasaConversion = totales.leads > 0 ? Math.round((totales.cierres / totales.leads) * 100) : 0;
+                      return (
+                        <tr key={eq.id} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-4 py-3 font-semibold text-slate-800">{eq.nombre}</td>
+                          <td className="px-4 py-3 text-right text-slate-500">{statsEquipo.length}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">{totales.leads.toLocaleString("es-ES")}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">{totales.contactados}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">{totales.respondieron}</td>
+                          <td className="px-4 py-3 text-right text-slate-600">{totales.citas}</td>
+                          <td className="px-4 py-3 text-right font-semibold text-emerald-700">{totales.cierres > 0 ? totales.cierres : <span className="font-normal text-slate-300">—</span>}</td>
+                          <td className="px-4 py-3 text-right">
+                            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${tasaConversion >= 20 ? "bg-green-50 text-green-600" : tasaConversion >= 10 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600"}`}>
+                              {tasaConversion}%
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
           {/* Tabla comparativa */}
           {statsFiltrados.length > 1 && (
             <section>
-              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">Comparativa</h2>
+              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">Comparativa individual</h2>
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
