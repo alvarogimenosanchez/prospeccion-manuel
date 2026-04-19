@@ -8,7 +8,7 @@ import type { User } from "@supabase/supabase-js";
 
 type NotifItem = {
   id: string;
-  tipo: "respondio" | "asignado" | "cita" | "interno";
+  tipo: "respondio" | "asignado" | "cita" | "interno" | "renovacion";
   titulo: string;
   subtitulo?: string;
   href: string;
@@ -56,7 +56,9 @@ export function Navbar() {
     const hace48h = new Date(Date.now() - 48 * 3600_000).toISOString();
     const hace24h = new Date(Date.now() - 24 * 3600_000).toISOString();
 
-    const [{ data: respondio }, { data: asignados }, { data: citas }, { data: mensajesInternos }, { data: enNegociacion }, { data: calientes }] = await Promise.all([
+    const en7dias = new Date(Date.now() + 7 * 86400_000).toISOString().split("T")[0];
+
+    const [{ data: respondio }, { data: asignados }, { data: citas }, { data: mensajesInternos }, { data: enNegociacion }, { data: calientes }, { data: renovaciones }] = await Promise.all([
       supabase.from("leads").select("id, nombre, empresa, updated_at")
         .eq("comercial_asignado", comercialId)
         .eq("estado", "respondio")
@@ -93,6 +95,13 @@ export function Navbar() {
         .not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado,cita_agendada,en_negociacion)")
         .order("updated_at", { ascending: false })
         .limit(3),
+      supabase.from("clientes").select("id, nombre, empresa, apellidos, fecha_renovacion, producto")
+        .eq("comercial_asignado", comercialId)
+        .eq("estado", "activo")
+        .gte("fecha_renovacion", hoy)
+        .lte("fecha_renovacion", en7dias)
+        .order("fecha_renovacion")
+        .limit(5),
     ]);
 
     const items: NotifItem[] = [
@@ -138,6 +147,16 @@ export function Navbar() {
         subtitulo: "Mensaje interno",
         href: "/mensajes-internos",
       })),
+      ...(renovaciones ?? []).map(c => {
+        const dias = Math.round((new Date(c.fecha_renovacion).getTime() - Date.now()) / 86400_000);
+        return {
+          id: `ren-${c.id}`,
+          tipo: "renovacion" as const,
+          titulo: `🔄 ${c.nombre}${c.apellidos ? ` ${c.apellidos}` : ""}${c.empresa ? ` · ${c.empresa}` : ""} — vence póliza`,
+          subtitulo: `${c.producto ?? "Póliza"} · ${dias === 0 ? "hoy" : `en ${dias}d`}`,
+          href: "/renovaciones",
+        };
+      }),
     ];
 
     setNotifs(items);
@@ -153,6 +172,7 @@ export function Navbar() {
     asignado: "📋",
     cita: "📅",
     interno: "✉️",
+    renovacion: "🔄",
   };
 
   const links = [
