@@ -30,6 +30,7 @@ type FiltrosBarProps = {
   onTeam?: (v: string) => void;
   onTemperatura?: (v: string) => void;
   onFuente?: (v: string) => void;
+  ocultarSoloMios?: boolean;
 };
 
 const ESTADO_BTNS: { value: EstadoFiltro; label: string }[] = [
@@ -74,6 +75,7 @@ export function FiltrosBar({
   onTeam,
   onTemperatura,
   onFuente,
+  ocultarSoloMios = false,
 }: FiltrosBarProps) {
   const [teams, setTeams] = useState<{ id: string; nombre: string }[]>([]);
 
@@ -105,19 +107,21 @@ export function FiltrosBar({
           className="flex-1 min-w-44 max-w-64 px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-200"
         />
 
-        {/* Toggle mis leads */}
-        <button
-          onClick={() => onSoloMios(!soloMios)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
-            soloMios
-              ? "text-white border-transparent"
-              : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
-          }`}
-          style={soloMios ? { background: "#ea650d" } : undefined}
-        >
-          <span>{soloMios ? "👤" : "👥"}</span>
-          <span>{soloMios ? "Mis leads" : "Todos"}</span>
-        </button>
+        {/* Toggle mis leads — oculto para usuarios sin ver_todos_leads */}
+        {!ocultarSoloMios && (
+          <button
+            onClick={() => onSoloMios(!soloMios)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+              soloMios
+                ? "text-white border-transparent"
+                : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"
+            }`}
+            style={soloMios ? { background: "#ea650d" } : undefined}
+          >
+            <span>{soloMios ? "👤" : "👥"}</span>
+            <span>{soloMios ? "Mis leads" : "Todos"}</span>
+          </button>
+        )}
 
         {onTeam && teams.length > 0 && (
           <select

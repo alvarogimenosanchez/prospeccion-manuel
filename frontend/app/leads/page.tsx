@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import type { LeadDashboard } from "@/lib/supabase";
 import { LeadRow } from "@/components/LeadRow";
 import { FiltrosBar, type EstadoFiltro } from "@/components/FiltrosBar";
+import { usePermisos } from "@/components/PermisosProvider";
 
 const PAGE_SIZE = 50;
 
@@ -30,6 +31,7 @@ export default function LeadsPage() {
 
 function LeadsContent() {
   const searchParams = useSearchParams();
+  const { puede, cargando: cargandoPermisos } = usePermisos();
 
   // ── Filtros ────────────────────────────────────────────────────────────────
   const [prioridad,    setPrioridad   ] = useState(searchParams.get("prioridad") ?? "");
@@ -67,7 +69,7 @@ function LeadsContent() {
   useEffect(() => {
     async function cargarCounts() {
       let q = supabase.from("leads").select("estado", { count: "exact" });
-      if (soloMios && comercialId) q = q.eq("comercial_asignado", comercialId);
+      if ((soloMios || sinPermisoVerTodos) && comercialId) q = q.eq("comercial_asignado", comercialId);
       const { data } = await q.in("estado", ESTADOS_FUNNEL.map(e => e.estado));
       if (!data) return;
       const counts: Record<string, number> = {};
@@ -86,7 +88,7 @@ function LeadsContent() {
     let q = supabase.from("leads").select("id", { count: "exact", head: true })
       .eq("fuente", "formulario_web")
       .eq("estado", "nuevo");
-    if (soloMios && comercialId) q = q.eq("comercial_asignado", comercialId);
+    if ((soloMios || sinPermisoVerTodos) && comercialId) q = q.eq("comercial_asignado", comercialId);
     q.then(({ count }) => setFormulariosSinContactar(count ?? 0));
   }, [comercialCargado, comercialId, soloMios]);
 
@@ -96,6 +98,8 @@ function LeadsContent() {
   const [loading,  setLoading ] = useState(true);
   const [offset,   setOffset  ] = useState(0);
   const [hayMas,   setHayMas  ] = useState(false);
+
+  const sinPermisoVerTodos = !cargandoPermisos && !puede("ver_todos_leads");
 
   const cargarLeads = useCallback(async (nuevoOffset = 0) => {
     if (!comercialCargado) return;
@@ -127,8 +131,9 @@ function LeadsContent() {
       if (horas) query = query.gte("horas_sin_atencion", horas);
     }
 
-    // "Mis leads": filtrar por comercial asignado
-    if (soloMios && comercialId) {
+    // "Mis leads": filtrar por comercial asignado. Forzado para usuarios sin ver_todos_leads.
+    const filtrarPorMios = soloMios || sinPermisoVerTodos;
+    if (filtrarPorMios && comercialId) {
       query = query.eq("comercial_asignado", comercialId);
     }
 
@@ -156,7 +161,7 @@ function LeadsContent() {
     setOffset(nuevoOffset);
     setHayMas(nuevoOffset + PAGE_SIZE < totalCount);
     setLoading(false);
-  }, [prioridad, busqueda, estado, soloMios, comercialId, comercialCargado, teamId, temperatura, fuente, ordenar, sinActividad]);
+  }, [prioridad, busqueda, estado, soloMios, sinPermisoVerTodos, comercialId, comercialCargado, teamId, temperatura, fuente, ordenar, sinActividad]);
 
   // Reset y recargar cuando cambian los filtros
   useEffect(() => {
@@ -325,7 +330,8 @@ function LeadsContent() {
           onPrioridad={(v)    => setPrioridad(v)}
           onBusqueda={(v)     => setBusqueda(v)}
           onEstado={(v)       => setEstado(v)}
-          onSoloMios={(v)     => setSoloMios(v)}
+          onSoloMios={(v)     => { if (!cargandoPermisos && !puede("ver_todos_leads")) return; setSoloMios(v); }}
+          ocultarSoloMios={!cargandoPermisos && !puede("ver_todos_leads")}
           onTeam={(v)         => setTeamId(v)}
           onTemperatura={(v)  => setTemperatura(v)}
           onFuente={(v)       => setFuente(v)}
