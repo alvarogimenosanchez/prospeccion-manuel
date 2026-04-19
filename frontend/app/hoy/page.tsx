@@ -121,6 +121,24 @@ function telLimpio(tel: string | null): string | null {
   return tel ? tel.replace(/\D/g, "") : null;
 }
 
+function waUrl(tel: string, mensaje: string): string {
+  return `https://wa.me/${tel}?text=${encodeURIComponent(mensaje)}`;
+}
+
+function mensajeWA(lead: LeadRow, tipo: "primer_contacto" | "seguimiento" | "recordatorio" | "negociacion"): string {
+  const nombre = lead.nombre;
+  switch (tipo) {
+    case "primer_contacto":
+      return `Hola ${nombre}, soy de Nationale-Nederlanden. ¿Tienes un momento para hablar?`;
+    case "seguimiento":
+      return `Hola ${nombre}, ¿has podido revisar lo que te comenté? Quedo a tu disposición para cualquier duda.`;
+    case "recordatorio":
+      return `Hola ${nombre}, te escribo de nuevo por si no viste mi mensaje anterior. ¿Tienes un momento?`;
+    case "negociacion":
+      return `Hola ${nombre}, ¿has podido pensar en lo que hablamos? Dime si necesitas más información.`;
+  }
+}
+
 function badgeAccion(tipo: string | null) {
   if (!tipo || tipo === "ninguna") return null;
   const cfg = ACCIONES_CONFIG[tipo];
@@ -548,14 +566,14 @@ export default function HoyPage() {
                   <div className="flex shrink-0 flex-wrap gap-1.5">
                     {/* Botón contextual según tipo de acción */}
                     {lead.proxima_accion === "whatsapp" && tel && (
-                      <a href={`https://wa.me/${tel}`} target="_blank" rel="noopener noreferrer"
+                      <a href={waUrl(tel, mensajeWA(lead, "seguimiento"))} target="_blank" rel="noopener noreferrer"
                         className="rounded px-2 py-1 text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
                         onClick={() => accionRapida(lead.id, "accionesVencidas", "hecha", "WhatsApp enviado", undefined, true)}>
                         💬 WhatsApp
                       </a>
                     )}
                     {lead.proxima_accion === "llamar" && tel && (
-                      <a href={`tel:${tel}`}
+                      <a href={`tel:+${tel.replace(/^\+/, "")}`}
                         className="rounded px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
                         onClick={() => accionRapida(lead.id, "accionesVencidas", "hecha", "Llamada realizada", undefined, true)}>
                         📞 Llamar
@@ -608,14 +626,14 @@ export default function HoyPage() {
                   <div className="flex shrink-0 flex-wrap gap-1.5">
                     {/* Botón de acción principal según tipo */}
                     {lead.proxima_accion === "whatsapp" && tel && (
-                      <a href={`https://wa.me/${tel}`} target="_blank" rel="noopener noreferrer"
+                      <a href={waUrl(tel, mensajeWA(lead, "seguimiento"))} target="_blank" rel="noopener noreferrer"
                         className={`rounded px-2 py-1 text-xs font-medium transition-colors ${cfgAccion?.color ?? ""}`}
                         onClick={() => accionRapida(lead.id, "accionesHoy", "hecha", "WhatsApp enviado", undefined, true)}>
                         💬 Enviar WA
                       </a>
                     )}
                     {lead.proxima_accion === "llamar" && tel && (
-                      <a href={`tel:${tel}`}
+                      <a href={`tel:+${tel.replace(/^\+/, "")}`}
                         className={`rounded px-2 py-1 text-xs font-medium transition-colors ${cfgAccion?.color ?? ""}`}
                         onClick={() => accionRapida(lead.id, "accionesHoy", "hecha", "Llamada realizada", undefined, true)}>
                         📞 Llamar
@@ -665,14 +683,14 @@ export default function HoyPage() {
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-1.5">
                     {tel && (
-                      <a href={`https://wa.me/${tel}`} target="_blank" rel="noopener noreferrer"
+                      <a href={waUrl(tel, mensajeWA(lead, "primer_contacto"))} target="_blank" rel="noopener noreferrer"
                         className="rounded px-2 py-1 text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
                         onClick={() => accionRapida(lead.id, "altaPrioridadSinTocar", "whatsapp", "WhatsApp enviado a lead alta prioridad")}>
                         💬 WhatsApp
                       </a>
                     )}
                     {tel && (
-                      <a href={`tel:${tel}`}
+                      <a href={`tel:+${tel.replace(/^\+/, "")}`}
                         className="rounded px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
                         onClick={() => accionRapida(lead.id, "altaPrioridadSinTocar", "llamar", "Llamada realizada a lead alta prioridad")}>
                         📞 Llamar
@@ -707,7 +725,7 @@ export default function HoyPage() {
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-1.5">
                     {tel && (
-                      <a href={`https://wa.me/${tel}`} target="_blank" rel="noopener noreferrer"
+                      <a href={waUrl(tel, mensajeWA(lead, "seguimiento"))} target="_blank" rel="noopener noreferrer"
                         className="rounded px-2 py-1 text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
                         onClick={() => accionRapida(lead.id, "respondieronSinSeguimiento", "whatsapp", "WhatsApp de seguimiento enviado")}>
                         💬 Responder
@@ -753,14 +771,14 @@ export default function HoyPage() {
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-1.5">
                     {tel && (
-                      <a href={`tel:${tel}`}
+                      <a href={`tel:+${tel.replace(/^\+/, "")}`}
                         className="rounded px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
                         onClick={() => accionRapida(lead.id, "enNegociacionSinActividad", "llamar", "Llamada de seguimiento negociación")}>
                         📞 Llamar
                       </a>
                     )}
                     {tel && (
-                      <a href={`https://wa.me/${tel}`} target="_blank" rel="noopener noreferrer"
+                      <a href={waUrl(tel, mensajeWA(lead, "negociacion"))} target="_blank" rel="noopener noreferrer"
                         className="rounded px-2 py-1 text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
                         onClick={() => accionRapida(lead.id, "enNegociacionSinActividad", "whatsapp", "WhatsApp de seguimiento negociación")}>
                         💬 WhatsApp
@@ -795,7 +813,7 @@ export default function HoyPage() {
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-1.5">
                     {tel && (
-                      <a href={`https://wa.me/${tel}`} target="_blank" rel="noopener noreferrer"
+                      <a href={waUrl(tel, mensajeWA(lead, "recordatorio"))} target="_blank" rel="noopener noreferrer"
                         className="rounded px-2 py-1 text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
                         onClick={() => accionRapida(lead.id, "mensajeEnviadoSinRespuesta", "whatsapp", "Recordatorio enviado por WhatsApp")}>
                         💬 Recordatorio
@@ -851,7 +869,7 @@ export default function HoyPage() {
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-1.5">
                     {tel && (
-                      <a href={`https://wa.me/${tel}`} target="_blank" rel="noopener noreferrer"
+                      <a href={`https://wa.me/${tel}?text=${encodeURIComponent(`Hola${cita.leads?.nombre ? ` ${cita.leads.nombre}` : ""}, te recuerdo que tenemos cita hoy. ¿Confirmas?`)}`} target="_blank" rel="noopener noreferrer"
                         className="rounded px-2 py-1 text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors">
                         💬 WA
                       </a>

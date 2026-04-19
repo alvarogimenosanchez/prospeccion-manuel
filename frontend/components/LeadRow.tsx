@@ -133,8 +133,12 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
 
   // Número para WhatsApp / llamada
   const tel = lead.telefono_whatsapp ?? lead.telefono ?? null;
-  const waLink = tel ? `https://wa.me/${tel.replace(/\D/g, "")}` : null;
-  const telLink = tel ? `tel:${tel.replace(/\s/g, "")}` : null;
+  const telLimpio = tel ? tel.replace(/\D/g, "") : null;
+  const mensajeWA = `Hola ${lead.nombre}, soy de Nationale-Nederlanden. ¿Tienes un momento?`;
+  const waLink = telLimpio
+    ? `https://wa.me/${telLimpio}?text=${encodeURIComponent(mensajeWA)}`
+    : null;
+  const telLink = telLimpio ? `tel:+${telLimpio.replace(/^\+/, "")}` : null;
 
   return (
     <div className={`group flex items-center gap-3 px-4 py-3 hover:bg-slate-50 border-b border-slate-100 transition-colors ${alertaAtencion ? "bg-amber-50/40" : ""}`}>
@@ -250,8 +254,8 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
           <a
             href={telLink}
             onClick={(e) => e.stopPropagation()}
-            title="Llamar"
-            className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
+            title={`Llamar: ${tel}`}
+            className="p-1.5 rounded-lg text-blue-500 hover:bg-blue-50 hover:text-blue-700 transition-colors"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8a19.79 19.79 0 01-3.07-8.67A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/>
