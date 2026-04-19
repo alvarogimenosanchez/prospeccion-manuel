@@ -79,6 +79,7 @@ export default function CuestionarioPage() {
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroProducto, setFiltroProducto] = useState("todos");
   const [filtroPeriodo, setFiltroPeriodo] = useState("30d");
+  const [busqueda, setBusqueda] = useState("");
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -101,9 +102,15 @@ export default function CuestionarioPage() {
     if (filtroProducto !== "todos") {
       resultados = resultados.filter(l => l.productos_recomendados?.includes(filtroProducto));
     }
+    if (busqueda.trim()) {
+      const q = busqueda.trim().toLowerCase();
+      resultados = resultados.filter(l =>
+        [l.nombre, l.apellidos, l.empresa, l.telefono_whatsapp].some(v => v?.toLowerCase().includes(q))
+      );
+    }
     setLeads(resultados);
     setLoading(false);
-  }, [filtroTipo, filtroProducto, filtroPeriodo]);
+  }, [filtroTipo, filtroProducto, filtroPeriodo, busqueda]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -235,6 +242,13 @@ export default function CuestionarioPage() {
         <div className="lg:col-span-3 space-y-3">
           {/* Filtros */}
           <div className="flex flex-wrap gap-2">
+            <input
+              type="text"
+              placeholder="Buscar por nombre, teléfono..."
+              value={busqueda}
+              onChange={e => setBusqueda(e.target.value)}
+              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-orange-300 w-52"
+            />
             <select value={filtroPeriodo} onChange={e => setFiltroPeriodo(e.target.value)}
               className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none">
               <option value="7d">Últimos 7 días</option>
@@ -323,11 +337,14 @@ export default function CuestionarioPage() {
                             </div>
                           </td>
                           <td className="px-3 py-3">
-                            <div className="space-y-0.5">
+                            <div className="flex flex-wrap gap-1">
                               {lead.productos_recomendados?.slice(0, 2).map((p, pi) => (
-                                <p key={p} className="text-xs whitespace-nowrap" style={pi === 0 ? { color: "#ea650d", fontWeight: 600 } : { color: "#94a3b8" }}>
-                                  {pi === 0 ? "★ " : "· "}{NOMBRES_PRODUCTOS[p] ?? p}
-                                </p>
+                                <span key={p} className="text-xs px-1.5 py-0.5 rounded font-medium whitespace-nowrap"
+                                  style={pi === 0
+                                    ? { background: "#fff5f0", color: "#c2530b", border: "1px solid #f5a677" }
+                                    : { background: "#f8fafc", color: "#64748b", border: "1px solid #e2e8f0" }}>
+                                  {pi === 0 ? "★ " : ""}{NOMBRES_PRODUCTOS[p] ?? p}
+                                </span>
                               ))}
                             </div>
                           </td>

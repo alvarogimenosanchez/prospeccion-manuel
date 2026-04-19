@@ -123,6 +123,15 @@ export default function MensajesPage() {
     window.open(url, "_blank");
   };
 
+  const aprobarTodos = async () => {
+    if (!confirm(`¿Aprobar los ${mensajes.length} mensajes pendientes?`)) return;
+    const ids = mensajes.map(m => m.id);
+    for (const id of ids) {
+      await fetch(`/api/backend/mensajes/${id}/aprobar`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mensaje_editado: textoEditado[id] || null }) });
+    }
+    cargarMensajes();
+  };
+
   return (
     <div className="space-y-6">
       {/* Cabecera */}
@@ -133,6 +142,15 @@ export default function MensajesPage() {
             Revisa y aprueba los mensajes generados por IA antes de enviarlos
           </p>
         </div>
+        <div className="flex items-center gap-2">
+          {mensajes.length > 1 && (
+            <button
+              onClick={aprobarTodos}
+              className="px-4 py-2 text-sm font-medium rounded-lg border border-green-200 text-green-700 bg-green-50 hover:bg-green-100 transition-colors"
+            >
+              ✓ Aprobar todos ({mensajes.length})
+            </button>
+          )}
         <button
           onClick={generarMensajes}
           disabled={generando}
@@ -150,6 +168,7 @@ export default function MensajesPage() {
             <>✦ Generar mensajes con IA</>
           )}
         </button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -250,9 +269,21 @@ export default function MensajesPage() {
                       {mensajeActual}
                     </p>
                   )}
-                  {m.editado_por_comercial && (
-                    <p className="text-xs text-amber-600 mt-1">✏ Editado manualmente</p>
-                  )}
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs text-slate-400">{mensajeActual.length} caracteres</span>
+                    <div className="flex items-center gap-2">
+                      {m.editado_por_comercial && (
+                        <span className="text-xs text-amber-600">✏ Editado</span>
+                      )}
+                      <button
+                        onClick={() => navigator.clipboard.writeText(mensajeActual)}
+                        className="text-xs text-slate-400 hover:text-slate-700 transition-colors"
+                        title="Copiar mensaje"
+                      >
+                        Copiar
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Acciones */}
