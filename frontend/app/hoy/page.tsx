@@ -705,19 +705,39 @@ export default function HoyPage() {
             <p className="text-lg font-semibold text-green-800">Todo al día</p>
             <p className="mt-1 text-sm text-green-600 max-w-sm">{fraseExito}</p>
             <div className="mt-6 flex flex-wrap gap-3 justify-center">
-              <Link href="/leads?estado=nuevo"
-                className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
-                style={{ background: "#ea650d" }}>
-                Ver leads nuevos →
-              </Link>
-              <Link href="/mensajes"
-                className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium border border-slate-200 text-slate-600 hover:bg-white transition-colors">
-                Revisar mensajes pendientes
-              </Link>
-              <Link href="/agenda"
-                className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium border border-slate-200 text-slate-600 hover:bg-white transition-colors">
-                Ver agenda
-              </Link>
+              {!cargandoPermisos && puede("gestionar_equipo") ? (
+                <>
+                  <Link href="/desempeno"
+                    className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
+                    style={{ background: "#ea650d" }}>
+                    Ver desempeño del equipo →
+                  </Link>
+                  <Link href="/leads?estado=nuevo&inactivos=7d"
+                    className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium border border-slate-200 text-slate-600 hover:bg-white transition-colors">
+                    Leads sin atender +7 días
+                  </Link>
+                  <Link href="/equipos"
+                    className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium border border-slate-200 text-slate-600 hover:bg-white transition-colors">
+                    Gestionar equipos
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Link href="/leads?estado=nuevo"
+                    className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
+                    style={{ background: "#ea650d" }}>
+                    Ver leads nuevos →
+                  </Link>
+                  <Link href="/mensajes"
+                    className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium border border-slate-200 text-slate-600 hover:bg-white transition-colors">
+                    Revisar mensajes pendientes
+                  </Link>
+                  <Link href="/agenda"
+                    className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium border border-slate-200 text-slate-600 hover:bg-white transition-colors">
+                    Ver agenda
+                  </Link>
+                </>
+              )}
             </div>
           </div>
         )}
