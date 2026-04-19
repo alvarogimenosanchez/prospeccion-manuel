@@ -5,9 +5,16 @@ Chat de soporte para el equipo comercial de Manuel.
 Ayuda a redactar mensajes, preparar llamadas y manejar objeciones.
 """
 
+import os
 from anthropic import Anthropic
 
-_client = Anthropic()  # reads ANTHROPIC_API_KEY from environment automatically
+def _make_client() -> Anthropic:
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if api_key:
+        return Anthropic(api_key=api_key)
+    return Anthropic()
+
+_client = _make_client()
 
 SYSTEM_ASISTENTE = """Eres el asistente comercial interno de Manuel García, asesor financiero de Nationale-Nederlanden España.
 Tu rol es ayudar a Manuel y a sus comerciales con:

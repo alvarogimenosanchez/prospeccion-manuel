@@ -483,6 +483,18 @@ async def chat_ia(payload: ChatIARequest):
     return {"respuesta": respuesta}
 
 
+@app.get("/ia/diagnostico")
+async def diagnostico_ia():
+    """Diagnóstico: verifica si ANTHROPIC_API_KEY está configurada."""
+    import os
+    key = os.environ.get("ANTHROPIC_API_KEY", "")
+    return {
+        "api_key_configurada": bool(key),
+        "api_key_longitud": len(key),
+        "api_key_inicio": key[:8] + "..." if len(key) > 8 else "(vacía)",
+    }
+
+
 # ============================================================
 # SCRAPING — Endpoint para lanzar campañas de prospección
 # ============================================================
