@@ -48,6 +48,7 @@ type SeccionesData = {
   altaPrioridadSinTocar: LeadRow[];
   respondieronSinSeguimiento: LeadRow[];
   mensajeEnviadoSinRespuesta: LeadRow[];
+  enNegociacionSinActividad: LeadRow[];
   citasHoy: CitaRow[];
 };
 
@@ -146,6 +147,7 @@ export default function HoyPage() {
     altaPrioridadSinTocar:      [],
     respondieronSinSeguimiento: [],
     mensajeEnviadoSinRespuesta: [],
+    enNegociacionSinActividad:  [],
     citasHoy:                   [],
   });
   const [loading,        setLoading       ] = useState(true);
@@ -229,6 +231,16 @@ export default function HoyPage() {
         .limit(10);
       if (comercialId) qMensajeEnviado = qMensajeEnviado.eq("comercial_asignado", comercialId);
 
+      // Leads en negociación sin actividad en 2+ días — los más cercanos al cierre
+      const hace2dias = new Date(ahora.getTime() - 2 * 86400000).toISOString();
+      let qNegociacion = supabase.from("leads").select(SELECT_LEAD)
+        .eq("estado", "en_negociacion")
+        .lt("updated_at", hace2dias)
+        .order("nivel_interes", { ascending: false })
+        .order("updated_at", { ascending: true })
+        .limit(10);
+      if (comercialId) qNegociacion = qNegociacion.eq("comercial_asignado", comercialId);
+
       const baseVencidas     = qVencidas;
       const baseHoy          = qHoy;
       const baseAltaPrioridad = qAltaPrioridad;
@@ -246,9 +258,9 @@ export default function HoyPage() {
         .order("fecha_hora", { ascending: true })
         .limit(10);
 
-      const [r1, r2, r3, r4, r5, r6] = await Promise.all([
+      const [r1, r2, r3, r4, r5, r6, r7] = await Promise.all([
         baseVencidas, baseHoy, baseAltaPrioridad,
-        baseRespondieron, baseMensajeEnviado, citasQuery,
+        baseRespondieron, baseMensajeEnviado, citasQuery, qNegociacion,
       ]);
 
       setSeccionesData({
@@ -258,6 +270,7 @@ export default function HoyPage() {
         respondieronSinSeguimiento: (r4.data as unknown as LeadRow[]) ?? [],
         mensajeEnviadoSinRespuesta: (r5.data as unknown as LeadRow[]) ?? [],
         citasHoy:                   (r6.data as unknown as CitaRow[]) ?? [],
+        enNegociacionSinActividad:  (r7.data as unknown as LeadRow[]) ?? [],
       });
     } finally {
       setLoading(false);
@@ -388,6 +401,7 @@ export default function HoyPage() {
     seccionesData.accionesHoy.length +
     seccionesData.altaPrioridadSinTocar.length +
     seccionesData.respondieronSinSeguimiento.length +
+    seccionesData.enNegociacionSinActividad.length +
     seccionesData.mensajeEnviadoSinRespuesta.length +
     seccionesData.citasHoy.length;
 
@@ -410,6 +424,7 @@ export default function HoyPage() {
     { label: "Hoy",         count: seccionesData.accionesHoy.length,                color: "#ea650d" },
     { label: "Alta prio",   count: seccionesData.altaPrioridadSinTocar.length,      color: "#d97706" },
     { label: "Respondieron",count: seccionesData.respondieronSinSeguimiento.length, color: "#16a34a" },
+    { label: "Negociación", count: seccionesData.enNegociacionSinActividad.length,  color: "#7c3aed" },
     { label: "Sin resp.",   count: seccionesData.mensajeEnviadoSinRespuesta.length, color: "#2563eb" },
     { label: "Citas",       count: seccionesData.citasHoy.length,                   color: "#0d9488" },
   ].filter(i => i.count > 0);
@@ -715,7 +730,55 @@ export default function HoyPage() {
           </SeccionCard>
         )}
 
-        {/* ── Sección 5: Mensaje enviado sin respuesta ── */}
+        {/* ── Sección 5: En negociación sin actividad ── */}
+        {seccionesData.enNegociacionSinActividad.length > 0 && (
+          <SeccionCard color="violet" titulo="En negociación — revisar hoy" emoji="🤝" count={seccionesData.enNegociacionSinActividad.length}>
+            {seccionesData.enNegociacionSinActividad.map(lead => {
+              const dias = lead.updated_at ? diasDesde(lead.updated_at) : 0;
+              const tel = telLimpio(lead.telefono_whatsapp ?? lead.telefono);
+              return (
+                <FilaLead key={lead.id}>
+                  <div className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
+                    <Link href={`/leads/${lead.id}`} className="lead-link font-medium truncate">
+                      {nombreCompleto(lead)}
+                      {lead.empresa && <span className="ml-1 font-normal text-slate-500">· {lead.empresa}</span>}
+                    </Link>
+                    {lead.sector && <span className="text-xs text-slate-400">{lead.sector}</span>}
+                    <span className="rounded bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700">
+                      sin contacto · {dias}d
+                    </span>
+                    <span className="rounded px-2 py-0.5 text-xs" style={{ background: "#fff5f0", color: "#ea650d" }}>
+                      {lead.nivel_interes}/10
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-1.5">
+                    {tel && (
+                      <a href={`tel:${tel}`}
+                        className="rounded px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 hover:bg-blue-200 transition-colors"
+                        onClick={() => accionRapida(lead.id, "enNegociacionSinActividad", "llamar", "Llamada de seguimiento negociación")}>
+                        📞 Llamar
+                      </a>
+                    )}
+                    {tel && (
+                      <a href={`https://wa.me/${tel}`} target="_blank" rel="noopener noreferrer"
+                        className="rounded px-2 py-1 text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 transition-colors"
+                        onClick={() => accionRapida(lead.id, "enNegociacionSinActividad", "whatsapp", "WhatsApp de seguimiento negociación")}>
+                        💬 WhatsApp
+                      </a>
+                    )}
+                    <Link href={`/leads/${lead.id}`}
+                      className="rounded px-2 py-1 text-xs font-medium transition-colors hover:underline"
+                      style={{ color: "#ea650d" }}>
+                      → Ver
+                    </Link>
+                  </div>
+                </FilaLead>
+              );
+            })}
+          </SeccionCard>
+        )}
+
+        {/* ── Sección 6: Mensaje enviado sin respuesta ── */}
         {seccionesData.mensajeEnviadoSinRespuesta.length > 0 && (
           <SeccionCard color="blue" titulo="Enviado, sin respuesta" emoji="📩" count={seccionesData.mensajeEnviadoSinRespuesta.length}>
             {seccionesData.mensajeEnviadoSinRespuesta.map(lead => {
@@ -923,6 +986,7 @@ const SECTION_COLORS: Record<string, { header: string; border: string; badge: st
   green:  { header: "bg-green-50 border-green-200",   border: "border-green-200",  badge: "bg-green-100 text-green-700"  },
   blue:   { header: "bg-blue-50 border-blue-200",     border: "border-blue-200",   badge: "bg-blue-100 text-blue-700"    },
   teal:   { header: "bg-teal-50 border-teal-200",     border: "border-teal-200",   badge: "bg-teal-100 text-teal-700"    },
+  violet: { header: "bg-violet-50 border-violet-200", border: "border-violet-200", badge: "bg-violet-100 text-violet-700" },
 };
 
 function SeccionCard({ color, titulo, emoji, count, children }: {
