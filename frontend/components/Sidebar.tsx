@@ -70,6 +70,7 @@ const NAV_GROUPS = [
       { href: "/ia",                 label: "Asistente IA",    icon: "sparkle",  permiso: null },
       { href: "/mensajes-internos",  label: "Chat interno",    icon: "chat",     permiso: null },
       { href: "/agenda",             label: "Agenda",          icon: "calendar", permiso: null },
+      { href: "/simulador",          label: "Simulador",       icon: "sparkle",  permiso: null },
       { href: "/recursos",           label: "Acceso rápido",   icon: "bookmark", permiso: null },
     ],
   },
