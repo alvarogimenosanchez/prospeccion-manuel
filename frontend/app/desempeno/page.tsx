@@ -76,7 +76,7 @@ export default function DesempenoPage() {
   const [loading, setLoading] = useState(true);
   const [periodo, setPeriodo] = useState<"todo" | "mes" | "semana">("todo");
   const [filtroEquipo, setFiltroEquipo] = useState("");
-  const [filtroRol, setFiltroRol] = useState<"todos" | "director" | "comercial">("todos");
+  const [filtroRol, setFiltroRol] = useState<"todos" | "admin" | "director" | "manager" | "comercial">("todos");
   const [equipos, setEquipos] = useState<{ id: string; nombre: string }[]>([]);
   const [teamMembers, setTeamMembers] = useState<{ comercial_id: string; team_id: string }[]>([]);
 
@@ -400,10 +400,10 @@ export default function DesempenoPage() {
             </select>
           )}
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
-            {(["todos", "director", "comercial"] as const).map(r => (
+            {(["todos", "admin", "director", "manager", "comercial"] as const).map(r => (
               <button key={r} onClick={() => setFiltroRol(r)}
                 className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${filtroRol === r ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}>
-                {r === "todos" ? "Todos" : r === "director" ? "Directores" : "Comerciales"}
+                {r === "todos" ? "Todos" : r === "admin" ? "Admin" : r === "director" ? "Directores" : r === "manager" ? "Managers" : "Comerciales"}
               </button>
             ))}
           </div>

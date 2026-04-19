@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { Suspense } from "react";
+import { usePermisos } from "@/components/PermisosProvider";
 
 type Estado =
   | "nuevo"
@@ -167,6 +168,7 @@ export default function PipelinePage() {
 }
 
 function PipelineContent() {
+  const { puede, cargando: cargandoPermisos } = usePermisos();
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [moviendo, setMoviendo] = useState<string | null>(null);
@@ -212,18 +214,20 @@ function PipelineContent() {
       .in("estado", COLUMNAS.map(c => c.estado))
       .order("nivel_interes", { ascending: false })
       .limit(500);
-    if (!verTodos && comercialId) query = query.eq("comercial_asignado", comercialId);
+    const sinPermisoVerTodos = !cargandoPermisos && !puede("ver_todos_leads");
+    const filtrarPorMios = (!verTodos || sinPermisoVerTodos);
+    if (filtrarPorMios && comercialId) query = query.eq("comercial_asignado", comercialId);
     const { data } = await query;
     setLeads((data as Lead[]) ?? []);
 
     // Leads cerrados ganados este mes
     let ganadosQ = supabase.from("leads").select("id", { count: "exact", head: true }).eq("estado", "cerrado_ganado").gte("updated_at", inicioMes.toISOString());
-    if (!verTodos && comercialId) ganadosQ = ganadosQ.eq("comercial_asignado", comercialId);
+    if (filtrarPorMios && comercialId) ganadosQ = ganadosQ.eq("comercial_asignado", comercialId);
     const { count: ganados } = await ganadosQ;
     setGanadosMes(ganados ?? 0);
 
     setLoading(false);
-  }, [comercialId, verTodos]);
+  }, [comercialId, verTodos, cargandoPermisos, puede]);
 
   useEffect(() => { cargarLeads(); }, [cargarLeads]);
 
@@ -310,13 +314,15 @@ function PipelineContent() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setVerTodos(v => !v)}
-            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border font-medium transition-all ${verTodos ? "text-white border-transparent" : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"}`}
-            style={verTodos ? { background: "#ea650d" } : undefined}
-          >
-            {verTodos ? "👥 Todos" : "👤 Mis leads"}
-          </button>
+          {!cargandoPermisos && puede("ver_todos_leads") && (
+            <button
+              onClick={() => setVerTodos(v => !v)}
+              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border font-medium transition-all ${verTodos ? "text-white border-transparent" : "bg-white text-slate-600 border-slate-200 hover:border-slate-400"}`}
+              style={verTodos ? { background: "#ea650d" } : undefined}
+            >
+              {verTodos ? "👥 Todos" : "👤 Mis leads"}
+            </button>
+          )}
           <input
             type="text"
             placeholder="Buscar lead..."
