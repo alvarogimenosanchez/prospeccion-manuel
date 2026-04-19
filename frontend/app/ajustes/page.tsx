@@ -100,7 +100,10 @@ export default function AjustesPage() {
   const [miNombre, setMiNombre] = useState("");
   const [plantillas, setPlantillas] = useState<PlantillaWA[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [tabActiva, setTabActiva] = useState<"plantillas" | "cuestionario">("plantillas");
+  const [tabActiva, setTabActiva] = useState<"plantillas" | "cuestionario" | "scraping">("plantillas");
+  const [esDirector, setEsDirector] = useState(false);
+  const [comercialesLimites, setComerciales] = useState<{id: string; nombre: string; email: string; limite_leads_mes: number; usoMes?: number}[]>([]);
+  const [guardandoLimite, setGuardandoLimite] = useState<string | null>(null);
   const [configCuestionario, setConfigCuestionario] = useState(CONFIG_DEFAULT);
   const [guardandoConfig, setGuardandoConfig] = useState(false);
   const [configOk, setConfigOk] = useState(false);
@@ -123,18 +126,45 @@ export default function AjustesPage() {
       if (data.user?.email) {
         supabase
           .from("comerciales")
-          .select("id, nombre")
+          .select("id, nombre, rol")
           .eq("email", data.user.email)
           .single()
           .then(({ data: c }) => {
             if (c) {
               setMiComercialId(c.id);
               setMiNombre(c.nombre);
+              if (c.rol === "director") {
+                setEsDirector(true);
+                cargarComerciales();
+              }
             }
           });
       }
     });
   }, []);
+
+  // ── Load comerciales (director only) ────────────────────────────────────────
+  async function cargarComerciales() {
+    const inicioMes = new Date();
+    inicioMes.setDate(1);
+    inicioMes.setHours(0, 0, 0, 0);
+    const { data } = await supabase.from("comerciales").select("id, nombre, email, limite_leads_mes").eq("activo", true).order("nombre");
+    if (!data) return;
+    const ids = data.map(c => c.id);
+    const usos: Record<string, number> = {};
+    for (const id of ids) {
+      const { count } = await supabase.from("leads").select("id", { count: "exact", head: true }).eq("fuente", "scraping").eq("comercial_asignado", id).gte("fecha_captacion", inicioMes.toISOString());
+      usos[id] = count ?? 0;
+    }
+    setComerciales(data.map(c => ({ ...c, limite_leads_mes: c.limite_leads_mes ?? 200, usoMes: usos[c.id] ?? 0 })));
+  }
+
+  async function actualizarLimite(id: string, nuevoLimite: number) {
+    setGuardandoLimite(id);
+    await supabase.from("comerciales").update({ limite_leads_mes: nuevoLimite }).eq("id", id);
+    setComerciales(prev => prev.map(c => c.id === id ? { ...c, limite_leads_mes: nuevoLimite } : c));
+    setGuardandoLimite(null);
+  }
 
   // ── Load plantillas ─────────────────────────────────────────────────────────
   async function cargarPlantillas(cid: string) {
@@ -298,10 +328,11 @@ export default function AjustesPage() {
 
       {/* ── Tabs ──────────────────────────────────────────────────────────── */}
       <div className="flex gap-1 mb-6 border-b border-slate-200">
-        {([
+        {(([
           { id: "plantillas",   label: "Plantillas WA" },
           { id: "cuestionario", label: "Cuestionario de captación" },
-        ] as const).map(t => (
+          ...(esDirector ? [{ id: "scraping" as const, label: "Límites scraping" }] : []),
+        ]) as { id: "plantillas" | "cuestionario" | "scraping"; label: string }[]).map(t => (
           <button
             key={t.id}
             onClick={() => setTabActiva(t.id)}
@@ -985,6 +1016,61 @@ export default function AjustesPage() {
                 {guardando ? "Guardando..." : editandoId ? "Guardar cambios" : "Crear plantilla"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ── Sección scraping límites (solo director) ──────────────────────── */}
+      {tabActiva === "scraping" && esDirector && (
+        <div className="space-y-4">
+          <div className="card" style={{ padding: "16px 20px" }}>
+            <p className="text-sm font-semibold mb-1" style={{ color: "#414141" }}>Control de uso mensual por comercial</p>
+            <p className="text-xs mb-4" style={{ color: "#a09890" }}>
+              Cada comercial tiene un límite de leads captados por scraping al mes. Al alcanzarlo, el sistema bloquea nuevas campañas hasta el mes siguiente.
+            </p>
+            {comercialesLimites.length === 0 ? (
+              <p className="text-sm text-slate-400 py-4 text-center">Cargando...</p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {comercialesLimites.map(c => {
+                  const pct = Math.min(100, Math.round(((c.usoMes ?? 0) / c.limite_leads_mes) * 100));
+                  return (
+                    <div key={c.id} className="py-3 flex items-center gap-4">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800">{c.nombre}</p>
+                        <p className="text-xs text-slate-400">{c.email}</p>
+                        <div className="mt-1.5 flex items-center gap-2">
+                          <div className="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                            <div
+                              className="h-1.5 rounded-full"
+                              style={{
+                                width: `${pct}%`,
+                                background: pct >= 100 ? "#dc2626" : pct >= 80 ? "#f59e0b" : "#ea650d",
+                              }}
+                            />
+                          </div>
+                          <span className="text-xs text-slate-500 whitespace-nowrap">{c.usoMes ?? 0} / {c.limite_leads_mes}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <input
+                          type="number"
+                          min={0}
+                          max={5000}
+                          step={50}
+                          defaultValue={c.limite_leads_mes}
+                          onBlur={e => {
+                            const val = parseInt(e.target.value);
+                            if (!isNaN(val) && val !== c.limite_leads_mes) actualizarLimite(c.id, val);
+                          }}
+                          className="w-20 text-sm border border-slate-200 rounded-lg px-2 py-1 text-center focus:outline-none focus:ring-1 focus:ring-orange-400"
+                        />
+                        {guardandoLimite === c.id && <span className="text-xs text-slate-400">Guardando...</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
