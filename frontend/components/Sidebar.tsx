@@ -81,11 +81,12 @@ const NAV_GROUPS = [
   {
     label: "Gestión",
     items: [
-      { href: "/clientes", label: "Clientes",  icon: "briefcase", permiso: "gestionar_clientes" },
-      { href: "/ingresos", label: "Ingresos",  icon: "chart",     permiso: "ver_metricas" },
-      { href: "/equipos",  label: "Equipos",   icon: "team",      permiso: "gestionar_equipo" },
-      { href: "/ajustes",  label: "Ajustes",   icon: "settings",  permiso: "gestionar_ajustes" },
-      { href: "/reportes", label: "Reportes",  icon: "flag",      permiso: "ver_reportes" },
+      { href: "/clientes",   label: "Clientes",   icon: "briefcase", permiso: "gestionar_clientes" },
+      { href: "/ingresos",   label: "Ingresos",   icon: "chart",     permiso: "ver_metricas" },
+      { href: "/recuperar",  label: "Recuperar",  icon: "trending",  permiso: "asignar_leads" },
+      { href: "/equipos",    label: "Equipos",    icon: "team",      permiso: "gestionar_equipo" },
+      { href: "/ajustes",    label: "Ajustes",    icon: "settings",  permiso: "gestionar_ajustes" },
+      { href: "/reportes",   label: "Reportes",   icon: "flag",      permiso: "ver_reportes" },
     ],
   },
 ];
