@@ -124,7 +124,8 @@ function LeadsContent() {
     if (seleccionados.size === 0) return;
     setAsignandoBulk(true);
     const ids = Array.from(seleccionados);
-    await supabase.from("leads").update({ comercial_asignado: comercialId || null, updated_at: new Date().toISOString() }).in("id", ids);
+    const asignadoId = comercialId === "__sin_asignar__" ? null : (comercialId || null);
+    await supabase.from("leads").update({ comercial_asignado: asignadoId, updated_at: new Date().toISOString() }).in("id", ids);
     setSeleccionados(new Set());
     setAsignandoBulk(false);
     cargarLeads(0);
@@ -491,13 +492,13 @@ function LeadsContent() {
           <div className="w-px h-5 bg-slate-600" />
           <select
             className="text-sm bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-orange-400"
-            defaultValue=""
+            value=""
             onFocus={cargarComercalesLista}
-            onChange={e => { if (e.target.value) asignarBulk(e.target.value); }}
+            onChange={e => asignarBulk(e.target.value)}
             disabled={asignandoBulk}
           >
             <option value="" disabled>{asignandoBulk ? "Asignando..." : "Asignar a..."}</option>
-            <option value="sin_asignar">— Sin asignar</option>
+            <option value="__sin_asignar__">— Sin asignar</option>
             {comercialesLista?.map(c => (
               <option key={c.id} value={c.id}>{c.nombre}</option>
             ))}
