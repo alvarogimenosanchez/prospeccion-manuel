@@ -99,6 +99,43 @@ function LeadsContent() {
   const [offset,   setOffset  ] = useState(0);
   const [hayMas,   setHayMas  ] = useState(false);
 
+  // ── Bulk selection ────────────────────────────────────────────────────────
+  const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set());
+  const [comercialesLista, setComercialLista] = useState<{ id: string; nombre: string }[] | null>(null);
+  const [asignandoBulk, setAsignandoBulk] = useState(false);
+
+  function toggleSeleccion(id: string) {
+    setSeleccionados(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  function seleccionarTodos() {
+    if (seleccionados.size === leads.length) {
+      setSeleccionados(new Set());
+    } else {
+      setSeleccionados(new Set(leads.map(l => l.id)));
+    }
+  }
+
+  async function asignarBulk(comercialId: string) {
+    if (seleccionados.size === 0) return;
+    setAsignandoBulk(true);
+    const ids = Array.from(seleccionados);
+    await supabase.from("leads").update({ comercial_asignado: comercialId || null, updated_at: new Date().toISOString() }).in("id", ids);
+    setSeleccionados(new Set());
+    setAsignandoBulk(false);
+    cargarLeads(0);
+  }
+
+  async function cargarComercalesLista() {
+    if (comercialesLista) return;
+    const { data } = await supabase.from("comerciales").select("id, nombre").eq("activo", true).order("nombre");
+    setComercialLista(data ?? []);
+  }
+
   const sinPermisoVerTodos = !cargandoPermisos && !puede("ver_todos_leads");
 
   const cargarLeads = useCallback(async (nuevoOffset = 0) => {
@@ -404,6 +441,13 @@ function LeadsContent() {
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           {/* Cabeceras */}
           <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 bg-slate-50/50 text-xs text-slate-400 font-medium">
+            {!cargandoPermisos && puede("asignar_leads") && (
+              <input type="checkbox" className="rounded border-slate-300"
+                checked={seleccionados.size === leads.length && leads.length > 0}
+                onChange={seleccionarTodos}
+                title="Seleccionar todos"
+              />
+            )}
             <span className="w-52 min-w-0">Estado · Nombre / Empresa</span>
             <span className="w-28 min-w-0 hidden md:block">Ciudad / Fuente</span>
             <span className="flex-1 min-w-0 hidden lg:block">Productos</span>
@@ -413,7 +457,18 @@ function LeadsContent() {
           </div>
 
           {leads.map((lead) => (
-            <LeadRow key={lead.id} lead={lead} />
+            <div key={lead.id} className="flex items-center">
+              {!cargandoPermisos && puede("asignar_leads") && (
+                <input type="checkbox" className="ml-4 rounded border-slate-300 shrink-0"
+                  checked={seleccionados.has(lead.id)}
+                  onChange={() => toggleSeleccion(lead.id)}
+                  onClick={e => e.stopPropagation()}
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <LeadRow lead={lead} />
+              </div>
+            </div>
           ))}
 
           {/* Cargar más */}
@@ -427,6 +482,32 @@ function LeadsContent() {
               </button>
             </div>
           )}
+        </div>
+      )}
+      {/* Bulk action bar */}
+      {seleccionados.size > 0 && !cargandoPermisos && puede("asignar_leads") && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-slate-900 text-white rounded-xl px-4 py-3 shadow-xl border border-slate-700">
+          <span className="text-sm font-medium">{seleccionados.size} lead{seleccionados.size !== 1 ? "s" : ""} seleccionado{seleccionados.size !== 1 ? "s" : ""}</span>
+          <div className="w-px h-5 bg-slate-600" />
+          <select
+            className="text-sm bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-orange-400"
+            defaultValue=""
+            onFocus={cargarComercalesLista}
+            onChange={e => { if (e.target.value) asignarBulk(e.target.value); }}
+            disabled={asignandoBulk}
+          >
+            <option value="" disabled>{asignandoBulk ? "Asignando..." : "Asignar a..."}</option>
+            <option value="sin_asignar">— Sin asignar</option>
+            {comercialesLista?.map(c => (
+              <option key={c.id} value={c.id}>{c.nombre}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => setSeleccionados(new Set())}
+            className="text-slate-400 hover:text-white transition-colors text-sm"
+          >
+            ✕ Cancelar
+          </button>
         </div>
       )}
     </div>
