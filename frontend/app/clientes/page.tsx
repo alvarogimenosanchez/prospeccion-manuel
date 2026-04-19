@@ -428,9 +428,9 @@ function ClientesContent() {
                   <tr key={c.id} className="hover:bg-slate-50 group">
                     <td className="px-4 py-3">
                       <div>
-                        <p className="font-medium text-slate-900">
+                        <Link href={`/clientes/${c.id}`} className="font-medium text-slate-900 hover:text-orange-600 transition-colors">
                           {c.nombre} {c.apellidos ?? ""}
-                        </p>
+                        </Link>
                         {c.empresa && <p className="text-xs text-slate-400">{c.empresa}</p>}
                         {c.lead_id && (
                           <Link href={`/leads/${c.lead_id}`} className="text-xs hover:underline" style={{ color: "#ea650d" }}>
