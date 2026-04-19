@@ -169,6 +169,9 @@ export default function MetricasPage() {
   const [pipelineHealth, setPipelineHealth] = useState<{
     activos: number; calientes: number; enNegociacion: number; estancados: number; citasEstaSemana: number;
   } | null>(null);
+  const [winLoss, setWinLoss] = useState<{
+    ganados: number; perdidos: number; descartados: number; winRate: number;
+  } | null>(null);
   const [ejecutandoSeguimiento, setEjecutandoSeguimiento] = useState<string | null>(null);
   const [mensajeSeguimiento, setMensajeSeguimiento] = useState<string | null>(null);
   const [soloTrabajados, setSoloTrabajados] = useState(false);
@@ -230,6 +233,7 @@ export default function MetricasPage() {
         cargarStatsProducto(fechaInicio, comercialId),
         cargarStatsFormulario(fechaInicio, comercialId),
         comercialId === "todos" ? cargarStatsComercial(fechaInicio) : Promise.resolve(),
+        cargarWinLoss(fechaInicio, comercialId),
       ]);
       setLoading(false);
     }
@@ -625,6 +629,36 @@ export default function MetricasPage() {
       })
     );
     setStatsComercial(rows.filter((r) => r.total > 0).sort((a, b) => b.cerrados - a.cerrados || b.total - a.total));
+  }
+
+  // ── Win/Loss analysis ────────────────────────────────────────────────────────
+
+  async function cargarWinLoss(fechaInicio: string | null, cid: string) {
+    const makeQ = (estado: string) => {
+      let q = supabase.from("leads").select("*", { count: "exact", head: true }).eq("estado", estado);
+      if (fechaInicio) q = q.gte("fecha_captacion", fechaInicio);
+      if (cid !== "todos") q = q.eq("comercial_asignado", cid);
+      return q;
+    };
+
+    // Lost leads by stage they were at (approximated by estado transition — use lead_state_history if available)
+    const [
+      { count: ganados },
+      { count: perdidos },
+      { count: descartados },
+    ] = await Promise.all([
+      makeQ("cerrado_ganado"),
+      makeQ("cerrado_perdido"),
+      makeQ("descartado"),
+    ]);
+
+    const g = ganados ?? 0;
+    const p = perdidos ?? 0;
+    const d = descartados ?? 0;
+    const total = g + p;
+    const winRate = total > 0 ? Math.round((g / total) * 100) : 0;
+
+    setWinLoss({ ganados: g, perdidos: p, descartados: d, winRate });
   }
 
   // ── Días promedio hasta cierre ────────────────────────────────────────────────
@@ -1242,6 +1276,67 @@ export default function MetricasPage() {
               />
             </div>
           </section>
+
+          {/* ── Sección 5: Win / Loss ratio ──────────────────────────────────── */}
+          {winLoss && (winLoss.ganados > 0 || winLoss.perdidos > 0) && (
+            <section>
+              <h2 className="text-base font-semibold text-slate-800 mb-1">Ratio Ganados / Perdidos</h2>
+              <p className="text-xs text-slate-400 mb-4">De todos los leads que llegaron a una decisión final en este período</p>
+              <div className="bg-white rounded-xl border border-slate-200 p-6">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  {/* Win rate visual */}
+                  <div className="sm:col-span-1 flex flex-col items-center justify-center">
+                    <div className="relative w-28 h-28">
+                      <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                        <circle cx="18" cy="18" r="15.9" fill="none" stroke="#f1f5f9" strokeWidth="3" />
+                        <circle cx="18" cy="18" r="15.9" fill="none"
+                          stroke={winLoss.winRate >= 50 ? "#16a34a" : winLoss.winRate >= 25 ? "#d97706" : "#dc2626"}
+                          strokeWidth="3"
+                          strokeDasharray={`${winLoss.winRate} ${100 - winLoss.winRate}`}
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className="text-2xl font-bold text-slate-800">{winLoss.winRate}%</span>
+                        <span className="text-xs text-slate-400">win rate</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Counts */}
+                  <div className="sm:col-span-2 grid grid-cols-3 gap-4">
+                    <div className="text-center p-4 rounded-xl bg-green-50 border border-green-100">
+                      <p className="text-3xl font-bold text-green-700">{winLoss.ganados}</p>
+                      <p className="text-xs text-green-600 mt-1 font-medium">Ganados</p>
+                    </div>
+                    <div className="text-center p-4 rounded-xl bg-red-50 border border-red-100">
+                      <p className="text-3xl font-bold text-red-700">{winLoss.perdidos}</p>
+                      <p className="text-xs text-red-600 mt-1 font-medium">Perdidos</p>
+                    </div>
+                    <div className="text-center p-4 rounded-xl bg-slate-50 border border-slate-200">
+                      <p className="text-3xl font-bold text-slate-500">{winLoss.descartados}</p>
+                      <p className="text-xs text-slate-400 mt-1 font-medium">Descartados</p>
+                    </div>
+                  </div>
+                </div>
+
+                {winLoss.perdidos > 0 && (
+                  <div className="mt-4 pt-4 border-t border-slate-100">
+                    <p className="text-xs text-slate-400">
+                      {winLoss.winRate >= 50
+                        ? `Buen ratio. Por cada lead perdido, se están ganando ${(winLoss.ganados / Math.max(1, winLoss.perdidos)).toFixed(1)} deals.`
+                        : winLoss.winRate >= 25
+                        ? `Ratio mejorable. Revisa el seguimiento de leads en negociación y las objeciones más frecuentes.`
+                        : `Ratio bajo. Considera revisar la calificación de leads o el proceso de cierre.`}
+                    </p>
+                    <a href="/leads?estado=cerrado_perdido" className="inline-block mt-2 text-xs font-medium hover:underline" style={{ color: "#ea650d" }}>
+                      Ver leads perdidos para posible recuperación →
+                    </a>
+                  </div>
+                )}
+              </div>
+            </section>
+          )}
         </>
       )}
     </div>
