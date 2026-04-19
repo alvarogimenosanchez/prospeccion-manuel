@@ -903,6 +903,53 @@ export default function LeadDetailPage() {
         )}
       </div>
 
+      {/* Banner de inactividad — visible cuando hay días sin contacto y el lead está activo */}
+      {diasSinContacto !== null && diasSinContacto > 7 &&
+        !["cerrado_ganado", "cerrado_perdido", "descartado"].includes(lead.estado) && (
+        <div style={{
+          background: diasSinContacto > 30 ? "#fef2f2" : "#fff7ed",
+          border: `1px solid ${diasSinContacto > 30 ? "#fca5a5" : "#fed7aa"}`,
+          borderRadius: 8,
+          padding: "12px 16px",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+        }}>
+          <span style={{ fontSize: 20, flexShrink: 0 }}>{diasSinContacto > 30 ? "🔴" : "🟡"}</span>
+          <div style={{ flex: 1 }}>
+            <p style={{ fontSize: 13, fontWeight: 700, margin: 0, color: diasSinContacto > 30 ? "#991b1b" : "#9a3412" }}>
+              {diasSinContacto} días sin contacto
+            </p>
+            <p style={{ fontSize: 12, margin: "2px 0 0", color: diasSinContacto > 30 ? "#b91c1c" : "#c2410c" }}>
+              {diasSinContacto > 30
+                ? "Lead muy frío — considera si vale la pena reintentar o descartar"
+                : "Llevas más de una semana sin actividad en este lead"}
+            </p>
+          </div>
+          {!lead.proxima_accion || lead.proxima_accion === "ninguna" ? (
+            <button
+              onClick={abrirEdicionAccion}
+              style={{ fontSize: 12, fontWeight: 600, color: "#ea650d", background: "#fff", border: "1px solid #ea650d", borderRadius: 6, padding: "5px 12px", cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0 }}
+            >
+              Definir acción →
+            </button>
+          ) : null}
+        </div>
+      )}
+
+      {/* Banner de lead sin historial — si nunca se ha contactado y lleva >3 días */}
+      {diasSinContacto === null && interactions.length === 0 &&
+        lead.fecha_captacion &&
+        Math.floor((Date.now() - new Date(lead.fecha_captacion).getTime()) / 86_400_000) > 3 &&
+        !["cerrado_ganado", "cerrado_perdido", "descartado"].includes(lead.estado) && (
+        <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+          <span style={{ fontSize: 18, flexShrink: 0 }}>📭</span>
+          <p style={{ fontSize: 13, color: "#9a3412", margin: 0, flex: 1 }}>
+            Lead sin ninguna interacción registrada — lleva {Math.floor((Date.now() - new Date(lead.fecha_captacion).getTime()) / 86_400_000)} días en el sistema sin contacto
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* ── Columna izquierda ── */}
         <div className="space-y-4">

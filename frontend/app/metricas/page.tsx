@@ -115,6 +115,9 @@ export default function MetricasPage() {
   const [loading, setLoading] = useState(true);
   const [ejecutandoSeguimiento, setEjecutandoSeguimiento] = useState<string | null>(null);
   const [mensajeSeguimiento, setMensajeSeguimiento] = useState<string | null>(null);
+  const [soloTrabajados, setSoloTrabajados] = useState(false);
+  const [leadsSinTocar, setLeadsSinTocar] = useState(0);
+  const [funnelTrabajados, setFunnelTrabajados] = useState<FunnelStep[]>([]);
 
   // Cargar comerciales una sola vez
   useEffect(() => {
@@ -140,6 +143,7 @@ export default function MetricasPage() {
         cargarSeguimiento(comercialId),
         cargarDiasHastaCierre(fechaInicio, comercialId),
         cargarStatsCiudad(fechaInicio, comercialId),
+        cargarLeadsSinTocar(comercialId),
       ]);
       setLoading(false);
     }
@@ -154,6 +158,17 @@ export default function MetricasPage() {
     if (fechaInicio) q = q.gte("fecha_captacion", fechaInicio);
     if (cid !== "todos") q = q.eq("comercial_asignado", cid);
     return q;
+  }
+
+  // ── Leads sin tocar ──────────────────────────────────────────────────────────
+  async function cargarLeadsSinTocar(cid: string) {
+    const hace7dias = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    let q = supabase.from("leads").select("*", { count: "exact", head: true })
+      .in("estado", ["nuevo", "enriquecido"])
+      .lt("fecha_captacion", hace7dias);
+    if (cid !== "todos") q = q.eq("comercial_asignado", cid);
+    const { count } = await q;
+    setLeadsSinTocar(count ?? 0);
   }
 
   // ── Funnel ──────────────────────────────────────────────────────────────────
@@ -217,6 +232,20 @@ export default function MetricasPage() {
     steps.push({ ...FUNNEL_STEPS[4], count: cerrado ?? 0 });
 
     setFunnel(steps);
+
+    // Funnel de "leads trabajados" (excluye nuevo/enriquecido/descartado) —
+    // para mostrar conversión real de pipeline activo
+    const stepsT: FunnelStep[] = [];
+    const EXCLUIDOS = ["nuevo", "enriquecido", "descartado"];
+    let qTotT = supabase.from("leads").select("*", { count: "exact", head: true })
+      .not("estado", "in", `(${EXCLUIDOS.join(",")})`);
+    if (fechaInicio) qTotT = qTotT.gte("fecha_captacion", fechaInicio);
+    if (cid !== "todos") qTotT = qTotT.eq("comercial_asignado", cid);
+    const { count: totalT } = await qTotT;
+    stepsT.push({ ...FUNNEL_STEPS[0], label: "En pipeline", count: totalT ?? 0 });
+    // Reutilizar los steps de contactados/respondieron/cita/cerrado que ya calculamos
+    stepsT.push(...steps.slice(1));
+    setFunnelTrabajados(stepsT);
   }
 
   // ── Stats por fuente ─────────────────────────────────────────────────────────
@@ -511,13 +540,54 @@ export default function MetricasPage() {
         </div>
       ) : (
         <>
+          {/* ── Stat: leads sin tocar ──────────────────────────────────────────── */}
+          {leadsSinTocar > 0 && (
+            <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 20 }}>⚠️</span>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 13, fontWeight: 600, color: "#9a3412", margin: 0 }}>
+                  {leadsSinTocar} lead{leadsSinTocar !== 1 ? "s" : ""} sin contacto en más de 7 días
+                </p>
+                <p style={{ fontSize: 12, color: "#c2410c", margin: "2px 0 0" }}>
+                  Están en estado &quot;Nuevo&quot; y nadie los ha trabajado todavía. Cada día que pasan sin contacto reduce la conversión.
+                </p>
+              </div>
+              <a href="/leads?estado=nuevo" style={{ fontSize: 12, fontWeight: 600, color: "#ea650d", textDecoration: "none", whiteSpace: "nowrap", padding: "4px 12px", border: "1px solid #ea650d", borderRadius: 6 }}>
+                Ver leads →
+              </a>
+            </div>
+          )}
+
           {/* ── Sección 1: Funnel de ventas ─────────────────────────────────────── */}
           <section>
-            <h2 className="text-base font-semibold text-slate-800 mb-4">Funnel de ventas</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-base font-semibold text-slate-800">Funnel de ventas</h2>
+              <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 text-xs">
+                <button
+                  onClick={() => setSoloTrabajados(false)}
+                  className={`px-3 py-1 rounded-md font-medium transition-colors ${!soloTrabajados ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                >
+                  Todos los leads
+                </button>
+                <button
+                  onClick={() => setSoloTrabajados(true)}
+                  className={`px-3 py-1 rounded-md font-medium transition-colors ${soloTrabajados ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-700"}`}
+                >
+                  Solo pipeline activo
+                </button>
+              </div>
+            </div>
+            {soloTrabajados && (
+              <p className="text-xs text-slate-400 mb-3 -mt-2">
+                Excluye leads en estado &quot;Nuevo&quot; o &quot;Enriquecido&quot; — muestra la conversión real del pipeline trabajado
+              </p>
+            )}
             <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-3">
-              {funnel.map((step, i) => {
-                const anchoPct = maxFunnel > 0 ? Math.max(4, Math.round((step.count / maxFunnel) * 100)) : 4;
-                const conversionAnterior = i > 0 ? funnel[i - 1].count : null;
+              {(soloTrabajados ? funnelTrabajados : funnel).map((step, i) => {
+                const funnelActual = soloTrabajados ? funnelTrabajados : funnel;
+                const maxF = funnelActual[0]?.count ?? 1;
+                const anchoPct = maxF > 0 ? Math.max(4, Math.round((step.count / maxF) * 100)) : 4;
+                const conversionAnterior = i > 0 ? funnelActual[i - 1].count : null;
 
                 return (
                   <div key={step.estado || "total"} className="flex items-center gap-4">
@@ -554,15 +624,26 @@ export default function MetricasPage() {
 
               {/* Leyenda inferior */}
               <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
-                {funnel.length >= 2 && (
-                  <p className="text-xs text-slate-400">
-                    Conversión total:{" "}
-                    <span className="font-semibold text-orange-600">
-                      {pct(funnel[funnel.length - 1].count, funnel[0].count)}
-                    </span>{" "}
-                    de leads nuevos a cerrado ganado
-                  </p>
-                )}
+                {(() => {
+                  const f = soloTrabajados ? funnelTrabajados : funnel;
+                  if (f.length < 2) return null;
+                  const total = f[0].count;
+                  const cerrado = f[f.length - 1].count;
+                  return (
+                    <p className="text-xs text-slate-400">
+                      {soloTrabajados ? "Conversión de pipeline activo:" : "Conversión total:"}{" "}
+                      <span className={`font-semibold ${cerrado === 0 ? "text-slate-400" : "text-orange-600"}`}>
+                        {pct(cerrado, total)}
+                      </span>{" "}
+                      {soloTrabajados ? "de leads trabajados a cerrado ganado" : "de todos los leads a cerrado ganado"}
+                      {!soloTrabajados && leadsSinTocar > 0 && (
+                        <span className="text-amber-500 ml-2">
+                          ({leadsSinTocar} sin tocar aún — prueba &quot;Solo pipeline activo&quot; para ver la conversión real)
+                        </span>
+                      )}
+                    </p>
+                  );
+                })()}
                 {diasHastaCierre !== null && (
                   <p className="text-xs text-slate-400">
                     Tiempo medio hasta cierre:{" "}
@@ -593,9 +674,15 @@ export default function MetricasPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {statsFuente.filter((r) => r.total > 0).sort((a, b) => b.cerrados - a.cerrados || b.total - a.total).map((row) => (
-                    <tr key={row.fuente} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 font-medium text-slate-700 capitalize">{row.fuente.replace(/_/g, " ")}</td>
+                  {statsFuente.filter((r) => r.total > 0).sort((a, b) => b.cerrados - a.cerrados || b.total - a.total).map((row) => {
+                    const esProblemática = row.total >= 20 && row.respondieron === 0;
+                    return (
+                    <tr key={row.fuente} className={`transition-colors ${esProblemática ? "bg-red-50 hover:bg-red-100" : "hover:bg-slate-50"}`}>
+                      <td className="px-4 py-3 font-medium capitalize" style={{ color: esProblemática ? "#991b1b" : "#334155" }}>
+                        {esProblemática && <span className="mr-1.5 text-red-500">⚠</span>}
+                        {row.fuente.replace(/_/g, " ")}
+                        {esProblemática && <span className="ml-2 text-xs font-normal text-red-400">sin respuestas — ¿se están trabajando?</span>}
+                      </td>
                       <td className="px-4 py-3 text-right text-slate-600">{row.total.toLocaleString("es-ES")}</td>
                       <td className="px-4 py-3 text-right text-slate-600">{row.respondieron}</td>
                       <td className="px-4 py-3 text-right"><TasaBadge valor={row.tasaRespuesta} /></td>
@@ -609,7 +696,7 @@ export default function MetricasPage() {
                       </td>
                       <td className="px-4 py-3 text-right"><TasaBadge valor={row.tasaConversion} /></td>
                     </tr>
-                  ))}
+                  );})}
                   {statsFuente.every((r) => r.total === 0) && (
                     <tr>
                       <td colSpan={7} className="px-4 py-8 text-center text-slate-400 text-sm">Sin datos para este período</td>

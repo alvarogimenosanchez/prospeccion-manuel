@@ -34,6 +34,8 @@ type StatsComercial = {
   tasaConversion: number;
   accionesVencidas: number;
   sinActividad7d: number;
+  leadsNoTocados: number;
+  velocidadMediaDias: number | null;
   objetivoCierres: number;
   objetivoCitas: number;
   activoHoy: boolean;
@@ -208,7 +210,7 @@ export default function DesempenoPage() {
 
       // Leads sin restricción de período (para accionesVencidas y sinActividad7d — siempre globales)
       const { data: leadsGlobales } = await supabase.from("leads")
-        .select("id, comercial_asignado, estado, proxima_accion, proxima_accion_fecha, updated_at");
+        .select("id, comercial_asignado, estado, proxima_accion, proxima_accion_fecha, updated_at, fecha_captacion");
       const lg = leadsGlobales ?? [];
 
       // Map lead_id → última interacción (para "activo hoy" real y última actividad)
@@ -265,6 +267,26 @@ export default function DesempenoPage() {
           l.updated_at < siete_dias_atras
         ).length;
 
+        // Leads asignados en estado "nuevo"/"enriquecido" hace >3 días sin trabajar
+        const tres_dias_atras = new Date(ahora.getTime() - 3 * 86_400_000).toISOString();
+        const leadsNoTocados = misLeadsGlobales.filter(l =>
+          ["nuevo", "enriquecido"].includes(l.estado) &&
+          l.fecha_captacion && l.fecha_captacion < tres_dias_atras
+        ).length;
+
+        // Velocidad media: días desde captación hasta primer contacto (mensaje_enviado+)
+        const estadosContactado2 = ["mensaje_enviado", "respondio", "cita_agendada", "en_negociacion", "cerrado_ganado"];
+        const leadsContactadosCon = misLeadsGlobales.filter(l =>
+          estadosContactado2.includes(l.estado) && l.fecha_captacion
+        );
+        let velocidadMediaDias: number | null = null;
+        if (leadsContactadosCon.length > 0) {
+          const dias = leadsContactadosCon.map(l =>
+            Math.max(0, Math.round((new Date(l.updated_at).getTime() - new Date(l.fecha_captacion).getTime()) / 86_400_000))
+          );
+          velocidadMediaDias = Math.round(dias.reduce((a, b) => a + b, 0) / dias.length);
+        }
+
         // Tendencia período anterior
         const cerradosPeriodoAnterior = leadsPeriodoAnterior.filter(l => l.comercial_asignado === comercial.id && l.estado === "cerrado_ganado").length;
         const citasPeriodoAnterior = leadsPeriodoAnterior.filter(l => l.comercial_asignado === comercial.id && estadosCita.includes(l.estado)).length;
@@ -308,6 +330,8 @@ export default function DesempenoPage() {
           tasaConversion,
           accionesVencidas,
           sinActividad7d,
+          leadsNoTocados,
+          velocidadMediaDias,
           objetivoCierres: comercial.objetivo_cierres_mes ?? 5,
           objetivoCitas: comercial.objetivo_citas_mes ?? 20,
           activoHoy,
@@ -505,8 +529,9 @@ export default function DesempenoPage() {
                   <tbody className="divide-y divide-slate-50">
                     {statsFiltrados.map((s, i) => {
                       const semaforo =
-                        s.cerradosGanados > 0 && s.accionesVencidas === 0 && !vaAtrasado(s.cerradosGanados, s.objetivoCierres) ? "verde" :
-                        s.accionesVencidas > 2 || s.sinActividad7d > 3 || (vaAtrasado(s.cerradosGanados, s.objetivoCierres) && s.cerradosGanados === 0) ? "rojo" : "naranja";
+                        s.accionesVencidas > 2 || s.sinActividad7d > 3 || s.leadsNoTocados > 10 ? "rojo" :
+                        s.activoHoy || s.cerradosGanados > 0 ? "verde" :
+                        "naranja";
                       return (
                         <tr key={s.comercial.id} className="hover:bg-slate-50">
                           <td className="px-4 py-3 text-xs font-bold text-slate-400">#{i + 1}</td>
@@ -628,8 +653,9 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
   const citasAtrasado = vaAtrasado(s.citasAgendadas, s.objetivoCitas);
 
   const semaforo =
-    s.cerradosGanados > 0 && s.accionesVencidas === 0 && !cierresAtrasado ? "verde" :
-    s.accionesVencidas > 2 || s.sinActividad7d > 3 || (cierresAtrasado && s.cerradosGanados === 0) ? "rojo" : "naranja";
+    s.accionesVencidas > 2 || s.sinActividad7d > 3 || s.leadsNoTocados > 10 ? "rojo" :
+    s.activoHoy || s.cerradosGanados > 0 ? "verde" :
+    "naranja";
 
   async function guardarObjetivo(campo: string, val: string, cerrar: () => void) {
     const n = parseInt(val);
@@ -700,7 +726,7 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
       </div>
 
       {/* Alertas inline (solo las críticas) */}
-      {(s.accionesVencidas > 0 || s.sinActividad7d > 0) && (
+      {(s.accionesVencidas > 0 || s.sinActividad7d > 0 || s.leadsNoTocados > 0) && (
         <div className="flex gap-2 flex-wrap">
           {s.accionesVencidas > 0 && (
             <span className="text-xs px-2 py-1 bg-red-50 text-red-600 border border-red-200 rounded-lg font-medium">
@@ -711,6 +737,11 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
             <span className="text-xs px-2 py-1 bg-amber-50 text-amber-600 border border-amber-200 rounded-lg font-medium">
               ⏳ {s.sinActividad7d} {s.sinActividad7d === 1 ? "lead estancado" : "leads estancados"}
             </span>
+          )}
+          {s.leadsNoTocados > 0 && (
+            <a href={`/leads?estado=nuevo`} className="text-xs px-2 py-1 bg-orange-50 text-orange-600 border border-orange-200 rounded-lg font-medium no-underline hover:bg-orange-100 transition-colors">
+              📭 {s.leadsNoTocados} sin tocar &gt;3d →
+            </a>
           )}
         </div>
       )}
@@ -730,11 +761,20 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
         ))}
       </div>
 
-      {/* Stats clave: tasa respuesta + conversión */}
-      <div className="grid grid-cols-3 gap-2">
-        <StatItem label="Tasa respuesta" value={`${s.tasaRespuesta}%`} color={s.tasaRespuesta >= 15 ? "text-green-600" : "text-slate-500"} />
-        <StatItem label="Conversión" value={`${s.tasaConversion}%`} color={s.tasaConversion > 0 ? "text-green-600" : "text-slate-400"} />
-        <StatItem label="Sin tocar 7d" value={s.sinActividad7d} color={s.sinActividad7d > 3 ? "text-red-600" : s.sinActividad7d > 0 ? "text-amber-600" : "text-green-600"} />
+      {/* Stats clave */}
+      <div className="grid grid-cols-2 gap-2">
+        <StatItem
+          label={s.leadsContactados >= 5 ? "Tasa respuesta" : "Tasa respuesta*"}
+          value={s.leadsContactados >= 5 ? `${s.tasaRespuesta}%` : s.leadsContactados === 0 ? "—" : `${s.tasaRespuesta}% (n=${s.leadsContactados})`}
+          color={s.leadsContactados < 5 ? "text-slate-400" : s.tasaRespuesta >= 15 ? "text-green-600" : "text-slate-500"}
+        />
+        <StatItem label="Sin tocar >3d" value={s.leadsNoTocados} color={s.leadsNoTocados > 10 ? "text-red-600" : s.leadsNoTocados > 3 ? "text-amber-600" : "text-green-600"} />
+        <StatItem label="Estancados 7d" value={s.sinActividad7d} color={s.sinActividad7d > 3 ? "text-red-600" : s.sinActividad7d > 0 ? "text-amber-600" : "text-green-600"} />
+        <StatItem
+          label="Días hasta contacto"
+          value={s.velocidadMediaDias !== null ? `${s.velocidadMediaDias}d media` : "—"}
+          color={s.velocidadMediaDias === null ? "text-slate-400" : s.velocidadMediaDias <= 3 ? "text-green-600" : s.velocidadMediaDias <= 7 ? "text-amber-600" : "text-red-500"}
+        />
       </div>
 
       {/* Objetivos */}
