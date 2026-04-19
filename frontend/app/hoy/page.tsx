@@ -200,6 +200,7 @@ export default function HoyPage() {
   const [loading,        setLoading       ] = useState(true);
   const [guardandoAccion, setGuardandoAccion] = useState<string | null>(null);
   const [citaParaRegistrar, setCitaParaRegistrar] = useState<CitaRow | null>(null);
+  const [objetivos, setObjetivos] = useState<{ cierres: number; citas: number; cierresMes: number; citasMes: number } | null>(null);
 
   // ─── Get logged comercial ──────────────────────────────────────────────────
   useEffect(() => {
@@ -209,12 +210,23 @@ export default function HoyPage() {
       if (!email) { setComercialCargado(true); return; }
       const { data } = await supabase
         .from("comerciales")
-        .select("id, nombre")
+        .select("id, nombre, objetivo_cierres_mes, objetivo_citas_mes")
         .eq("email", email)
         .single();
       setComercialId(data?.id ?? null);
       if (data?.nombre) setComercialNombre(data.nombre);
       setComercialCargado(true);
+
+      if (data?.id) {
+        const inicioMes = new Date(); inicioMes.setDate(1); inicioMes.setHours(0,0,0,0);
+        const [{ count: cierresMes }, { count: citasMes }] = await Promise.all([
+          supabase.from("leads").select("id", { count: "exact", head: true }).eq("comercial_asignado", data.id).eq("estado", "cerrado_ganado").gte("updated_at", inicioMes.toISOString()),
+          supabase.from("appointments").select("id", { count: "exact", head: true }).eq("estado", "realizada").gte("fecha_hora", inicioMes.toISOString()),
+        ]);
+        if ((data.objetivo_cierres_mes ?? 0) > 0 || (data.objetivo_citas_mes ?? 0) > 0) {
+          setObjetivos({ cierres: data.objetivo_cierres_mes ?? 0, citas: data.objetivo_citas_mes ?? 0, cierresMes: cierresMes ?? 0, citasMes: citasMes ?? 0 });
+        }
+      }
     }
     obtenerComercial();
   }, []);
@@ -640,6 +652,48 @@ export default function HoyPage() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Objetivos del mes ── */}
+        {objetivos && (objetivos.cierres > 0 || objetivos.citas > 0) && (
+          <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-slate-700">Objetivos del mes</h2>
+              <span className="text-xs text-slate-400">{new Date().toLocaleString("es-ES", { month: "long" })}</span>
+            </div>
+            <div className="space-y-3">
+              {objetivos.cierres > 0 && (() => {
+                const pct = Math.min(100, Math.round((objetivos.cierresMes / objetivos.cierres) * 100));
+                const atrasado = (() => { const ahora = new Date(); const dias = new Date(ahora.getFullYear(), ahora.getMonth()+1, 0).getDate(); const esperado = (ahora.getDate()/dias)*objetivos.cierres; return objetivos.cierresMes < esperado*0.8; })();
+                return (
+                  <div>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-slate-600">Cierres</span>
+                      <span className={`font-medium ${atrasado ? "text-red-500" : pct >= 100 ? "text-green-600" : "text-slate-700"}`}>{objetivos.cierresMes} / {objetivos.cierres}</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct >= 100 ? "#16a34a" : atrasado ? "#ef4444" : "#ea650d" }} />
+                    </div>
+                  </div>
+                );
+              })()}
+              {objetivos.citas > 0 && (() => {
+                const pct = Math.min(100, Math.round((objetivos.citasMes / objetivos.citas) * 100));
+                const atrasado = (() => { const ahora = new Date(); const dias = new Date(ahora.getFullYear(), ahora.getMonth()+1, 0).getDate(); const esperado = (ahora.getDate()/dias)*objetivos.citas; return objetivos.citasMes < esperado*0.8; })();
+                return (
+                  <div>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="text-slate-600">Citas realizadas</span>
+                      <span className={`font-medium ${atrasado ? "text-red-500" : pct >= 100 ? "text-green-600" : "text-slate-700"}`}>{objetivos.citasMes} / {objetivos.citas}</span>
+                    </div>
+                    <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: pct >= 100 ? "#16a34a" : atrasado ? "#ef4444" : "#3b82f6" }} />
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
