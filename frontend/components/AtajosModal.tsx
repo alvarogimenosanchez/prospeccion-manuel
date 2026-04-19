@@ -34,9 +34,24 @@ const GRUPOS: Grupo[] = [
       { tecla: "/hoy",       descripcion: "Resumen del día y tareas pendientes" },
       { tecla: "/leads",     descripcion: "Gestión de leads con filtros avanzados" },
       { tecla: "/pipeline",  descripcion: "Vista Kanban del embudo de ventas" },
-      { tecla: "/actividad", descripcion: "Feed de actividad del equipo en tiempo real" },
-      { tecla: "/ingresos",  descripcion: "Cartera, previsión y revenue por comercial" },
-      { tecla: "/perfil",    descripcion: "Tu perfil y objetivos del mes" },
+      { tecla: "/mensajes",  descripcion: "Revisar mensajes IA generados" },
+      { tecla: "/agenda",    descripcion: "Citas y agenda personal" },
+    ],
+  },
+  {
+    titulo: "Análisis y gestión",
+    atajos: [
+      { tecla: "/funnel",             descripcion: "Tasas de conversión por etapa" },
+      { tecla: "/forecast",           descripcion: "Proyección de ingresos ponderada" },
+      { tecla: "/objetivos",          descripcion: "Targets mensuales por comercial" },
+      { tecla: "/clasificacion",      descripcion: "Ranking del equipo este mes" },
+      { tecla: "/renovaciones",       descripcion: "Pólizas próximas a vencer" },
+      { tecla: "/cross-sell",         descripcion: "Oportunidades de ampliación de cartera" },
+      { tecla: "/calendario-equipo",  descripcion: "Vista semanal de citas del equipo" },
+      { tecla: "/productos-analisis", descripcion: "Demanda y conversión por producto" },
+      { tecla: "/automatizaciones",   descripcion: "Panel de control de agentes IA" },
+      { tecla: "/ingresos",           descripcion: "Revenue y comisiones por comercial" },
+      { tecla: "/perfil",             descripcion: "Tu perfil y objetivos del mes" },
     ],
   },
 ];
@@ -94,7 +109,7 @@ export function AtajosModal() {
         </div>
 
         <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 flex items-center justify-between">
-          <p className="text-xs text-slate-400">CRM NN España · v2.0 con RBAC multi-equipo</p>
+          <p className="text-xs text-slate-400">CRM NN España · v3.0 · RBAC + Forecast + Renovaciones</p>
           <button onClick={() => setAbierto(false)} className="text-xs hover:underline" style={{ color: "#ea650d" }}>
             Cerrar
           </button>
