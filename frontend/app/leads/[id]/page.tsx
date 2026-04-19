@@ -787,8 +787,7 @@ export default function LeadDetailPage() {
     setInputIA("");
     setCargandoIA(true);
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://prospeccion-manuel-production.up.railway.app";
-      const res = await fetch(`${API_URL}/ia/chat`, {
+      const res = await fetch(`/api/backend/ia/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: nuevosMensajes, lead_id: lead?.id }),

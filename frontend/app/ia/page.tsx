@@ -64,8 +64,6 @@ export default function IAPage() {
   const chatRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://prospeccion-manuel-production.up.railway.app";
-
   // Auto-scroll al último mensaje
   useEffect(() => {
     chatRef.current?.scrollTo({ top: chatRef.current.scrollHeight, behavior: "smooth" });
@@ -97,7 +95,7 @@ export default function IAPage() {
     setCargando(true);
 
     try {
-      const res = await fetch(`${API_URL}/ia/chat`, {
+      const res = await fetch(`/api/backend/ia/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
