@@ -88,6 +88,7 @@ function ClientesContent() {
   const [comercialLogueadoId, setComercialLogueadoId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<"todos" | "activo" | "renovacion_proxima" | "vencida">("todos");
+  const [filtroProducto, setFiltroProducto] = useState(searchParams.get("filtro") === "renovacion_proxima" ? "" : "");
   const [busqueda, setBusqueda] = useState(searchParams.get("buscar") ?? "");
   const [modal, setModal] = useState<"nuevo" | "editar" | null>(null);
   const [editando, setEditando] = useState<ClienteConComercial | null>(null);
@@ -184,10 +185,13 @@ function ClientesContent() {
   }
 
   // Filtrado
+  const productosEnCartera = Array.from(new Set(clientes.map(c => c.producto).filter(Boolean) as string[])).sort();
+
   const clientesFiltrados = clientes.filter(c => {
     if (filtro === "activo" && c.estado !== "activo") return false;
     if (filtro === "renovacion_proxima" && (!c.fecha_renovacion || diasParaRenovacion(c.fecha_renovacion) > 30 || diasParaRenovacion(c.fecha_renovacion) < 0)) return false;
     if (filtro === "vencida" && (!c.fecha_renovacion || diasParaRenovacion(c.fecha_renovacion) >= 0)) return false;
+    if (filtroProducto && c.producto !== filtroProducto) return false;
     if (busqueda) {
       const q = busqueda.toLowerCase();
       const texto = [c.nombre, c.apellidos, c.empresa, c.producto].filter(Boolean).join(" ").toLowerCase();
@@ -304,6 +308,18 @@ function ClientesContent() {
             </button>
           ))}
         </div>
+        {productosEnCartera.length > 1 && (
+          <select
+            value={filtroProducto}
+            onChange={e => setFiltroProducto(e.target.value)}
+            className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white text-slate-600 focus:outline-none focus:border-orange-300"
+          >
+            <option value="">Todos los productos</option>
+            {productosEnCartera.map(p => (
+              <option key={p} value={p}>{productoLabel(p)}</option>
+            ))}
+          </select>
+        )}
         <input
           type="text"
           placeholder="Buscar por nombre, empresa o producto..."
