@@ -86,22 +86,32 @@ const NAV_GROUPS = [
     ],
   },
   {
-    label: "Gestión",
+    label: "Cartera",
     items: [
-      { href: "/clientes",      label: "Clientes",      icon: "briefcase", permiso: "gestionar_clientes" },
-      { href: "/renovaciones",  label: "Renovaciones",  icon: "calendar",  permiso: "gestionar_clientes" },
-      { href: "/cross-sell",    label: "Cross-sell",    icon: "trending",  permiso: "gestionar_clientes" },
-      { href: "/ingresos",   label: "Ingresos",   icon: "chart",     permiso: "ver_metricas" },
-      { href: "/forecast",   label: "Forecast",   icon: "trending",  permiso: "ver_metricas" },
-      { href: "/recuperar",  label: "Recuperar",  icon: "target",    permiso: "asignar_leads" },
-      { href: "/exportar",   label: "Exportar",   icon: "download",  permiso: "exportar_datos" },
-      { href: "/objetivos",  label: "Objetivos",  icon: "target",    permiso: "ver_metricas" },
-      { href: "/coaching",          label: "Coaching",    icon: "trending", permiso: "gestionar_equipo" },
+      { href: "/clientes",     label: "Clientes",     icon: "briefcase", permiso: "gestionar_clientes" },
+      { href: "/renovaciones", label: "Renovaciones", icon: "calendar",  permiso: "gestionar_clientes" },
+      { href: "/cross-sell",   label: "Cross-sell",   icon: "trending",  permiso: "gestionar_clientes" },
+      { href: "/recuperar",    label: "Recuperar",    icon: "target",    permiso: "asignar_leads" },
+    ],
+  },
+  {
+    label: "Dirección",
+    items: [
+      { href: "/ingresos",          label: "Ingresos",    icon: "chart",    permiso: "ver_metricas" },
+      { href: "/forecast",          label: "Forecast",    icon: "trending", permiso: "ver_metricas" },
+      { href: "/objetivos",         label: "Objetivos",   icon: "target",   permiso: "ver_metricas" },
+      { href: "/coaching",          label: "Coaching",    icon: "users",    permiso: "gestionar_equipo" },
       { href: "/calendario-equipo", label: "Cal. equipo", icon: "calendar", permiso: "gestionar_equipo" },
       { href: "/equipos",           label: "Equipos",     icon: "team",     permiso: "gestionar_equipo" },
+    ],
+  },
+  {
+    label: "Sistema",
+    items: [
+      { href: "/exportar",         label: "Exportar",   icon: "download", permiso: "exportar_datos" },
       { href: "/automatizaciones", label: "Automatiz.", icon: "sparkle",  permiso: "gestionar_ajustes" },
       { href: "/ajustes",          label: "Ajustes",    icon: "settings", permiso: "gestionar_ajustes" },
-      { href: "/reportes",   label: "Reportes",   icon: "flag",      permiso: "ver_reportes" },
+      { href: "/reportes",         label: "Reportes",   icon: "flag",     permiso: "ver_reportes" },
     ],
   },
 ];
