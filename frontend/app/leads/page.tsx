@@ -129,7 +129,7 @@ function LeadsContent() {
     // Búsqueda server-side para buscar en todos los leads, no solo los cargados
     if (busqueda.trim()) {
       const q = `%${busqueda.trim()}%`;
-      query = query.or(`nombre.ilike.${q},apellidos.ilike.${q},empresa.ilike.${q},ciudad.ilike.${q}`);
+      query = query.or(`nombre.ilike.${q},apellidos.ilike.${q},empresa.ilike.${q},ciudad.ilike.${q},telefono_whatsapp.ilike.${q},telefono.ilike.${q},email.ilike.${q}`);
     }
 
     const { data, count } = await query;

@@ -99,7 +99,7 @@ export function FiltrosBar({
       <div className="flex flex-wrap items-center gap-2">
         <input
           type="text"
-          placeholder="Buscar por nombre, empresa..."
+          placeholder="Nombre, empresa, teléfono..."
           value={busqueda}
           onChange={(e) => onBusqueda(e.target.value)}
           className="flex-1 min-w-44 max-w-64 px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-200"
