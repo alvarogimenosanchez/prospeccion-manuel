@@ -113,6 +113,7 @@ const NAV_GROUPS = [
     label: "Sistema",
     items: [
       { href: "/exportar",         label: "Exportar",   icon: "download",  permiso: "exportar_datos" },
+      { href: "/duplicados",       label: "Duplicados", icon: "users",     permiso: "asignar_leads" },
       { href: "/automatizaciones", label: "Automatiz.", icon: "sparkle",   permiso: "gestionar_ajustes" },
       { href: "/diagnostico",      label: "Diagnóstico",icon: "clipboard", permiso: "gestionar_ajustes" },
       { href: "/ajustes",          label: "Ajustes",    icon: "settings",  permiso: "gestionar_ajustes" },
