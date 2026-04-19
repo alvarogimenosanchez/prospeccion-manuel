@@ -114,6 +114,7 @@ const NAV_GROUPS = [
       { href: "/retencion",      label: "Retención",     icon: "trophy",    permiso: "gestionar_clientes" },
       { href: "/recuperar",     label: "Recuperar",     icon: "target",    permiso: "asignar_leads" },
       { href: "/referidos",     label: "Referidos",     icon: "users",     permiso: null },
+      { href: "/colaboradores", label: "Colaboradores", icon: "briefcase", permiso: "gestionar_clientes" },
     ],
   },
   {
