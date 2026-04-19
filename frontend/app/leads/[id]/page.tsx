@@ -324,6 +324,7 @@ export default function LeadDetailPage() {
 
   // Estado history + IA
   const [stateHistory, setStateHistory] = useState<{ id: string; estado_anterior: string; estado_nuevo: string; created_at: string }[]>([]);
+  const [scoringHistory, setScoringHistory] = useState<{ id: string; temperatura: string; nivel_interes: number; motivo: string | null; created_at: string }[]>([]);
   const [generandoMensajeIA, setGenerandoMensajeIA] = useState(false);
   const [formularioNombre, setFormularioNombre] = useState<string | null>(null);
 
@@ -342,12 +343,13 @@ export default function LeadDetailPage() {
 
   useEffect(() => {
     async function cargar() {
-      const [leadRes, interRes, apptRes, clienteRes, historyRes, { data: { user } }] = await Promise.all([
+      const [leadRes, interRes, apptRes, clienteRes, historyRes, scoringRes, { data: { user } }] = await Promise.all([
         supabase.from("leads").select("*").eq("id", id).single(),
         supabase.from("interactions").select("*").eq("lead_id", id).order("created_at"),
         supabase.from("appointments").select("*").eq("lead_id", id).order("fecha_hora"),
         supabase.from("clientes").select("id").eq("lead_id", id).maybeSingle(),
         supabase.from("lead_state_history").select("id, estado_anterior, estado_nuevo, created_at").eq("lead_id", id).order("created_at"),
+        supabase.from("scoring_history").select("id, temperatura, nivel_interes, motivo, created_at").eq("lead_id", id).order("created_at", { ascending: false }).limit(5),
         supabase.auth.getUser(),
       ]);
       const leadData = leadRes.data as Lead;
@@ -356,6 +358,7 @@ export default function LeadDetailPage() {
       setAppointments((apptRes.data as Appointment[]) ?? []);
       setClienteExistente(clienteRes.data as { id: string } | null);
       setStateHistory((historyRes.data as { id: string; estado_anterior: string; estado_nuevo: string; created_at: string }[]) ?? []);
+      setScoringHistory((scoringRes.data ?? []) as { id: string; temperatura: string; nivel_interes: number; motivo: string | null; created_at: string }[]);
       if (leadData?.formulario_id) {
         supabase.from("formularios_captacion").select("nombre, emoji").eq("id", leadData.formulario_id).single()
           .then(({ data }) => { if (data) setFormularioNombre(`${data.emoji} ${data.nombre}`); });
@@ -1191,6 +1194,14 @@ export default function LeadDetailPage() {
                 >+</button>
               </div>
             </div>
+
+            {/* Último motivo de scoring */}
+            {scoringHistory.length > 0 && scoringHistory[0].motivo && (
+              <div className="mt-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-100">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Último scoring IA</p>
+                <p className="text-xs text-slate-600">{scoringHistory[0].motivo}</p>
+              </div>
+            )}
           </div>
 
           {/* Estado como stepper lineal */}
