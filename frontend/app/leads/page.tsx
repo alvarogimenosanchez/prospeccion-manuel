@@ -144,6 +144,16 @@ function LeadsContent() {
     cargarLeads(0);
   }
 
+  async function cambiarEstadoBulk(nuevoEstado: string) {
+    if (seleccionados.size === 0) return;
+    setAsignandoBulk(true);
+    const ids = Array.from(seleccionados);
+    await supabase.from("leads").update({ estado: nuevoEstado, updated_at: new Date().toISOString() }).in("id", ids);
+    setSeleccionados(new Set());
+    setAsignandoBulk(false);
+    cargarLeads(0);
+  }
+
   async function cargarComercalesLista() {
     if (comercialesLista) return;
     const { data } = await supabase.from("comerciales").select("id, nombre").eq("activo", true).order("nombre");
@@ -555,11 +565,24 @@ function LeadsContent() {
             onChange={e => asignarBulk(e.target.value)}
             disabled={asignandoBulk}
           >
-            <option value="" disabled>{asignandoBulk ? "Asignando..." : "Asignar a..."}</option>
+            <option value="" disabled>{asignandoBulk ? "Procesando..." : "Asignar a..."}</option>
             <option value="__sin_asignar__">— Sin asignar</option>
             {comercialesLista?.map(c => (
               <option key={c.id} value={c.id}>{c.nombre}</option>
             ))}
+          </select>
+          <select
+            className="text-sm bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-white focus:outline-none focus:border-orange-400"
+            value=""
+            onChange={e => e.target.value && cambiarEstadoBulk(e.target.value)}
+            disabled={asignandoBulk}
+          >
+            <option value="" disabled>Cambiar estado...</option>
+            <option value="nuevo">Nuevo</option>
+            <option value="segmentado">Segmentado</option>
+            <option value="mensaje_enviado">Contactado</option>
+            <option value="en_negociacion">En negociación</option>
+            <option value="descartado">Descartar</option>
           </select>
           <button
             onClick={() => setSeleccionados(new Set())}
