@@ -710,7 +710,7 @@ function TarjetaComercial({ stats: s, posicion, periodo, onUpdateObjetivo }: {
             </span>
           </div>
           <div className="flex items-center gap-3 mt-0.5 flex-wrap">
-            <span className="text-xs text-slate-400">{s.comercial.rol === "director" ? "Director" : "Comercial"}</span>
+            <span className="text-xs text-slate-400">{{ admin: "Admin", director: "Director", manager: "Manager", comercial: "Comercial" }[s.comercial.rol] ?? s.comercial.rol}</span>
             <span className={`text-xs font-medium ${actividad.color}`}>● {actividad.texto}</span>
             {s.topProducto && (
               <span className="text-xs px-1.5 py-0.5 rounded font-medium" style={{ background: "#fff5f0", color: "#ea650d" }}>
