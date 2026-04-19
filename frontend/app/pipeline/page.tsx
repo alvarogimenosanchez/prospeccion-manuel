@@ -29,6 +29,30 @@ type Lead = {
   proxima_accion: string | null;
   proxima_accion_fecha: string | null;
   telefono_whatsapp: string | null;
+  tipo_lead: string | null;
+  productos_recomendados: string[] | null;
+  producto_interes_principal: string | null;
+};
+
+const PRODUCTOS_CORTO: Record<string, string> = {
+  contigo_futuro:   "C.Futuro",
+  sialp:            "SIALP",
+  contigo_autonomo: "Autónomo",
+  contigo_familia:  "Familia",
+  contigo_pyme:     "Pyme",
+  contigo_senior:   "Senior",
+  liderplus:        "Lider+",
+  sanitas_salud:    "Sanitas",
+  mihogar:          "MiHogar",
+  hipotecas:        "Hipoteca",
+};
+
+const TIPO_LEAD_CFG: Record<string, { label: string; color: string }> = {
+  autonomo:  { label: "Autónomo",  color: "#7c3aed" },
+  empresa:   { label: "Empresa",   color: "#0284c7" },
+  pyme:      { label: "PYME",      color: "#0369a1" },
+  particular:{ label: "Particular",color: "#64748b" },
+  directivo: { label: "Directivo", color: "#b45309" },
 };
 
 type Columna = {
@@ -147,7 +171,7 @@ function PipelineContent() {
     setLoading(true);
     let query = supabase
       .from("leads")
-      .select("id, nombre, apellidos, empresa, sector, nivel_interes, ciudad, estado, updated_at, comercial_asignado, proxima_accion, proxima_accion_fecha, telefono_whatsapp")
+      .select("id, nombre, apellidos, empresa, sector, nivel_interes, ciudad, estado, updated_at, comercial_asignado, proxima_accion, proxima_accion_fecha, telefono_whatsapp, tipo_lead, productos_recomendados, producto_interes_principal")
       .in("estado", COLUMNAS.map(c => c.estado))
       .order("nivel_interes", { ascending: false })
       .limit(500);
@@ -404,12 +428,35 @@ function TarjetaLead({
           </div>
         </div>
 
-        {/* Ciudad */}
-        {lead.ciudad && (
-          <div className="mt-1.5">
+        {/* Ciudad + tipo lead */}
+        <div className="mt-1.5 flex items-center flex-wrap gap-1">
+          {lead.ciudad && (
             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
               {lead.ciudad}
             </span>
+          )}
+          {lead.tipo_lead && TIPO_LEAD_CFG[lead.tipo_lead] && (
+            <span className="text-xs px-2 py-0.5 rounded-full font-medium"
+              style={{ background: TIPO_LEAD_CFG[lead.tipo_lead].color + "15", color: TIPO_LEAD_CFG[lead.tipo_lead].color }}>
+              {TIPO_LEAD_CFG[lead.tipo_lead].label}
+            </span>
+          )}
+        </div>
+
+        {/* Productos recomendados */}
+        {lead.productos_recomendados && lead.productos_recomendados.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {lead.productos_recomendados.slice(0, 2).map(p => (
+              <span key={p} className="text-[10px] px-1.5 py-0.5 rounded border font-medium"
+                style={p === lead.producto_interes_principal
+                  ? { background: "#fff5f0", borderColor: "#f5a677", color: "#c2530b" }
+                  : { background: "#f8fafc", borderColor: "#e2e8f0", color: "#64748b" }}>
+                {PRODUCTOS_CORTO[p] ?? p}
+              </span>
+            ))}
+            {lead.productos_recomendados.length > 2 && (
+              <span className="text-[10px] text-slate-300">+{lead.productos_recomendados.length - 2}</span>
+            )}
           </div>
         )}
 
