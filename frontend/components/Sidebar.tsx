@@ -83,7 +83,7 @@ const NAV_GROUPS = [
   },
 ];
 
-type Badges = { mensajes: number; hoy: number; };
+type Badges = { mensajes: number; hoy: number; agenda: number; };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function Sidebar({ onClose }: { onClose?: () => void }) {
@@ -91,7 +91,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
-  const [badges, setBadges] = useState<Badges>({ mensajes: 0, hoy: 0 });
+  const [badges, setBadges] = useState<Badges>({ mensajes: 0, hoy: 0, agenda: 0 });
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
@@ -100,14 +100,21 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   useEffect(() => {
     async function fetchBadges() {
       const ahora = new Date();
-      const [{ count: mensajes }, { count: accionesVencidas }, { count: calientes }] = await Promise.all([
+      const inicioDia = new Date();
+      inicioDia.setHours(0, 0, 0, 0);
+      const finDia = new Date();
+      finDia.setHours(23, 59, 59, 999);
+
+      const [{ count: mensajes }, { count: accionesVencidas }, { count: calientes }, { count: citasHoy }] = await Promise.all([
         supabase.from("mensajes_pendientes").select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
         supabase.from("leads").select("id", { count: "exact", head: true }).not("proxima_accion", "is", null).neq("proxima_accion", "ninguna").lt("proxima_accion_fecha", ahora.toISOString()).not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)"),
         supabase.from("leads").select("id", { count: "exact", head: true }).eq("temperatura", "caliente").not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)"),
+        supabase.from("appointments").select("id", { count: "exact", head: true }).gte("fecha_hora", inicioDia.toISOString()).lte("fecha_hora", finDia.toISOString()).not("estado", "in", "(cancelada,no_asistio)"),
       ]);
       setBadges({
         mensajes: mensajes ?? 0,
         hoy: (accionesVencidas ?? 0) + (calientes ?? 0),
+        agenda: citasHoy ?? 0,
       });
     }
     fetchBadges();
@@ -205,7 +212,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             <div className="space-y-0.5">
               {group.items.map(({ href, label, icon }) => {
                 const active = isActive(href);
-                const badge = href === "/mensajes" ? badges.mensajes : href === "/hoy" ? badges.hoy : 0;
+                const badge = href === "/mensajes" ? badges.mensajes : href === "/hoy" ? badges.hoy : href === "/agenda" ? badges.agenda : 0;
                 return (
                   <Link
                     key={href}
@@ -235,7 +242,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                     <span className="flex-1">{label}</span>
                     {badge > 0 && (
                       <span style={{
-                        background: href === "/mensajes" ? "#ea650d" : "#ef4444",
+                        background: href === "/mensajes" ? "#ea650d" : href === "/agenda" ? "#f59e0b" : "#ef4444",
                         color: "#fff",
                         borderRadius: "9999px",
                         fontSize: "10px",
