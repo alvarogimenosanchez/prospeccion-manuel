@@ -10,6 +10,16 @@ import { FiltrosBar, type EstadoFiltro } from "@/components/FiltrosBar";
 
 const PAGE_SIZE = 50;
 
+const ESTADOS_FUNNEL = [
+  { estado: "nuevo",            label: "Nuevos",      color: "#64748b" },
+  { estado: "segmentado",       label: "Segmentados", color: "#3b82f6" },
+  { estado: "mensaje_enviado",  label: "Contactados", color: "#ea650d" },
+  { estado: "respondio",        label: "Respondieron",color: "#d97706" },
+  { estado: "cita_agendada",    label: "Cita",        color: "#f97316" },
+  { estado: "en_negociacion",   label: "Negociando",  color: "#7c3aed" },
+  { estado: "cerrado_ganado",   label: "Ganados",     color: "#16a34a" },
+];
+
 export default function LeadsPage() {
   return (
     <Suspense fallback={<div className="text-center py-20 text-slate-400 text-sm">Cargando...</div>}>
@@ -46,6 +56,24 @@ function LeadsContent() {
     }
     obtenerComercial();
   }, []);
+
+  // ── Counts por estado (funnel bar) ────────────────────────────────────────
+  const [countsPorEstado, setCountsPorEstado] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    async function cargarCounts() {
+      let q = supabase.from("leads").select("estado", { count: "exact" });
+      if (soloMios && comercialId) q = q.eq("comercial_asignado", comercialId);
+      const { data } = await q.in("estado", ESTADOS_FUNNEL.map(e => e.estado));
+      if (!data) return;
+      const counts: Record<string, number> = {};
+      for (const row of data as { estado: string }[]) {
+        counts[row.estado] = (counts[row.estado] ?? 0) + 1;
+      }
+      setCountsPorEstado(counts);
+    }
+    if (comercialCargado) cargarCounts();
+  }, [comercialId, soloMios, comercialCargado]);
 
   // ── Datos ─────────────────────────────────────────────────────────────────
   const [leads,    setLeads   ] = useState<LeadDashboard[]>([]);
@@ -143,6 +171,32 @@ function LeadsContent() {
           </Link>
         </div>
       </div>
+
+      {/* Pipeline funnel strip */}
+      {Object.keys(countsPorEstado).length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {ESTADOS_FUNNEL.map(({ estado: e, label, color }) => {
+            const count = countsPorEstado[e] ?? 0;
+            if (count === 0) return null;
+            const activo = estado === e;
+            return (
+              <button
+                key={e}
+                onClick={() => setEstado(activo ? "" : (e as EstadoFiltro))}
+                className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-all"
+                style={{
+                  background: activo ? color : color + "18",
+                  color: activo ? "#fff" : color,
+                  border: `1px solid ${color}30`,
+                }}
+              >
+                <span className="font-bold text-sm">{count}</span>
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Filtros */}
       <div className="bg-white rounded-xl border border-slate-200 px-4">
