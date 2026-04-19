@@ -20,6 +20,24 @@ const CATEGORIAS = [
 
 type EstadoCampana = "idle" | "corriendo" | "completada" | "error";
 
+type ZonaProspectada = {
+  ciudad: string;
+  categoria: string;
+  ultima_vez: string;
+  leads_encontrados: number;
+};
+
+type CampanaHistorial = {
+  id: string;
+  ciudades: string[];
+  categorias: string[];
+  fecha_inicio: string;
+  estado: string;
+  leads_nuevos: number;
+  leads_duplicados: number;
+  coste_estimado_eur: number;
+};
+
 type LeadImport = {
   nombre: string;
   apellidos: string;
@@ -96,11 +114,41 @@ export default function ProspeccionPage() {
   const [mensajeCampana, setMensajeCampana] = useState("");
   const [mostrarConfig, setMostrarConfig] = useState(false);
   const [historialCampanas, setHistorialCampanas] = useState<{zona: string, categoria: string, fecha: string, leadsEstimados?: number}[]>([]);
+  const [zonasProspectadas, setZonasProspectadas] = useState<ZonaProspectada[]>([]);
+  const [historialReal, setHistorialReal] = useState<CampanaHistorial[]>([]);
+  const [usoMes, setUsoMes] = useState(0);
+  const [limiteMes, setLimiteMes] = useState(200);
 
   useEffect(() => {
     const stored = localStorage.getItem("historial_campanas");
     if (stored) setHistorialCampanas(JSON.parse(stored));
   }, []);
+
+  const cargarZonasYUso = useCallback(async () => {
+    const [{ data: zonas }, { data: campanas }] = await Promise.all([
+      supabase.from("scraping_zonas").select("ciudad, categoria, ultima_vez, leads_encontrados"),
+      supabase.from("scraping_campaigns").select("id, ciudades, categorias, fecha_inicio, estado, leads_nuevos, leads_duplicados, coste_estimado_eur").order("fecha_inicio", { ascending: false }).limit(10),
+    ]);
+    if (zonas) setZonasProspectadas(zonas as ZonaProspectada[]);
+    if (campanas) setHistorialReal(campanas as CampanaHistorial[]);
+  }, []);
+
+  useEffect(() => {
+    const cargarUso = async () => {
+      if (!comercialId) return;
+      const inicioMes = new Date();
+      inicioMes.setDate(1);
+      inicioMes.setHours(0, 0, 0, 0);
+      const [{ count }, { data: comercial }] = await Promise.all([
+        supabase.from("leads").select("id", { count: "exact", head: true }).eq("fuente", "scraping").eq("comercial_asignado", comercialId).gte("fecha_captacion", inicioMes.toISOString()),
+        supabase.from("comerciales").select("limite_leads_mes").eq("id", comercialId).single(),
+      ]);
+      setUsoMes(count ?? 0);
+      setLimiteMes(comercial?.limite_leads_mes ?? 200);
+    };
+    cargarUso();
+    cargarZonasYUso();
+  }, [comercialId, cargarZonasYUso]);
 
   const cargarLeads = useCallback(async () => {
     setLoading(true);
@@ -231,13 +279,33 @@ export default function ProspeccionPage() {
       alert("Selecciona al menos una zona y una categoría.");
       return;
     }
+    // Advertir sobre zonas re-scrapeadas recientes
+    const hace30Dias = new Date();
+    hace30Dias.setDate(hace30Dias.getDate() - 30);
+    const advertencias: string[] = [];
+    for (const zona of todasLasZonas) {
+      for (const cat of categoriasElegidas) {
+        const existente = zonasProspectadas.find(z => z.ciudad.toLowerCase() === zona.toLowerCase() && z.categoria === cat);
+        if (existente && new Date(existente.ultima_vez) > hace30Dias) {
+          const dias = Math.floor((Date.now() - new Date(existente.ultima_vez).getTime()) / 86400000);
+          advertencias.push(`${zona}/${cat} (hace ${dias} días, ${existente.leads_encontrados} leads)`);
+        }
+      }
+    }
+    if (advertencias.length > 0) {
+      const ok = confirm(`⚠️ Las siguientes zonas ya fueron scrapeadas recientemente:\n\n${advertencias.join("\n")}\n\n¿Continuar igualmente?`);
+      if (!ok) return;
+    }
+
     setEstadoCampana("corriendo");
     setMensajeCampana("Iniciando scraping...");
 
     try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (comercialId) headers["X-Comercial-Id"] = comercialId;
       const resp = await fetch("/api/scraping/lanzar", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           ciudades: todasLasZonas,
           categorias: categoriasElegidas,
@@ -269,6 +337,7 @@ export default function ProspeccionPage() {
         setHistorialCampanas(historialActualizado);
         localStorage.setItem("historial_campanas", JSON.stringify(historialActualizado));
 
+        cargarZonasYUso();
         setTimeout(() => {
           setEstadoCampana("idle");
           setMostrarConfig(false);
@@ -746,20 +815,29 @@ export default function ProspeccionPage() {
             </div>
             {/* Ciudades predefinidas */}
             <div className="flex flex-wrap gap-2">
-              {CIUDADES_SUGERIDAS.map(c => (
-                <button
-                  key={c}
-                  onClick={() => toggleCiudad(c)}
-                  className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                    ciudadesElegidas.includes(c)
-                      ? "text-white border-transparent"
-                      : "bg-white text-slate-600 border-slate-200 hover:border-orange-300"
-                  }`}
-                  style={ciudadesElegidas.includes(c) ? { background: "#ea650d" } : undefined}
-                >
-                  {c}
-                </button>
-              ))}
+              {CIUDADES_SUGERIDAS.map(c => {
+                const zonasCiudad = zonasProspectadas.filter(z => z.ciudad.toLowerCase() === c.toLowerCase());
+                const totalLeadsCiudad = zonasCiudad.reduce((s, z) => s + z.leads_encontrados, 0);
+                return (
+                  <button
+                    key={c}
+                    onClick={() => toggleCiudad(c)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                      ciudadesElegidas.includes(c)
+                        ? "text-white border-transparent"
+                        : "bg-white text-slate-600 border-slate-200 hover:border-orange-300"
+                    }`}
+                    style={ciudadesElegidas.includes(c) ? { background: "#ea650d" } : undefined}
+                  >
+                    {c}
+                    {totalLeadsCiudad > 0 && (
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${ciudadesElegidas.includes(c) ? "bg-white/20 text-white" : "bg-green-100 text-green-700"}`}>
+                        ✓{totalLeadsCiudad}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -781,21 +859,27 @@ export default function ProspeccionPage() {
               </button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {CATEGORIAS.map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => toggleCategoria(cat.id)}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors text-left ${
-                    categoriasElegidas.includes(cat.id)
-                      ? "border-orange-400 text-orange-700"
-                      : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
-                  }`}
-                  style={categoriasElegidas.includes(cat.id) ? { background: "#fff5f0" } : undefined}
-                >
-                  <span>{cat.icon}</span>
-                  <span className="font-medium">{cat.label}</span>
-                </button>
-              ))}
+              {CATEGORIAS.map(cat => {
+                const totalLeadsCat = zonasProspectadas.filter(z => z.categoria === cat.id).reduce((s, z) => s + z.leads_encontrados, 0);
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => toggleCategoria(cat.id)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-colors text-left ${
+                      categoriasElegidas.includes(cat.id)
+                        ? "border-orange-400 text-orange-700"
+                        : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                    }`}
+                    style={categoriasElegidas.includes(cat.id) ? { background: "#fff5f0" } : undefined}
+                  >
+                    <span>{cat.icon}</span>
+                    <span className="font-medium flex-1">{cat.label}</span>
+                    {totalLeadsCat > 0 && (
+                      <span className="text-xs text-green-600 font-semibold ml-auto">✓{totalLeadsCat}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
@@ -891,6 +975,30 @@ export default function ProspeccionPage() {
             </div>
           </div>
 
+          {/* Uso mensual */}
+          {comercialId && (
+            <div className="pt-2 border-t border-slate-100">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-xs font-medium text-slate-500">Uso este mes</span>
+                <span className={`text-xs font-semibold ${usoMes >= limiteMes ? "text-red-600" : usoMes >= limiteMes * 0.8 ? "text-amber-600" : "text-slate-600"}`}>
+                  {usoMes} / {limiteMes} leads
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                <div
+                  className="h-2 rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, Math.round((usoMes / limiteMes) * 100))}%`,
+                    background: usoMes >= limiteMes ? "#dc2626" : usoMes >= limiteMes * 0.8 ? "#f59e0b" : "#ea650d",
+                  }}
+                />
+              </div>
+              {usoMes >= limiteMes && (
+                <p className="text-xs text-red-600 mt-1">Límite mensual alcanzado. Contacta con tu director para ampliarlo.</p>
+              )}
+            </div>
+          )}
+
           {/* Resumen y botón */}
           <div className="pt-2 border-t border-slate-100 space-y-3">
             <div className="flex items-center justify-between">
@@ -954,8 +1062,59 @@ export default function ProspeccionPage() {
         </div>
       )}
 
-      {/* Historial de campañas */}
-      {historialCampanas.length > 0 && (
+      {/* Historial real de campañas desde Supabase */}
+      {historialReal.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+            <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Campañas recientes</p>
+          </div>
+          <div className="divide-y divide-slate-50">
+            {historialReal.map((c) => {
+              const fecha = new Date(c.fecha_inicio).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
+              const estadoBadge = c.estado === "completada"
+                ? <span className="text-xs text-green-600 font-medium">✓ Completa</span>
+                : c.estado === "en_curso"
+                ? <span className="text-xs text-blue-600 font-medium">⏳ En curso</span>
+                : <span className="text-xs text-red-500 font-medium">✗ Error</span>;
+              return (
+                <div key={c.id} className="px-4 py-2.5 flex items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {c.ciudades.map(z => (
+                        <span key={z} className="text-xs font-medium text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded">{z}</span>
+                      ))}
+                      <span className="text-slate-300">·</span>
+                      {c.categorias.map(cat => (
+                        <span key={cat} className="text-xs text-slate-500">{cat}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0 text-xs">
+                    {c.leads_nuevos > 0 && <span className="font-semibold" style={{ color: "#ea650d" }}>{c.leads_nuevos} nuevos</span>}
+                    {c.leads_duplicados > 0 && <span className="text-slate-400">{c.leads_duplicados} dup.</span>}
+                    {c.coste_estimado_eur > 0 && <span className="text-slate-400">~{c.coste_estimado_eur.toFixed(2)}€</span>}
+                    {estadoBadge}
+                    <span className="text-slate-400">{fecha}</span>
+                    <button
+                      onClick={() => {
+                        if (c.ciudades.length > 0) setZonaPersonalizada(c.ciudades.join(", "));
+                        setCategoriasElegidas(c.categorias);
+                        setMostrarConfig(true);
+                      }}
+                      className="text-xs hover:underline" style={{ color: "#ea650d" }}
+                    >
+                      Repetir
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Zonas ya prospectadas (fallback localStorage) */}
+      {historialReal.length === 0 && historialCampanas.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Zonas ya prospectadas</p>
@@ -963,7 +1122,7 @@ export default function ProspeccionPage() {
               onClick={() => { setHistorialCampanas([]); localStorage.removeItem("historial_campanas"); }}
               className="text-xs text-slate-400 hover:text-slate-600"
             >
-              Limpiar historial
+              Limpiar
             </button>
           </div>
           <div className="divide-y divide-slate-50">
@@ -980,9 +1139,7 @@ export default function ProspeccionPage() {
                     setMostrarConfig(true);
                   }}
                   className="text-xs hover:underline" style={{ color: "#ea650d" }}
-                >
-                  Repetir
-                </button>
+                >Repetir</button>
               </div>
             ))}
           </div>

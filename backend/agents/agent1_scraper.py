@@ -176,6 +176,7 @@ def scrape_google_places(categoria: str, ciudad: str, max_results: int = 20) -> 
                 "tipo_lead": config["tipo_lead"],
                 "productos_recomendados": config["productos"],
                 "señales_detectadas": config["señales"],
+                "_rating": lugar.get("rating", 0),
             }
 
             if details.get("website"):
@@ -380,35 +381,54 @@ def guardar_leads(leads: list[dict]) -> tuple[int, int]:
     return guardados, duplicados
 
 
+def _upsert_zona(ciudad: str, categoria: str, leads_encontrados: int, campaign_id: str | None):
+    """Actualiza o inserta el registro de zona ya scrapeada."""
+    try:
+        existing = sb.table('scraping_zonas').select('id, veces_scrapeada, leads_encontrados').eq('ciudad', ciudad).eq('categoria', categoria).execute()
+        if existing.data:
+            row = existing.data[0]
+            sb.table('scraping_zonas').update({
+                'ultima_vez': 'now()',
+                'veces_scrapeada': row['veces_scrapeada'] + 1,
+                'leads_encontrados': row['leads_encontrados'] + leads_encontrados,
+                'campaign_id': campaign_id,
+            }).eq('id', row['id']).execute()
+        else:
+            sb.table('scraping_zonas').insert({
+                'ciudad': ciudad,
+                'categoria': categoria,
+                'leads_encontrados': leads_encontrados,
+                'campaign_id': campaign_id,
+            }).execute()
+    except Exception as e:
+        print(f"  ⚠ Error actualizando scraping_zonas: {e}")
+
+
 def ejecutar_campana(
     ciudades: list[str],
     categorias: list[str],
     paginas_por_ciudad: int = 2,
     solo_con_telefono: bool = False,
+    solo_con_web: bool = False,
+    min_rating: float | None = None,
+    max_anos_abierto: int | None = None,
     radio_km: int | None = None,
     excluir_sectores: list[str] | None = None,
+    campaign_id: str | None = None,
 ):
     """
     Ejecuta una campaña de prospección completa.
     Prioridad de fuentes: Google Places API > Google Search > Yelp
-
-    Args:
-        ciudades: Lista de ciudades a prospectar
-        categorias: Lista de categorías (ver CATEGORIAS_CONFIG)
-        paginas_por_ciudad: Controla profundidad (1=~10 leads, 3=~30 leads por ciudad/cat)
-        solo_con_telefono: Si True, descarta leads sin teléfono
-        radio_km: Radio en km para Google Places (None = ciudad completa)
-        excluir_sectores: Sectores a excluir de esta campaña
     """
     global _telefonos_existentes, _nombres_existentes
 
-    # Cargar cache de existentes AL INICIO para anti-duplicados eficiente
     print("  → Cargando base de datos existente para anti-duplicados...")
     _telefonos_existentes, _nombres_existentes = _cargar_existentes()
     print(f"  → {len(_telefonos_existentes)} teléfonos y {len(_nombres_existentes)} empresas ya en base de datos")
 
     total_guardados = 0
     total_duplicados = 0
+    total_api_calls = 0
     max_por_busqueda = paginas_por_ciudad * 10
 
     excluir = [s.lower() for s in (excluir_sectores or [])]
@@ -416,12 +436,10 @@ def ejecutar_campana(
     print(f"\n🔍 Campaña de prospección iniciada")
     print(f"   Ciudades: {', '.join(ciudades)}")
     print(f"   Categorías: {', '.join(categorias)}")
-    print(f"   Solo con teléfono: {solo_con_telefono}")
     print(f"   Objetivo: ~{max_por_busqueda} leads por ciudad/categoría\n")
 
     for ciudad in ciudades:
         for categoria in categorias:
-            # Saltar categorías excluidas
             if categoria.lower() in excluir:
                 print(f"\n⏭ Saltando {categoria} (excluida)")
                 continue
@@ -429,41 +447,72 @@ def ejecutar_campana(
             print(f"\n📍 {ciudad} — {categoria}")
             leads = []
 
-            # Fuente 1: Google Places API (si hay key)
             if GOOGLE_API_KEY:
                 leads = scrape_google_places(categoria, ciudad, max_por_busqueda)
+                # 1 Text Search + 1 Details per lead
+                total_api_calls += 1 + len(leads)
 
-            # Fuente 2: Google Search (sin key)
             if len(leads) < 5:
                 print(f"  → Intentando Google Search...")
                 leads += scrape_google_search(categoria, ciudad)
                 time.sleep(3)
 
-            # Fuente 3: Yelp como último recurso
             if len(leads) < 3:
                 print(f"  → Usando Yelp como fallback...")
                 leads += scrape_yelp(categoria, ciudad)
 
-            # Filtro: solo leads con teléfono
             if solo_con_telefono:
                 antes = len(leads)
                 leads = [l for l in leads if l.get('telefono_whatsapp')]
                 print(f"  → Filtro teléfono: {antes} → {len(leads)} leads")
+
+            if solo_con_web:
+                antes = len(leads)
+                leads = [l for l in leads if l.get('web')]
+                print(f"  → Filtro web: {antes} → {len(leads)} leads")
+
+            if min_rating is not None:
+                antes = len(leads)
+                leads = [l for l in leads if l.get('_rating', 0) >= min_rating]
+                print(f"  → Filtro rating ≥{min_rating}: {antes} → {len(leads)} leads")
+
+            # Limpiar campo interno antes de guardar
+            for l in leads:
+                l.pop('_rating', None)
 
             print(f"  → {len(leads)} leads encontrados, guardando...")
             g, d = guardar_leads(leads)
             total_guardados += g
             total_duplicados += d
             print(f"  → ✓ {g} nuevos, {d} duplicados")
-            time.sleep(5)  # Pausa entre búsquedas
+
+            _upsert_zona(ciudad, categoria, g, campaign_id)
+            time.sleep(5)
+
+    # Coste estimado: Text Search ~$0.032 + Details ~$0.017
+    coste_eur = round((total_api_calls * 0.032) * 0.92, 4)  # USD to EUR approx
+
+    if campaign_id:
+        try:
+            sb.table('scraping_campaigns').update({
+                'fecha_fin': 'now()',
+                'estado': 'completada',
+                'leads_nuevos': total_guardados,
+                'leads_duplicados': total_duplicados,
+                'api_calls_estimadas': total_api_calls,
+                'coste_estimado_eur': coste_eur,
+            }).eq('id', campaign_id).execute()
+        except Exception as e:
+            print(f"  ⚠ Error actualizando campaign: {e}")
 
     print(f"\n{'='*50}")
     print(f"✅ Campaña completada")
     print(f"   Nuevos leads: {total_guardados}")
     print(f"   Duplicados ignorados: {total_duplicados}")
+    print(f"   API calls estimadas: {total_api_calls} (~{coste_eur}€)")
     print(f"{'='*50}\n")
 
-    return total_guardados
+    return {"guardados": total_guardados, "duplicados": total_duplicados, "api_calls": total_api_calls, "coste_eur": coste_eur}
 
 
 if __name__ == "__main__":
