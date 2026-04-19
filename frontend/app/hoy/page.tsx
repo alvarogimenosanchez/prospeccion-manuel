@@ -138,6 +138,8 @@ export default function HoyPage() {
   const [comercialNombre, setComercialNombre] = useState("Manuel");
   const [comercialCargado, setComercialCargado] = useState(false);
 
+  const [accionesGestionadas, setAccionesGestionadas] = useState(0);
+
   const [seccionesData, setSeccionesData] = useState<SeccionesData>({
     accionesVencidas:           [],
     accionesHoy:                [],
@@ -289,6 +291,7 @@ export default function HoyPage() {
         if (clearAccion) { updates.proxima_accion = null; updates.proxima_accion_fecha = null; }
         await supabase.from("leads").update(updates).eq("id", leadId);
       }
+      setAccionesGestionadas(n => n + 1);
       setSeccionesData(prev => {
         const updated = { ...prev };
         if (seccion !== "citasHoy") {
@@ -318,6 +321,7 @@ export default function HoyPage() {
           origen: "comercial",
         }),
       ]);
+      setAccionesGestionadas(n => n + 1);
       setSeccionesData(prev => {
         const updated = { ...prev };
         if (seccion !== "citasHoy") {
@@ -373,6 +377,7 @@ export default function HoyPage() {
       ]);
     }
 
+    setAccionesGestionadas(n => n + 1);
     setSeccionesData(prev => ({ ...prev, citasHoy: prev.citasHoy.filter(c => c.id !== citaId) }));
     setCitaParaRegistrar(null);
   }
@@ -455,8 +460,14 @@ export default function HoyPage() {
             </div>
           </div>
           {/* ── Mini resumen por sección ── */}
-          {resumenItems.length > 0 && (
+          {(resumenItems.length > 0 || accionesGestionadas > 0) && (
             <div className="mt-3 flex flex-wrap gap-2">
+              {accionesGestionadas > 0 && (
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
+                  style={{ background: "#dcfce7", color: "#16a34a" }}>
+                  ✓ <span className="font-bold">{accionesGestionadas}</span> gestionada{accionesGestionadas !== 1 ? "s" : ""}
+                </span>
+              )}
               {resumenItems.map(item => (
                 <span key={item.label}
                   className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold"
