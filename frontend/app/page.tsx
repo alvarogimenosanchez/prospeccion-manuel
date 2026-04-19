@@ -350,7 +350,7 @@ export default function DashboardPage() {
               <span className="text-sm text-slate-600">Activos</span>
               <span className="text-sm font-bold text-emerald-700">{stats!.clientes_activos}</span>
             </div>
-            <Link href="/clientes?filtro=renovacion_proxima" className="flex items-center justify-between hover:opacity-80 transition-opacity">
+            <Link href="/renovaciones" className="flex items-center justify-between hover:opacity-80 transition-opacity">
               <span className="text-sm text-slate-600">Renuevan en 30d</span>
               <span className={`text-sm font-bold ${stats!.renovaciones_30d > 0 ? "text-amber-600" : "text-slate-400"}`}>
                 {stats!.renovaciones_30d}
