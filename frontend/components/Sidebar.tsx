@@ -91,6 +91,7 @@ const NAV_GROUPS = [
       { href: "/renovaciones",  label: "Renovaciones",  icon: "calendar",  permiso: "gestionar_clientes" },
       { href: "/cross-sell",    label: "Cross-sell",    icon: "trending",  permiso: "gestionar_clientes" },
       { href: "/ingresos",   label: "Ingresos",   icon: "chart",     permiso: "ver_metricas" },
+      { href: "/forecast",   label: "Forecast",   icon: "trending",  permiso: "ver_metricas" },
       { href: "/recuperar",  label: "Recuperar",  icon: "target",    permiso: "asignar_leads" },
       { href: "/exportar",   label: "Exportar",   icon: "download",  permiso: "exportar_datos" },
       { href: "/objetivos",  label: "Objetivos",  icon: "target",    permiso: "ver_metricas" },
