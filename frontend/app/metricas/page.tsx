@@ -171,6 +171,7 @@ export default function MetricasPage() {
   } | null>(null);
   const [winLoss, setWinLoss] = useState<{
     ganados: number; perdidos: number; descartados: number; winRate: number;
+    motivosPerdida: { motivo: string; label: string; count: number }[];
   } | null>(null);
   const [ejecutandoSeguimiento, setEjecutandoSeguimiento] = useState<string | null>(null);
   const [mensajeSeguimiento, setMensajeSeguimiento] = useState<string | null>(null);
@@ -658,7 +659,28 @@ export default function MetricasPage() {
     const total = g + p;
     const winRate = total > 0 ? Math.round((g / total) * 100) : 0;
 
-    setWinLoss({ ganados: g, perdidos: p, descartados: d, winRate });
+    // Motivos de pérdida
+    let qMotivos = supabase.from("leads").select("motivo_perdida")
+      .eq("estado", "cerrado_perdido")
+      .not("motivo_perdida", "is", null);
+    if (fechaInicio) qMotivos = qMotivos.gte("fecha_captacion", fechaInicio);
+    if (cid !== "todos") qMotivos = qMotivos.eq("comercial_asignado", cid);
+    const { data: motivosData } = await qMotivos.limit(500);
+
+    const MOTIVOS_LABEL: Record<string, string> = {
+      precio: "Precio", competencia: "Competencia", no_interesado: "No interesado",
+      timing: "Mal momento", sin_contacto: "Sin contacto", otro: "Otro",
+    };
+    const motivosMapa: Record<string, number> = {};
+    for (const l of motivosData ?? []) {
+      const m = (l as { motivo_perdida: string | null }).motivo_perdida ?? "otro";
+      motivosMapa[m] = (motivosMapa[m] ?? 0) + 1;
+    }
+    const motivosPerdida = Object.entries(motivosMapa)
+      .map(([motivo, count]) => ({ motivo, label: MOTIVOS_LABEL[motivo] ?? motivo, count }))
+      .sort((a, b) => b.count - a.count);
+
+    setWinLoss({ ganados: g, perdidos: p, descartados: d, winRate, motivosPerdida });
   }
 
   // ── Días promedio hasta cierre ────────────────────────────────────────────────
@@ -1321,7 +1343,26 @@ export default function MetricasPage() {
                 </div>
 
                 {winLoss.perdidos > 0 && (
-                  <div className="mt-4 pt-4 border-t border-slate-100">
+                  <div className="mt-4 pt-4 border-t border-slate-100 space-y-3">
+                    {winLoss.motivosPerdida.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-slate-500 mb-2">Principales motivos de pérdida</p>
+                        <div className="space-y-1.5">
+                          {winLoss.motivosPerdida.map(m => {
+                            const pctM = Math.round((m.count / winLoss.perdidos) * 100);
+                            return (
+                              <div key={m.motivo} className="flex items-center gap-2">
+                                <span className="text-xs text-slate-600 w-28 shrink-0">{m.label}</span>
+                                <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                  <div className="h-full rounded-full bg-red-400" style={{ width: `${pctM}%` }} />
+                                </div>
+                                <span className="text-xs text-slate-500 w-12 text-right">{m.count} ({pctM}%)</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                     <p className="text-xs text-slate-400">
                       {winLoss.winRate >= 50
                         ? `Buen ratio. Por cada lead perdido, se están ganando ${(winLoss.ganados / Math.max(1, winLoss.perdidos)).toFixed(1)} deals.`
@@ -1329,8 +1370,8 @@ export default function MetricasPage() {
                         ? `Ratio mejorable. Revisa el seguimiento de leads en negociación y las objeciones más frecuentes.`
                         : `Ratio bajo. Considera revisar la calificación de leads o el proceso de cierre.`}
                     </p>
-                    <a href="/leads?estado=cerrado_perdido" className="inline-block mt-2 text-xs font-medium hover:underline" style={{ color: "#ea650d" }}>
-                      Ver leads perdidos para posible recuperación →
+                    <a href="/recuperar" className="inline-block text-xs font-medium hover:underline" style={{ color: "#ea650d" }}>
+                      Ver leads recuperables →
                     </a>
                   </div>
                 )}
