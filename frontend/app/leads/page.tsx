@@ -77,6 +77,17 @@ function LeadsContent() {
     if (comercialCargado) cargarCounts();
   }, [comercialId, soloMios, comercialCargado]);
 
+  // ── Alerta formularios sin contactar ─────────────────────────────────────
+  const [formulariosSinContactar, setFormulariosSinContactar] = useState(0);
+  useEffect(() => {
+    if (!comercialCargado) return;
+    let q = supabase.from("leads").select("id", { count: "exact", head: true })
+      .eq("fuente", "formulario_web")
+      .eq("estado", "nuevo");
+    if (soloMios && comercialId) q = q.eq("comercial_asignado", comercialId);
+    q.then(({ count }) => setFormulariosSinContactar(count ?? 0));
+  }, [comercialCargado, comercialId, soloMios]);
+
   // ── Datos ─────────────────────────────────────────────────────────────────
   const [leads,    setLeads   ] = useState<LeadDashboard[]>([]);
   const [total,    setTotal   ] = useState(0);
@@ -221,6 +232,28 @@ function LeadsContent() {
           onFuente={(v)       => setFuente(v)}
         />
       </div>
+
+      {/* Alerta leads de formulario sin contactar */}
+      {formulariosSinContactar > 0 && !fuente && !estado && (
+        <div className="flex items-center gap-3 rounded-xl border px-4 py-3" style={{ background: "#f5f3ff", borderColor: "#c4b5fd" }}>
+          <span className="text-lg shrink-0">📋</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold" style={{ color: "#5b21b6" }}>
+              {formulariosSinContactar} lead{formulariosSinContactar !== 1 ? "s" : ""} de formulario sin contactar
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: "#7c3aed" }}>
+              Llegaron a través de tus formularios de captación y aún no han sido contactados
+            </p>
+          </div>
+          <button
+            onClick={() => { setFuente("formulario_web"); setEstado("nuevo"); }}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white shrink-0"
+            style={{ background: "#7c3aed" }}
+          >
+            Ver ahora →
+          </button>
+        </div>
+      )}
 
       {/* Aviso si mis leads está activo pero no hay comercial */}
       {soloMios && !comercialId && comercialCargado && (
