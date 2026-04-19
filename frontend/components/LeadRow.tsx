@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { formatDistanceToNow, format, isToday, isTomorrow, isPast } from "date-fns";
 import { es } from "date-fns/locale";
+import { useState, useRef, useEffect } from "react";
 import { PrioridadBadge } from "./PrioridadBadge";
 import { NivelInteresBar } from "./NivelInteresBar";
 import { FuenteBadge } from "./FuenteBadge";
@@ -72,8 +73,20 @@ const PRODUCTOS_LABEL: Record<string, string> = {
   hipotecas:        "Hipoteca",
 };
 
+// ── Transiciones válidas por estado ───────────────────────────────────────────
+const TRANSICIONES: Record<string, { estado: string; label: string; color: string }[]> = {
+  nuevo:            [{ estado: "segmentado",      label: "→ Segmentado",   color: "#3b82f6" }, { estado: "mensaje_enviado", label: "→ Contactado", color: "#ea650d" }, { estado: "cerrado_perdido", label: "✕ Descartar", color: "#ef4444" }],
+  enriquecido:      [{ estado: "segmentado",      label: "→ Segmentado",   color: "#3b82f6" }, { estado: "mensaje_enviado", label: "→ Contactado", color: "#ea650d" }, { estado: "cerrado_perdido", label: "✕ Descartar", color: "#ef4444" }],
+  segmentado:       [{ estado: "mensaje_enviado", label: "→ Contactado",   color: "#ea650d" }, { estado: "cerrado_perdido", label: "✕ Descartar", color: "#ef4444" }],
+  mensaje_generado: [{ estado: "mensaje_enviado", label: "→ Enviado",      color: "#ea650d" }, { estado: "cerrado_perdido", label: "✕ Descartar", color: "#ef4444" }],
+  mensaje_enviado:  [{ estado: "respondio",       label: "→ Respondió",    color: "#f59e0b" }, { estado: "cerrado_perdido", label: "✕ Descartar", color: "#ef4444" }],
+  respondio:        [{ estado: "cita_agendada",   label: "→ Cita",         color: "#f97316" }, { estado: "en_negociacion", label: "→ Negociando", color: "#7c3aed" }, { estado: "cerrado_perdido", label: "✕ Perdido", color: "#ef4444" }],
+  cita_agendada:    [{ estado: "en_negociacion",  label: "→ Negociando",   color: "#7c3aed" }, { estado: "respondio", label: "← Atrás", color: "#6b7280" }],
+  en_negociacion:   [{ estado: "cerrado_ganado",  label: "✓ Ganado",       color: "#10b981" }, { estado: "cerrado_perdido", label: "✕ Perdido", color: "#ef4444" }],
+};
+
 // ── Component ─────────────────────────────────────────────────────────────────
-export function LeadRow({ lead }: { lead: LeadDashboard }) {
+export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEstadoCambiado?: (id: string, nuevoEstado: string) => void }) {
   const nombre = [lead.nombre, lead.apellidos].filter(Boolean).join(" ");
   const sublinea = [lead.cargo, lead.empresa].filter(Boolean).join(" · ");
 

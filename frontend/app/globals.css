@@ -28,6 +28,10 @@ body {
 
 /* Hide scrollbar for nav overflow */
 .no-scrollbar::-webkit-scrollbar { display: none; }
+
+/* Lead link hover — avoids inline JS handlers on every row */
+.lead-link { color: #414141; transition: color 0.15s; }
+.lead-link:hover { color: #ea650d; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* ── Brand utility classes ──────────────────────────────────────────────── */

@@ -9,24 +9,36 @@ import os
 import json
 import hmac
 import hashlib
-from datetime import datetime, timezone
+import logging
+from datetime import datetime, timezone, timedelta
 
+import asyncio
 import httpx
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
 from agents.agent5_chatbot import handle_incoming_whatsapp
 from agents.agent6_scoring import score_lead
 from agents.agent1_scraper import ejecutar_campana
-from agents.agent2_seguimiento import ejecutar_seguimiento, obtener_resumen_pendientes
+from agents.agent2_seguimiento import ejecutar_seguimiento, obtener_resumen_pendientes, _verificar_renovaciones_clientes
 from agents.agent4_linkedin import enriquecer_leads_sin_nombre
 from agents.agent3_mensajes import generar_mensajes_lote, aprobar_mensaje, descartar_mensaje, generar_mensaje_whatsapp
 
 load_dotenv()
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="Manuel Prospección — API")
+
+@app.on_event("startup")
+async def _check_env():
+    if not os.environ.get("WASSENGER_WEBHOOK_SECRET"):
+        logger.warning("WASSENGER_WEBHOOK_SECRET no configurado — el webhook acepta cualquier POST sin verificar firma")
 
 _origins_env = os.environ.get("ALLOWED_ORIGINS", "*")
 ALLOWED_ORIGINS = _origins_env.split(",") if _origins_env != "*" else ["*"]
@@ -47,6 +59,9 @@ supabase: Client = create_client(
 WASSENGER_API_KEY = os.environ.get("WASSENGER_API_KEY", "")
 WASSENGER_DEVICE_ID = os.environ.get("WASSENGER_DEVICE_ID", "")  # ID del número en Wassenger
 WASSENGER_WEBHOOK_SECRET = os.environ.get("WASSENGER_WEBHOOK_SECRET", "")
+
+# Shared HTTP client — avoids creating/tearing down a connection pool on every send
+_http = httpx.AsyncClient(timeout=10)
 
 
 def _verify_wassenger_signature(body: bytes, signature_header: str | None) -> bool:
@@ -146,7 +161,13 @@ async def process_and_respond(from_number: str, message_text: str, whatsapp_mess
     5. Envía respuesta por WhatsApp
     6. Si hay que escalar, notifica al comercial asignado
     """
+    try:
+        await _process_and_respond_inner(from_number, message_text, whatsapp_message_id)
+    except Exception:
+        logger.exception("Error en process_and_respond para %s", from_number)
 
+
+async def _process_and_respond_inner(from_number: str, message_text: str, whatsapp_message_id: str):
     # 1. Buscar lead por número de WhatsApp
     lead_response = supabase.table("leads").select(
         "id, nombre, apellidos, tipo_lead, cargo, empresa, sector, productos_recomendados, comercial_asignado"
@@ -319,10 +340,9 @@ async def send_whatsapp_message(to_number: str, message: str):
     if WASSENGER_DEVICE_ID:
         payload["device"] = WASSENGER_DEVICE_ID
 
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(url, json=payload, headers=headers, timeout=10)
-        if resp.status_code not in (200, 201):
-            print(f"[WhatsApp] Error al enviar: {resp.status_code} {resp.text}")
+    resp = await _http.post(url, json=payload, headers=headers)
+    if resp.status_code not in (200, 201):
+        logger.error("[WhatsApp] Error al enviar a %s: %s %s", to_number, resp.status_code, resp.text)
 
 
 async def notify_comercial_escalado(_lead_id: str, lead: dict, ultimo_mensaje: str, motivo: str | None):
@@ -387,52 +407,40 @@ async def get_leads(
 @app.get("/api/leads/{lead_id}")
 async def get_lead_detail(lead_id: str):
     """Obtiene el detalle completo de un lead con su historial."""
-    lead = supabase.table("leads").select("*").eq("id", lead_id).single().execute()
-    if not lead.data:
+    # supabase-py is sync — run all three queries in threads so they execute in parallel
+    lead_r, interactions_r, appointments_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supabase.table("leads").select("*").eq("id", lead_id).single().execute()),
+        asyncio.to_thread(lambda: supabase.table("interactions").select("*").eq("lead_id", lead_id).order("created_at").execute()),
+        asyncio.to_thread(lambda: supabase.table("appointments").select("*").eq("lead_id", lead_id).order("fecha_hora").execute()),
+    )
+    if not lead_r.data:
         raise HTTPException(status_code=404, detail="Lead no encontrado")
-
-    interactions = supabase.table("interactions").select("*").eq(
-        "lead_id", lead_id
-    ).order("created_at").execute()
-
-    appointments = supabase.table("appointments").select("*").eq(
-        "lead_id", lead_id
-    ).order("fecha_hora").execute()
-
     return {
-        "lead": lead.data,
-        "interactions": interactions.data,
-        "appointments": appointments.data
+        "lead": lead_r.data,
+        "interactions": interactions_r.data,
+        "appointments": appointments_r.data,
     }
 
 
 @app.get("/api/dashboard/resumen")
 async def get_dashboard_resumen():
     """Resumen diario para el dashboard de Manuel."""
-    from datetime import timedelta
     hoy = datetime.now(timezone.utc)
     inicio_hoy = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
+    fin_hoy = inicio_hoy + timedelta(days=1)
+    hace_2h = hoy - timedelta(hours=2)
 
-    leads_nuevos_hoy = supabase.table("leads").select(
-        "id", count="exact"
-    ).gte("fecha_captacion", inicio_hoy.isoformat()).execute()
+    nuevos_r, calientes_r, citas_r, sin_atencion_r = await asyncio.gather(
+        asyncio.to_thread(lambda: supabase.table("leads").select("id", count="exact").gte("fecha_captacion", inicio_hoy.isoformat()).execute()),
+        asyncio.to_thread(lambda: supabase.table("leads").select("id", count="exact").eq("temperatura", "caliente").neq("estado", "descartado").execute()),
+        asyncio.to_thread(lambda: supabase.table("appointments").select("id", count="exact").gte("fecha_hora", inicio_hoy.isoformat()).lte("fecha_hora", fin_hoy.isoformat()).eq("estado", "confirmada").execute()),
+        asyncio.to_thread(lambda: supabase.table("leads").select("id, nombre, apellidos, nivel_interes").eq("estado", "respondio").lte("updated_at", hace_2h.isoformat()).order("nivel_interes", desc=True).execute()),
+    )
 
-    leads_calientes = supabase.table("leads").select(
-        "id", count="exact"
-    ).eq("temperatura", "caliente").neq("estado", "descartado").execute()
-
-    citas_hoy = supabase.table("appointments").select(
-        "id", count="exact"
-    ).gte("fecha_hora", inicio_hoy.isoformat()).lte(
-        "fecha_hora", (inicio_hoy + timedelta(days=1)).isoformat()
-    ).eq("estado", "confirmada").execute()
-
-    # Leads que respondieron y llevan más de 2 horas sin atención
-    sin_atencion = supabase.table("leads").select(
-        "id, nombre, apellidos, nivel_interes"
-    ).eq("estado", "respondio").lte(
-        "updated_at", (hoy - timedelta(hours=2)).isoformat()
-    ).order("nivel_interes", desc=True).execute()
+    leads_nuevos_hoy = nuevos_r
+    leads_calientes = calientes_r
+    citas_hoy = citas_r
+    sin_atencion = sin_atencion_r
 
     return {
         "fecha": hoy.date().isoformat(),
@@ -446,8 +454,6 @@ async def get_dashboard_resumen():
 # ============================================================
 # SCRAPING — Endpoint para lanzar campañas de prospección
 # ============================================================
-from pydantic import BaseModel
-from typing import List, Optional
 
 class CampanaRequest(BaseModel):
     ciudades: List[str]
@@ -510,7 +516,6 @@ async def verificar_renovaciones(background_tasks: BackgroundTasks):
     Verifica renovaciones de clientes próximas (≤7 días) y genera alertas.
     Llamado automáticamente a las 9h por el cron en Railway.
     """
-    from agents.agent2_seguimiento import _verificar_renovaciones_clientes
     background_tasks.add_task(_verificar_renovaciones_clientes)
     return {"status": "iniciado", "mensaje": "Verificando renovaciones de clientes en background."}
 

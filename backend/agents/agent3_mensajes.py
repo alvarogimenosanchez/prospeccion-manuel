@@ -10,6 +10,7 @@ El comercial recibe el mensaje generado para revisar y aprobar con un click.
 import os
 import logging
 from typing import Optional
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dotenv import load_dotenv
 import anthropic
 from supabase import create_client
@@ -81,6 +82,20 @@ Reglas del mensaje:
 - Variedad: no uses siempre la misma estructura. Cambia el orden, el tono, la longitud según el perfil.
 """
 
+# System prompt estático — se cachea en Anthropic entre llamadas del mismo lote
+_SYSTEM_CACHED = [
+    {
+        "type": "text",
+        "text": (
+            "Eres Manuel, asesor financiero y de seguros en España.\n"
+            "Tu tarea es escribir mensajes de primer contacto por WhatsApp a leads.\n"
+            f"\nCONTEXTO DE TUS PRODUCTOS:\n{PRODUCTOS_MANUEL}\n"
+            f"\nREGLAS DEL MENSAJE:\n{INSTRUCCIONES_MENSAJE}"
+        ),
+        "cache_control": {"type": "ephemeral"},
+    }
+]
+
 
 # ============================================================
 # Generador principal
@@ -130,25 +145,18 @@ def generar_mensaje_whatsapp(lead: dict) -> str:
 
     descripcion = "\n".join(descripcion_lead) if descripcion_lead else "Lead sin datos detallados"
 
-    prompt = f"""Eres Manuel, asesor financiero y de seguros en España.
-Tienes que escribir el primer mensaje de WhatsApp a este lead para presentarte y generar interés.
-
-DATOS DEL LEAD:
-{descripcion}
-
-CONTEXTO DE TUS PRODUCTOS:
-{PRODUCTOS_MANUEL}
-
-{INSTRUCCIONES_MENSAJE}
-
-Escribe SOLO el mensaje de WhatsApp, sin explicaciones, sin comillas, sin introducción.
-El mensaje debe estar listo para copiar y enviar."""
+    user_prompt = (
+        f"DATOS DEL LEAD:\n{descripcion}\n\n"
+        "Escribe SOLO el mensaje de WhatsApp, sin explicaciones, sin comillas, sin introducción.\n"
+        "El mensaje debe estar listo para copiar y enviar."
+    )
 
     try:
         response = claude.messages.create(
-            model="claude-haiku-4-5-20251001",  # Haiku: rápido y barato para mensajes
+            model="claude-haiku-4-5",
             max_tokens=200,
-            messages=[{"role": "user", "content": prompt}]
+            system=_SYSTEM_CACHED,
+            messages=[{"role": "user", "content": user_prompt}],
         )
         mensaje = response.content[0].text.strip()
         logger.info(f"  ✓ Mensaje generado para {empresa or nombre} ({len(mensaje)} chars)")
@@ -211,31 +219,34 @@ def generar_mensajes_lote(limite: int = 30) -> dict:
 
     logger.info(f"Generando mensajes para {len(leads)} leads...")
 
-    procesados = 0
     generados = 0
     errores = 0
 
-    for lead in leads:
-        procesados += 1
-        try:
-            mensaje = generar_mensaje_whatsapp(lead)
+    def _generar_y_guardar(lead: dict) -> bool:
+        """Genera y persiste el mensaje para un lead. Returns True on success."""
+        mensaje = generar_mensaje_whatsapp(lead)
+        sb.table("mensajes_pendientes").insert({
+            "lead_id": lead["id"],
+            "mensaje": mensaje,
+            "estado": "pendiente",
+            "comercial_id": lead.get("comercial_asignado"),
+            "canal": "whatsapp",
+        }).execute()
+        return True
 
-            # Guardar en mensajes_pendientes para revisión
-            sb.table("mensajes_pendientes").insert({
-                "lead_id": lead["id"],
-                "mensaje": mensaje,
-                "estado": "pendiente",
-                "comercial_id": lead.get("comercial_asignado"),
-                "canal": "whatsapp",
-            }).execute()
+    # Parallelize Claude calls — each takes 1-3s; sequential would be 30-90s for 30 leads
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(_generar_y_guardar, lead): lead for lead in leads}
+        for future in as_completed(futures):
+            lead = futures[future]
+            try:
+                future.result()
+                generados += 1
+            except Exception as e:
+                logger.error(f"  ✗ Error para lead {lead.get('empresa', lead['id'])}: {e}")
+                errores += 1
 
-            generados += 1
-
-        except Exception as e:
-            logger.error(f"  ✗ Error para lead {lead.get('empresa', lead['id'])}: {e}")
-            errores += 1
-
-    resultado = {"procesados": procesados, "generados": generados, "errores": errores}
+    resultado = {"procesados": len(leads), "generados": generados, "errores": errores}
     logger.info(f"Mensajes generados: {resultado}")
     return resultado
 
