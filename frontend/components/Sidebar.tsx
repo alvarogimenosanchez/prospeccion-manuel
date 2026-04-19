@@ -97,6 +97,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
   const [badges, setBadges] = useState<Badges>({ mensajes: 0, hoy: 0, agenda: 0 });
+  const [chatNoLeidos, setChatNoLeidos] = useState(0);
   const { puede, cargando: cargandoPermisos } = usePermisos();
 
   useEffect(() => {
@@ -124,6 +125,25 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       });
     }
     fetchBadges();
+  }, [pathname]);
+
+  useEffect(() => {
+    async function fetchChatBadge() {
+      const { data: { user: u } } = await supabase.auth.getUser();
+      if (!u?.email) return;
+      const { data: com } = await supabase.from("comerciales").select("id").eq("email", u.email).single();
+      if (!com) return;
+      const { data: msgs } = await supabase
+        .from("mensajes_internos")
+        .select("id, leido_por")
+        .or(`para_comercial_id.eq.${com.id},grupo_id.not.is.null`)
+        .neq("de_comercial_id", com.id)
+        .limit(100);
+      const noLeidos = (msgs ?? []).filter(m => !((m.leido_por as string[]) ?? []).includes(com.id)).length;
+      setChatNoLeidos(noLeidos);
+    }
+    if (pathname !== "/mensajes-internos") fetchChatBadge();
+    else setChatNoLeidos(0);
   }, [pathname]);
 
   async function cerrarSesion() {
@@ -221,7 +241,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             <div className="space-y-0.5">
               {itemsVisibles.map(({ href, label, icon }) => {
                 const active = isActive(href);
-                const badge = href === "/mensajes" ? badges.mensajes : href === "/hoy" ? badges.hoy : href === "/agenda" ? badges.agenda : 0;
+                const badge = href === "/mensajes" ? badges.mensajes : href === "/hoy" ? badges.hoy : href === "/agenda" ? badges.agenda : href === "/mensajes-internos" ? chatNoLeidos : 0;
                 return (
                   <Link
                     key={href}
