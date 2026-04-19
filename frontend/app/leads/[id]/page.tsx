@@ -222,6 +222,23 @@ function getUrgenciaAccion(fecha: string | null): { label: string; colorClass: s
   return { label: new Date(fecha).toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }), colorClass: "text-emerald-700 bg-emerald-50 border-emerald-200" };
 }
 
+function CopyButton({ texto, label = "Copiar" }: { texto: string; label?: string }) {
+  const [copiado, setCopiado] = useState(false);
+  return (
+    <button
+      onClick={async () => {
+        await navigator.clipboard.writeText(texto);
+        setCopiado(true);
+        setTimeout(() => setCopiado(false), 1800);
+      }}
+      className="text-xs px-2 py-0.5 rounded border transition-colors"
+      style={copiado ? { color: "#16a34a", borderColor: "#bbf7d0", background: "#f0fdf4" } : { color: "#ea650d", borderColor: "#f5a677", background: "#fff5f0" }}
+    >
+      {copiado ? "✓ Copiado" : label}
+    </button>
+  );
+}
+
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
@@ -1379,16 +1396,22 @@ export default function LeadDetailPage() {
                 </div>
 
                 {/* Script de apertura */}
-                <div>
-                  <p className="text-xs font-semibold mb-1.5" style={{ color: "#ea650d" }}>Script de llamada</p>
-                  <div className="bg-white rounded-lg p-3 border border-orange-100">
-                    <p className="text-xs text-slate-600 leading-relaxed italic">
-                      {intel.scriptApertura
-                        .replace("[nombre]", lead.nombre || "...")
-                        .replace("[ciudad]", lead.ciudad || "tu zona")}
-                    </p>
-                  </div>
-                </div>
+                {(() => {
+                  const scriptTexto = intel.scriptApertura
+                    .replace("[nombre]", lead.nombre || "...")
+                    .replace("[ciudad]", lead.ciudad || "tu zona");
+                  return (
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <p className="text-xs font-semibold" style={{ color: "#ea650d" }}>Script de llamada</p>
+                        <CopyButton texto={scriptTexto} label="Copiar" />
+                      </div>
+                      <div className="bg-white rounded-lg p-3 border border-orange-100">
+                        <p className="text-xs text-slate-600 leading-relaxed italic">{scriptTexto}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Objeciones */}
                 <div>
@@ -1397,7 +1420,10 @@ export default function LeadDetailPage() {
                     {intel.objeciones.map((o, i) => (
                       <div key={i} className="bg-white rounded-lg p-2.5 border border-orange-100">
                         <p className="text-xs font-medium text-slate-700 mb-1">"{o.obj}"</p>
-                        <p className="text-xs text-slate-500 leading-relaxed">→ {o.respuesta}</p>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs text-slate-500 leading-relaxed flex-1">→ {o.respuesta}</p>
+                          <CopyButton texto={o.respuesta} label="Copiar" />
+                        </div>
                       </div>
                     ))}
                   </div>
