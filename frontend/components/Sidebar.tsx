@@ -103,6 +103,7 @@ const NAV_GROUPS = [
       { href: "/renovaciones",  label: "Renovaciones",  icon: "calendar",  permiso: "gestionar_clientes" },
       { href: "/presupuestos",  label: "Presupuestos",  icon: "clipboard", permiso: "gestionar_clientes" },
       { href: "/cross-sell",    label: "Cross-sell",    icon: "trending",  permiso: "gestionar_clientes" },
+      { href: "/retencion",      label: "Retención",     icon: "trophy",    permiso: "gestionar_clientes" },
       { href: "/recuperar",     label: "Recuperar",     icon: "target",    permiso: "asignar_leads" },
     ],
   },
