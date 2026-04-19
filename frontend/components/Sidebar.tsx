@@ -112,10 +112,24 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       const finDia = new Date();
       finDia.setHours(23, 59, 59, 999);
 
+      const { data: { user: u } } = await supabase.auth.getUser();
+      let comId: string | null = null;
+      if (u?.email) {
+        const { data: com } = await supabase.from("comerciales").select("id").eq("email", u.email).single();
+        comId = com?.id ?? null;
+      }
+
+      let qVencidas = supabase.from("leads").select("id", { count: "exact", head: true }).not("proxima_accion", "is", null).neq("proxima_accion", "ninguna").lt("proxima_accion_fecha", ahora.toISOString()).not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)");
+      let qCalientes = supabase.from("leads").select("id", { count: "exact", head: true }).eq("temperatura", "caliente").not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)");
+      if (comId) {
+        qVencidas = qVencidas.eq("comercial_asignado", comId);
+        qCalientes = qCalientes.eq("comercial_asignado", comId);
+      }
+
       const [{ count: mensajes }, { count: accionesVencidas }, { count: calientes }, { count: citasHoy }] = await Promise.all([
         supabase.from("mensajes_pendientes").select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
-        supabase.from("leads").select("id", { count: "exact", head: true }).not("proxima_accion", "is", null).neq("proxima_accion", "ninguna").lt("proxima_accion_fecha", ahora.toISOString()).not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)"),
-        supabase.from("leads").select("id", { count: "exact", head: true }).eq("temperatura", "caliente").not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)"),
+        qVencidas,
+        qCalientes,
         supabase.from("appointments").select("id", { count: "exact", head: true }).gte("fecha_hora", inicioDia.toISOString()).lte("fecha_hora", finDia.toISOString()).not("estado", "in", "(cancelada,no_asistio)"),
       ]);
       setBadges({
