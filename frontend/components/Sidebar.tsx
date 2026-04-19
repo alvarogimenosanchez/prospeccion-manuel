@@ -81,6 +81,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/clasificacion", label: "Clasificación", icon: "trophy",   permiso: null },
       { href: "/metricas",      label: "Métricas",      icon: "chart",    permiso: "ver_metricas" },
+      { href: "/sla",           label: "SLA respuesta", icon: "target",   permiso: "ver_metricas" },
       { href: "/desempeno",     label: "Desempeño",     icon: "trending", permiso: "ver_metricas" },
       { href: "/funnel",             label: "Funnel",          icon: "pipeline",  permiso: "ver_metricas" },
       { href: "/velocidad",          label: "Velocidad",       icon: "trending",  permiso: "ver_metricas" },
