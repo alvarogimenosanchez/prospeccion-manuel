@@ -159,17 +159,27 @@ export default function MetricasPage() {
   const [funnelTrabajados, setFunnelTrabajados] = useState<FunnelStep[]>([]);
   const [autoSwitched, setAutoSwitched] = useState(false);
 
-  // Cargar comerciales una sola vez
+  // Cargar comerciales una sola vez + auto-seleccionar si no puede ver todos
   useEffect(() => {
     async function cargarComerciales() {
+      const { data: { user } } = await supabase.auth.getUser();
       const { data } = await supabase
         .from("comerciales")
         .select("id, nombre, apellidos")
         .order("nombre");
       if (data) setComercialesState(data);
+      // Si el usuario no tiene permiso para ver todos los leads, seleccionar su propio ID
+      if (!cargandoPermisos && !puede("ver_todos_leads") && user?.email) {
+        const found = data?.find(c => (c as { email?: string }).email === user.email);
+        if (found) setComercialId(found.id);
+        else {
+          const { data: mine } = await supabase.from("comerciales").select("id").eq("email", user.email).single();
+          if (mine) setComercialId(mine.id);
+        }
+      }
     }
-    cargarComerciales();
-  }, []);
+    if (!cargandoPermisos) cargarComerciales();
+  }, [cargandoPermisos, puede]);
 
   // Recargar métricas cuando cambian los filtros
   useEffect(() => {
@@ -617,8 +627,8 @@ export default function MetricasPage() {
             ))}
           </div>
 
-          {/* Filtro comercial */}
-          {comerciales.length > 0 && (
+          {/* Filtro comercial — solo para usuarios con ver_todos_leads */}
+          {comerciales.length > 0 && !cargandoPermisos && puede("ver_todos_leads") && (
             <select
               value={comercialId}
               onChange={(e) => setComercialId(e.target.value)}
