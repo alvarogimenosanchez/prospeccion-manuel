@@ -8,6 +8,7 @@ import { PrioridadBadge } from "./PrioridadBadge";
 import { NivelInteresBar } from "./NivelInteresBar";
 import { FuenteBadge } from "./FuenteBadge";
 import type { LeadDashboard } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 // ── Estado badge ──────────────────────────────────────────────────────────────
 const ESTADO_CFG: Record<string, { label: string; cls: string }> = {
@@ -89,6 +90,19 @@ const TRANSICIONES: Record<string, { estado: string; label: string; color: strin
 export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEstadoCambiado?: (id: string, nuevoEstado: string) => void }) {
   const nombre = [lead.nombre, lead.apellidos].filter(Boolean).join(" ");
   const sublinea = [lead.cargo, lead.empresa].filter(Boolean).join(" · ");
+  const [estadoActual, setEstadoActual] = useState(lead.estado);
+  const [avanzando, setAvanzando] = useState(false);
+
+  const siguienteTransicion = TRANSICIONES[estadoActual]?.[0] ?? null;
+
+  async function avanzarEstado() {
+    if (!siguienteTransicion || avanzando) return;
+    setAvanzando(true);
+    await supabase.from("leads").update({ estado: siguienteTransicion.estado, updated_at: new Date().toISOString() }).eq("id", lead.id);
+    setEstadoActual(siguienteTransicion.estado);
+    setAvanzando(false);
+    onEstadoCambiado?.(lead.id, siguienteTransicion.estado);
+  }
 
   const accionInfo = proximaAccionTexto(lead.proxima_accion, lead.proxima_accion_fecha);
 
@@ -109,7 +123,7 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
       {/* Nombre / Estado */}
       <div className="w-52 min-w-0">
         <div className="flex items-center gap-1.5 mb-1">
-          <EstadoBadge estado={lead.estado} />
+          <EstadoBadge estado={estadoActual} />
           {accionInfo?.urgente && (
             <span className="text-xs text-red-500 font-medium">⚠</span>
           )}
@@ -209,6 +223,17 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
               <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8a19.79 19.79 0 01-3.07-8.67A2 2 0 012 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/>
             </svg>
           </a>
+        )}
+        {siguienteTransicion && !["cerrado_ganado","cerrado_perdido"].includes(estadoActual) && (
+          <button
+            onClick={avanzarEstado}
+            disabled={avanzando}
+            title={siguienteTransicion.label}
+            className="px-2 py-1 text-xs font-medium rounded-lg border transition-colors disabled:opacity-50"
+            style={{ color: siguienteTransicion.color, borderColor: siguienteTransicion.color + "40", background: siguienteTransicion.color + "10" }}
+          >
+            {avanzando ? "..." : siguienteTransicion.label}
+          </button>
         )}
         <Link
           href={`/leads/${lead.id}`}
