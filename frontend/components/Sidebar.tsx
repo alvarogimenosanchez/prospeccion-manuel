@@ -51,6 +51,7 @@ const NAV_GROUPS = [
     items: [
       { href: "/hoy",             label: "Hoy",            icon: "target",    permiso: null },
       { href: "/notificaciones",  label: "Notificaciones", icon: "flag",       permiso: null },
+      { href: "/tareas",          label: "Mis tareas",     icon: "clipboard",  permiso: null },
       { href: "/negociaciones",   label: "Negociaciones",  icon: "briefcase",  permiso: null },
       { href: "/leads",           label: "Leads",          icon: "users",      permiso: null },
       { href: "/pipeline",        label: "Pipeline",       icon: "pipeline",   permiso: null },
