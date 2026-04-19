@@ -60,20 +60,23 @@ export default function EquipoPage() {
 
   const cargarComerciales = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from("comerciales").select("*").order("nombre");
-    const lista = (data as Comercial[]) ?? [];
+    const [{ data: comercialesData }, { data: leadsData }] = await Promise.all([
+      supabase.from("comerciales").select("*").order("nombre"),
+      supabase.from("leads").select("id, comercial_asignado, temperatura, estado"),
+    ]);
+    const lista = (comercialesData as Comercial[]) ?? [];
     setComerciales(lista);
 
-    // Cargar stats de cada comercial
+    const todosLeads = (leadsData ?? []) as { id: string; comercial_asignado: string | null; temperatura: string; estado: string }[];
     const statsMap: Record<string, StatsComercial> = {};
     for (const c of lista) {
-      const [{ count: total }, { count: calientes }, { count: ganados }, { count: enProceso }] = await Promise.all([
-        supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", c.id),
-        supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", c.id).eq("temperatura", "caliente"),
-        supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", c.id).eq("estado", "cerrado_ganado"),
-        supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", c.id).in("estado", ["respondio", "cita_agendada", "en_negociacion"]),
-      ]);
-      statsMap[c.id] = { total: total ?? 0, calientes: calientes ?? 0, ganados: ganados ?? 0, enProceso: enProceso ?? 0 };
+      const lc = todosLeads.filter(l => l.comercial_asignado === c.id);
+      statsMap[c.id] = {
+        total: lc.length,
+        calientes: lc.filter(l => l.temperatura === "caliente").length,
+        ganados: lc.filter(l => l.estado === "cerrado_ganado").length,
+        enProceso: lc.filter(l => ["respondio", "cita_agendada", "en_negociacion"].includes(l.estado)).length,
+      };
     }
     setStats(statsMap);
     setLoading(false);
