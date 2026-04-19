@@ -79,6 +79,7 @@ export default function CuestionarioPage() {
   const [filtroTipo, setFiltroTipo] = useState("todos");
   const [filtroProducto, setFiltroProducto] = useState("todos");
   const [filtroPeriodo, setFiltroPeriodo] = useState("30d");
+  const [filtroUrgencia, setFiltroUrgencia] = useState("todas");
   const [busqueda, setBusqueda] = useState("");
 
   const cargar = useCallback(async () => {
@@ -102,6 +103,14 @@ export default function CuestionarioPage() {
     if (filtroProducto !== "todos") {
       resultados = resultados.filter(l => l.productos_recomendados?.includes(filtroProducto));
     }
+    if (filtroUrgencia !== "todas") {
+      resultados = resultados.filter(l => {
+        const u = parseNotas(l.notas).urgencia;
+        if (filtroUrgencia === "hoy_manana") return u.includes("Hoy") || u.includes("hoy_manana");
+        if (filtroUrgencia === "esta_semana") return u.includes("semana") || u.includes("esta_semana");
+        return true;
+      });
+    }
     if (busqueda.trim()) {
       const q = busqueda.trim().toLowerCase();
       resultados = resultados.filter(l =>
@@ -110,7 +119,7 @@ export default function CuestionarioPage() {
     }
     setLeads(resultados);
     setLoading(false);
-  }, [filtroTipo, filtroProducto, filtroPeriodo, busqueda]);
+  }, [filtroTipo, filtroProducto, filtroPeriodo, busqueda, filtroUrgencia]);
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -129,6 +138,11 @@ export default function CuestionarioPage() {
   leads.forEach(l => {
     const u = parseNotas(l.notas).urgencia;
     if (u) conteoUrgencia[u] = (conteoUrgencia[u] ?? 0) + 1;
+  });
+
+  const urgentesHoy = leads.filter(l => {
+    const u = parseNotas(l.notas).urgencia;
+    return (u.includes("Hoy") || u.includes("hoy_manana")) && l.estado === "nuevo";
   });
 
   const urlFormulario = "https://prospeccion-manuel.vercel.app/captacion";
@@ -240,6 +254,27 @@ export default function CuestionarioPage() {
 
         {/* Tabla principal */}
         <div className="lg:col-span-3 space-y-3">
+          {/* Banner urgentes */}
+          {urgentesHoy.length > 0 && (
+            <div className="flex items-center gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              <span className="text-base shrink-0">⚡</span>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-red-800">
+                  {urgentesHoy.length} lead{urgentesHoy.length > 1 ? "s" : ""} quiere{urgentesHoy.length === 1 ? "" : "n"} contacto hoy o mañana
+                </p>
+                <p className="text-xs text-red-600 mt-0.5">
+                  {urgentesHoy.map(l => l.nombre).join(", ")} — aún sin contactar
+                </p>
+              </div>
+              <button
+                onClick={() => setFiltroUrgencia("hoy_manana")}
+                className="text-xs font-medium px-3 py-1.5 rounded-lg text-white whitespace-nowrap"
+                style={{ background: "#ef4444" }}>
+                Filtrar →
+              </button>
+            </div>
+          )}
+
           {/* Filtros */}
           <div className="flex flex-wrap gap-2">
             <input
@@ -269,6 +304,12 @@ export default function CuestionarioPage() {
               {Object.entries(NOMBRES_PRODUCTOS).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
+            </select>
+            <select value={filtroUrgencia} onChange={e => setFiltroUrgencia(e.target.value)}
+              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white focus:outline-none">
+              <option value="todas">Todas las urgencias</option>
+              <option value="hoy_manana">⚡ Hoy o mañana</option>
+              <option value="esta_semana">📅 Esta semana</option>
             </select>
           </div>
 
