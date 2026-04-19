@@ -54,8 +54,9 @@ export function Navbar() {
     if (!comercialId) return;
     const hoy = new Date().toISOString().split("T")[0];
     const hace48h = new Date(Date.now() - 48 * 3600_000).toISOString();
+    const hace24h = new Date(Date.now() - 24 * 3600_000).toISOString();
 
-    const [{ data: respondio }, { data: asignados }, { data: citas }, { data: mensajesInternos }] = await Promise.all([
+    const [{ data: respondio }, { data: asignados }, { data: citas }, { data: mensajesInternos }, { data: enNegociacion }, { data: calientes }] = await Promise.all([
       supabase.from("leads").select("id, nombre, empresa, updated_at")
         .eq("comercial_asignado", comercialId)
         .eq("estado", "respondio")
@@ -79,6 +80,19 @@ export function Navbar() {
         .not("leido_por", "cs", `["${comercialId}"]`)
         .order("created_at", { ascending: false })
         .limit(5),
+      supabase.from("leads").select("id, nombre, empresa, updated_at")
+        .eq("comercial_asignado", comercialId)
+        .eq("estado", "en_negociacion")
+        .gte("updated_at", hace24h)
+        .order("updated_at", { ascending: false })
+        .limit(3),
+      supabase.from("leads").select("id, nombre, empresa, updated_at")
+        .eq("comercial_asignado", comercialId)
+        .eq("temperatura", "caliente")
+        .gte("updated_at", hace24h)
+        .not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado,cita_agendada,en_negociacion)")
+        .order("updated_at", { ascending: false })
+        .limit(3),
     ]);
 
     const items: NotifItem[] = [
@@ -102,6 +116,20 @@ export function Navbar() {
         titulo: c.notas_previas ? c.notas_previas.slice(0, 50) : `Cita: ${c.tipo ?? "pendiente"}`,
         subtitulo: `Hoy · ${new Date(c.fecha_hora).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}`,
         href: "/agenda",
+      })),
+      ...(enNegociacion ?? []).map(l => ({
+        id: `n-${l.id}`,
+        tipo: "respondio" as const,
+        titulo: `🔥 ${l.nombre}${l.empresa ? ` · ${l.empresa}` : ""} en negociación`,
+        subtitulo: "Nuevo hoy — cierre cercano",
+        href: `/leads/${l.id}`,
+      })),
+      ...(calientes ?? []).map(l => ({
+        id: `h-${l.id}`,
+        tipo: "asignado" as const,
+        titulo: `⬆️ ${l.nombre}${l.empresa ? ` · ${l.empresa}` : ""} ahora caliente`,
+        subtitulo: "Score mejorado — momento para contactar",
+        href: `/leads/${l.id}`,
       })),
       ...(mensajesInternos ?? []).map(m => ({
         id: `i-${m.id}`,
