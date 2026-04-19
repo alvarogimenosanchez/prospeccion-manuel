@@ -80,6 +80,18 @@ type StatsFilaProducto = {
   tasaConversion: number;
 };
 
+type StatsFilaFormulario = {
+  formulario_id: string;
+  nombre: string;
+  emoji: string;
+  slug: string;
+  total: number;
+  respondieron: number;
+  cerrados: number;
+  tasaRespuesta: number;
+  tasaConversion: number;
+};
+
 const SECTORES = [
   "Inmobiliaria",
   "Hostelería",
@@ -135,6 +147,7 @@ export default function MetricasPage() {
   });
   const [diasHastaCierre, setDiasHastaCierre] = useState<number | null>(null);
   const [statsCiudad, setStatsCiudad] = useState<StatsFilaCiudad[]>([]);
+  const [statsFormulario, setStatsFormulario] = useState<StatsFilaFormulario[]>([]);
   const [loading, setLoading] = useState(true);
   const [ejecutandoSeguimiento, setEjecutandoSeguimiento] = useState<string | null>(null);
   const [mensajeSeguimiento, setMensajeSeguimiento] = useState<string | null>(null);
@@ -184,6 +197,7 @@ export default function MetricasPage() {
         cargarStatsCiudad(fechaInicio, comercialId),
         cargarLeadsSinTocar(comercialId),
         cargarStatsProducto(fechaInicio, comercialId),
+        cargarStatsFormulario(fechaInicio, comercialId),
       ]);
       setLoading(false);
     }
@@ -445,6 +459,50 @@ export default function MetricasPage() {
       rows.push({ producto: key, label, total: t, respondieron: respondieron ?? 0, cerrados: cerrados ?? 0, tasaConversion: t > 0 ? Math.round(((cerrados ?? 0) / t) * 100) : 0 });
     }
     setStatsProducto(rows.sort((a, b) => b.total - a.total));
+  }
+
+  // ── Stats por formulario de captación ───────────────────────────────────────
+
+  async function cargarStatsFormulario(fechaInicio: string | null, cid: string) {
+    const { data: forms } = await supabase
+      .from("formularios_captacion")
+      .select("id, nombre, emoji, slug");
+    if (!forms || forms.length === 0) return;
+
+    let q = supabase.from("leads").select("formulario_id, estado").not("formulario_id", "is", null).limit(5000);
+    if (fechaInicio) q = q.gte("fecha_captacion", fechaInicio);
+    if (cid !== "todos") q = q.eq("comercial_asignado", cid);
+    const { data: leads } = await q;
+    if (!leads) return;
+
+    const mapa: Record<string, { total: number; respondieron: number; cerrados: number }> = {};
+    for (const l of leads) {
+      const fid = l.formulario_id as string;
+      if (!mapa[fid]) mapa[fid] = { total: 0, respondieron: 0, cerrados: 0 };
+      mapa[fid].total++;
+      if (["respondio", "cita_agendada", "en_negociacion", "cerrado_ganado"].includes(l.estado)) mapa[fid].respondieron++;
+      if (l.estado === "cerrado_ganado") mapa[fid].cerrados++;
+    }
+
+    const rows: StatsFilaFormulario[] = forms
+      .map((f) => {
+        const s = mapa[f.id] ?? { total: 0, respondieron: 0, cerrados: 0 };
+        return {
+          formulario_id: f.id,
+          nombre: f.nombre,
+          emoji: f.emoji,
+          slug: f.slug,
+          total: s.total,
+          respondieron: s.respondieron,
+          cerrados: s.cerrados,
+          tasaRespuesta: s.total > 0 ? Math.round((s.respondieron / s.total) * 100) : 0,
+          tasaConversion: s.total > 0 ? Math.round((s.cerrados / s.total) * 100) : 0,
+        };
+      })
+      .filter((r) => r.total > 0)
+      .sort((a, b) => b.total - a.total);
+
+    setStatsFormulario(rows);
   }
 
   // ── Días promedio hasta cierre ────────────────────────────────────────────────
@@ -883,6 +941,55 @@ export default function MetricasPage() {
                           {row.cerrados > 0 ? row.cerrados : <span className="text-slate-300 font-normal">—</span>}
                         </td>
                         <td className="px-4 py-3 text-right"><TasaBadge valor={row.tasaConversion} /></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {/* ── Sección 3d: Stats por formulario de captación ───────────────────── */}
+          {statsFormulario.length > 0 && (
+            <section>
+              <h2 className="text-base font-semibold text-slate-800 mb-1">Rendimiento por formulario</h2>
+              <p className="text-xs text-slate-400 mb-4">Leads captados desde cada formulario de anuncio — ordenados por volumen</p>
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                      <th className="px-4 py-3 text-left">Formulario</th>
+                      <th className="px-4 py-3 text-right">Leads</th>
+                      <th className="px-4 py-3 text-right">Respondieron</th>
+                      <th className="px-4 py-3 text-right">T. respuesta</th>
+                      <th className="px-4 py-3 text-right">Cierres</th>
+                      <th className="px-4 py-3 text-right">T. conversión</th>
+                      <th className="px-4 py-3 text-right">Enlace</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {statsFormulario.map((row) => (
+                      <tr key={row.formulario_id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-4 py-3 font-medium text-slate-700">
+                          <span className="mr-2">{row.emoji}</span>{row.nombre}
+                        </td>
+                        <td className="px-4 py-3 text-right text-slate-600">{row.total}</td>
+                        <td className="px-4 py-3 text-right text-slate-600">{row.respondieron}</td>
+                        <td className="px-4 py-3 text-right"><TasaBadge valor={row.tasaRespuesta} /></td>
+                        <td className="px-4 py-3 text-right font-semibold text-emerald-700">
+                          {row.cerrados > 0 ? row.cerrados : <span className="text-slate-300 font-normal">—</span>}
+                        </td>
+                        <td className="px-4 py-3 text-right"><TasaBadge valor={row.tasaConversion} /></td>
+                        <td className="px-4 py-3 text-right">
+                          <a
+                            href={`/f/${row.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-orange-500 hover:text-orange-700 hover:underline"
+                          >
+                            /f/{row.slug}
+                          </a>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
