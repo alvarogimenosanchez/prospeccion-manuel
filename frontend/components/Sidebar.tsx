@@ -56,6 +56,7 @@ const NAV_GROUPS = [
     label: "Comunicación",
     items: [
       { href: "/mensajes",           label: "Mensajes WA",     icon: "message",  permiso: null },
+      { href: "/campanas",           label: "Campañas",        icon: "flag",     permiso: "asignar_leads" },
       { href: "/ia",                 label: "Asistente IA",    icon: "sparkle",  permiso: null },
       { href: "/mensajes-internos",  label: "Chat interno",    icon: "chat",     permiso: null },
       { href: "/agenda",             label: "Agenda",          icon: "calendar", permiso: null },
