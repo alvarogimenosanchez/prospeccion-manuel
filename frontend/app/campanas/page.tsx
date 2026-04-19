@@ -154,13 +154,14 @@ export default function CampanasPage() {
         lead_id: lead.id,
         comercial_id: lead.comercial_asignado,
         mensaje: textoPersonalizado,
+        canal: "whatsapp",
         estado: "pendiente",
         campana_nombre: nombreCampana,
       };
     }).filter(Boolean);
 
     if (registros.length > 0) {
-      await supabase.from("mensajes_ia").insert(registros);
+      await supabase.from("mensajes_pendientes").insert(registros);
     }
 
     setResultado({ ok, sinWA });
