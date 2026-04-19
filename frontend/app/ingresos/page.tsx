@@ -101,22 +101,29 @@ export default function IngresosPage() {
   const { puede, cargando: cargandoPermisos } = usePermisos();
   const [clientes, setClientes] = useState<ClienteRow[]>([]);
   const [pipeline, setPipeline] = useState<PipelineStage[]>([]);
+  const [comisionesPct, setComisionesPct] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [periodoMeses, setPeriodoMeses] = useState(6);
 
   const cargar = useCallback(async () => {
     setLoading(true);
-    const [{ data: clientesData }, ...pipelineCounts] = await Promise.all([
+    const [{ data: clientesData }, { data: productsData }, ...pipelineCounts] = await Promise.all([
       supabase
         .from("clientes")
         .select("id, nombre, apellidos, producto, valor_contrato, fecha_inicio, estado, comercial_asignado, comerciales(nombre, apellidos)")
         .order("fecha_inicio", { ascending: false }),
+      supabase.from("products").select("id, comision_pct"),
       ...PIPELINE_STAGES.map(s =>
         supabase.from("leads").select("id", { count: "exact", head: true })
           .eq("estado", s.estado)
       ),
     ]);
     setClientes((clientesData as ClienteRow[]) ?? []);
+    const pctMap: Record<string, number> = {};
+    for (const p of (productsData ?? []) as { id: string; comision_pct: number | null }[]) {
+      pctMap[p.id] = p.comision_pct ?? 20;
+    }
+    setComisionesPct(pctMap);
     setPipeline(PIPELINE_STAGES.map((s, i) => ({
       ...s,
       count: (pipelineCounts[i] as { count: number | null }).count ?? 0,
@@ -172,6 +179,20 @@ export default function IngresosPage() {
   }
   for (const p of porComercial) p.promedio = p.contratos > 0 ? p.total / p.contratos : 0;
   porComercial.sort((a, b) => b.total - a.total);
+
+  // Comisiones por comercial
+  const comisionesPorComercial: { nombre: string; comercial_id: string | null; comision: number; contratos: number }[] = [];
+  for (const c of conValor) {
+    const pct = (comisionesPct[c.producto ?? ""] ?? 20) / 100;
+    const comision = (c.valor_contrato ?? 0) * pct;
+    const key = c.comercial_asignado ?? "__sin__";
+    const nombre = c.comerciales ? `${c.comerciales.nombre} ${c.comerciales.apellidos ?? ""}`.trim() : "Sin asignar";
+    const ex = comisionesPorComercial.find(x => x.comercial_id === key);
+    if (ex) { ex.comision += comision; ex.contratos++; }
+    else comisionesPorComercial.push({ nombre, comercial_id: key, comision, contratos: 1 });
+  }
+  comisionesPorComercial.sort((a, b) => b.comision - a.comision);
+  const totalComision = comisionesPorComercial.reduce((s, x) => s + x.comision, 0);
 
   // Revenue por producto
   const porProducto: RevenueProducto[] = [];
@@ -370,6 +391,48 @@ export default function IngresosPage() {
               </div>
             )}
           </div>
+
+          {/* Comisiones estimadas */}
+          {comisionesPorComercial.length > 0 && (
+            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-700">Comisiones estimadas</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">Calculadas según tasa de comisión por producto</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-emerald-700">{fmt(totalComision)}</p>
+                  <p className="text-xs text-slate-400">total estimado</p>
+                </div>
+              </div>
+              <div className="divide-y divide-slate-50">
+                {comisionesPorComercial.map((p, idx) => (
+                  <div key={p.comercial_id ?? idx} className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors">
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                      idx === 0 ? "bg-amber-100 text-amber-700" : "bg-slate-100 text-slate-500"
+                    }`}>
+                      {idx + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-sm font-medium text-slate-800">{p.nombre}</p>
+                        <div className="flex items-center gap-4">
+                          <span className="text-xs text-slate-400">{p.contratos} contrato{p.contratos !== 1 ? "s" : ""}</span>
+                          <span className="text-sm font-bold text-emerald-700 w-24 text-right">{fmt(p.comision)}</span>
+                        </div>
+                      </div>
+                      <BarraHorizontal pct={(p.comision / (comisionesPorComercial[0]?.comision || 1)) * 100} color="bg-emerald-400" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="px-5 py-3 bg-slate-50 border-t border-slate-100">
+                <p className="text-xs text-slate-400">
+                  Tasas por producto en ajustes. Las comisiones son estimaciones — consultar con dirección para valores exactos.
+                </p>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>
