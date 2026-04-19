@@ -22,7 +22,7 @@ from supabase import create_client, Client
 from dotenv import load_dotenv
 
 from agents.agent5_chatbot import handle_incoming_whatsapp
-from agents.agent6_scoring import score_lead
+from agents.agent6_scoring import score_lead, score_desde_cuestionario
 from agents.agent1_scraper import ejecutar_campana
 from agents.agent2_seguimiento import ejecutar_seguimiento, obtener_resumen_pendientes, _verificar_renovaciones_clientes
 from agents.agent4_linkedin import enriquecer_leads_sin_nombre
@@ -267,7 +267,7 @@ async def recalcular_y_guardar_scoring(
 
     # Obtener datos del lead para el scoring
     lead_data = supabase.table("leads").select(
-        "fecha_captacion, estado"
+        "fecha_captacion, estado, fuente, fuente_detalle, tipo_lead, tiene_hijos, tiene_hipoteca, notas"
     ).eq("id", lead_id).single().execute()
 
     lead = lead_data.data or {}
@@ -287,7 +287,7 @@ async def recalcular_y_guardar_scoring(
     ).eq("estado", "cancelada").execute()
     cita_rechazada = len(citas_rechazadas.data or []) > 0
 
-    # Calcular scoring
+    # Calcular scoring base
     scoring = score_lead(
         interacciones=interacciones,
         dias_desde_primer_contacto=dias,
@@ -296,6 +296,11 @@ async def recalcular_y_guardar_scoring(
         escalo_a_humano=escalo_a_humano,
         productos_mencionados=productos_mencionados
     )
+
+    # Añadir bonus de cuestionario para leads inbound del formulario de captación
+    if lead.get("fuente_detalle") == "formulario_captacion":
+        bonus = score_desde_cuestionario(lead)
+        scoring.nivel_interes = min(10, scoring.nivel_interes + bonus)
 
     # Guardar en scoring_history
     supabase.table("scoring_history").insert({
