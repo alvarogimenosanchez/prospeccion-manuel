@@ -83,16 +83,35 @@ const NAV_GROUPS = [
   },
 ];
 
+type Badges = { mensajes: number; hoy: number; };
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export function Sidebar({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
+  const [badges, setBadges] = useState<Badges>({ mensajes: 0, hoy: 0 });
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
   }, []);
+
+  useEffect(() => {
+    async function fetchBadges() {
+      const ahora = new Date();
+      const [{ count: mensajes }, { count: accionesVencidas }, { count: calientes }] = await Promise.all([
+        supabase.from("mensajes_pendientes").select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
+        supabase.from("leads").select("id", { count: "exact", head: true }).not("proxima_accion", "is", null).neq("proxima_accion", "ninguna").lt("proxima_accion_fecha", ahora.toISOString()).not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)"),
+        supabase.from("leads").select("id", { count: "exact", head: true }).eq("temperatura", "caliente").not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)"),
+      ]);
+      setBadges({
+        mensajes: mensajes ?? 0,
+        hoy: (accionesVencidas ?? 0) + (calientes ?? 0),
+      });
+    }
+    fetchBadges();
+  }, [pathname]);
 
   async function cerrarSesion() {
     await supabase.auth.signOut();
@@ -186,6 +205,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             <div className="space-y-0.5">
               {group.items.map(({ href, label, icon }) => {
                 const active = isActive(href);
+                const badge = href === "/mensajes" ? badges.mensajes : href === "/hoy" ? badges.hoy : 0;
                 return (
                   <Link
                     key={href}
@@ -212,7 +232,22 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                     }}
                   >
                     <NavIcon name={icon} />
-                    <span>{label}</span>
+                    <span className="flex-1">{label}</span>
+                    {badge > 0 && (
+                      <span style={{
+                        background: href === "/mensajes" ? "#ea650d" : "#ef4444",
+                        color: "#fff",
+                        borderRadius: "9999px",
+                        fontSize: "10px",
+                        fontWeight: 600,
+                        padding: "1px 6px",
+                        minWidth: "18px",
+                        textAlign: "center",
+                        lineHeight: "16px",
+                      }}>
+                        {badge > 99 ? "99+" : badge}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
