@@ -61,8 +61,15 @@ export default function IAPage() {
   const [busquedaLead, setBusquedaLead] = useState("");
   const [resultadosBusqueda, setResultadosBusqueda] = useState<LeadBasico[]>([]);
   const [buscandoLead, setBuscandoLead] = useState(false);
+  const [copiadoIdx, setCopiadoIdx] = useState<number | null>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  function copiarMensaje(content: string, idx: number) {
+    navigator.clipboard.writeText(content);
+    setCopiadoIdx(idx);
+    setTimeout(() => setCopiadoIdx(null), 2000);
+  }
 
   // Auto-scroll al último mensaje
   useEffect(() => {
@@ -257,13 +264,32 @@ export default function IAPage() {
                   ✦
                 </div>
               )}
-              <div className={`px-4 py-3 rounded-2xl text-sm shadow-sm whitespace-pre-wrap max-w-xl ${
-                m.role === "user"
-                  ? "text-white rounded-tr-sm"
-                  : "bg-white border border-slate-200 text-slate-700 rounded-tl-sm"
-              }`}
-                style={m.role === "user" ? { background: "#ea650d" } : undefined}>
-                {m.content}
+              <div className="flex flex-col gap-1 max-w-xl">
+                <div className={`px-4 py-3 rounded-2xl text-sm shadow-sm whitespace-pre-wrap ${
+                  m.role === "user"
+                    ? "text-white rounded-tr-sm"
+                    : "bg-white border border-slate-200 text-slate-700 rounded-tl-sm"
+                }`}
+                  style={m.role === "user" ? { background: "#ea650d" } : undefined}>
+                  {m.content}
+                </div>
+                {m.role === "assistant" && (
+                  <div className="flex items-center gap-2 pl-1">
+                    <button
+                      onClick={() => copiarMensaje(m.content, i)}
+                      className="text-xs text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1"
+                    >
+                      {copiadoIdx === i ? "✓ Copiado" : "Copiar"}
+                    </button>
+                    <button
+                      onClick={() => setInput(m.content)}
+                      className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                      title="Editar en el input"
+                    >
+                      Editar
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           ))}
