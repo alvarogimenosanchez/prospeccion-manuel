@@ -58,6 +58,51 @@ const FORM_VACIO: FormData = {
   comercial_asignado: "",
 };
 
+function mensajeRenovacion(c: ClienteConComercial, dias: number): string {
+  const nombre = c.nombre;
+  const prod = productoLabel(c.producto);
+  const cuandoVence = dias === 0 ? "hoy" : dias === 1 ? "mañana" : `en ${dias} días`;
+  switch (c.producto) {
+    case "contigo_autonomo":
+      return `Hola ${nombre}, soy Manuel de Nationale-Nederlanden. Tu Contigo Autónomo vence ${cuandoVence} y quería asegurarme de que mantienes tu cobertura de baja sin interrupción. ¿Podemos hablar un momento?`;
+    case "contigo_pyme":
+      return `Hola ${nombre}, soy Manuel de NN. La cobertura Contigo Pyme de tu empresa vence ${cuandoVence}. Para garantizar la continuidad de la protección de tu equipo me gustaría hablar contigo. ¿Tienes unos minutos?`;
+    case "contigo_familia":
+      return `Hola ${nombre}, soy Manuel de Nationale-Nederlanden. Tu seguro Contigo Familia vence ${cuandoVence}. Para que tu familia siga protegida sin interrupciones, me gustaría coordinarlo contigo. ¿Cuándo te viene bien?`;
+    case "sialp":
+    case "liderplus":
+      return `Hola ${nombre}, soy Manuel de NN. Tu plan de ahorro ${prod} tiene la revisión anual ${cuandoVence}. Es un buen momento para revisar la aportación y las condiciones fiscales. ¿Hablamos?`;
+    case "sanitas_salud":
+      return `Hola ${nombre}, soy Manuel de NN. Tu seguro de salud Sanitas vence ${cuandoVence}. Para que no haya ninguna interrupción en tu cobertura médica, te llamo para gestionarlo. ¿Cuándo te va bien?`;
+    case "mihogar":
+      return `Hola ${nombre}, soy Manuel de Nationale-Nederlanden. Tu seguro MiHogar vence ${cuandoVence} y quería renovarlo contigo antes de que caduque. ¿Podemos hablar unos minutos?`;
+    case "hipotecas":
+      return `Hola ${nombre}, soy Manuel de NN. Quería hacer un seguimiento de tu hipoteca y revisión de condiciones. ¿Tienes un momento para hablar?`;
+    default:
+      return `Hola ${nombre}, soy Manuel de Nationale-Nederlanden. Quería hablar contigo sobre la renovación de tu ${prod} que vence ${cuandoVence}. ¿Tienes un momento?`;
+  }
+}
+
+function exportarCSV(lista: ClienteConComercial[]) {
+  const headers = ["Nombre", "Apellidos", "Empresa", "Email", "Teléfono", "Producto", "Valor (€)", "Fecha inicio", "Fecha renovación", "Estado", "Comercial"];
+  const rows = lista.map(c => [
+    c.nombre, c.apellidos ?? "", c.empresa ?? "", c.email ?? "", c.telefono ?? "",
+    productoLabel(c.producto), c.valor_contrato != null ? c.valor_contrato : "",
+    c.fecha_inicio, c.fecha_renovacion ?? "", c.estado,
+    c.comerciales ? `${c.comerciales.nombre} ${c.comerciales.apellidos ?? ""}`.trim() : "",
+  ]);
+  const csv = [headers, ...rows].map(row =>
+    row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(",")
+  ).join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `clientes_${new Date().toISOString().split("T")[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 function diasParaRenovacion(fecha: string): number {
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
@@ -222,12 +267,20 @@ function ClientesContent() {
           <h1 className="text-2xl font-bold text-slate-900">Clientes</h1>
           <p className="text-sm text-slate-500 mt-0.5">Cartera activa y seguimiento de renovaciones</p>
         </div>
-        <button
-          onClick={abrirNuevo}
-          className="px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors" style={{ background: "#ea650d" }}
-        >
-          + Añadir cliente
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => exportarCSV(clientesFiltrados)}
+            className="px-3 py-2 text-sm font-medium rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+          >
+            ↓ Exportar CSV
+          </button>
+          <button
+            onClick={abrirNuevo}
+            className="px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors" style={{ background: "#ea650d" }}
+          >
+            + Añadir cliente
+          </button>
+        </div>
       </div>
 
       {/* KPIs */}
@@ -253,7 +306,7 @@ function ClientesContent() {
             <div className="mt-1 flex flex-wrap gap-2">
               {renovacionesUrgentes.map(c => {
                 const dias = diasParaRenovacion(c.fecha_renovacion!);
-                const waMsg = `Hola ${c.nombre}, soy Manuel de Nationale-Nederlanden. Quería hablar contigo sobre la renovación de tu ${productoLabel(c.producto)} que vence en ${dias === 0 ? "hoy" : `${dias} días`}. ¿Tienes un momento?`;
+                const waMsg = mensajeRenovacion(c, dias);
                 return (
                   <div key={c.id} className="flex items-center gap-2 bg-white rounded-lg border border-red-200 px-2.5 py-1.5">
                     <div>
@@ -423,7 +476,7 @@ function ClientesContent() {
                       <div className="flex items-center justify-end gap-2">
                         {c.telefono && (
                           <a
-                            href={`https://wa.me/${c.telefono.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(`Hola ${c.nombre}, soy Manuel de Nationale-Nederlanden. Quería hablar contigo sobre tu ${productoLabel(c.producto)}.`)}`}
+                            href={`https://wa.me/${c.telefono.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(mensajeRenovacion(c, diasRen ?? 30))}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             title="Contactar por WhatsApp"
