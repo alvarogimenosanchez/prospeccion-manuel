@@ -72,6 +72,7 @@ const NAV_GROUPS = [
       { href: "/mensajes-internos",  label: "Chat interno",    icon: "chat",     permiso: null },
       { href: "/agenda",             label: "Agenda",          icon: "calendar", permiso: null },
       { href: "/simulador",          label: "Simulador",       icon: "sparkle",  permiso: null },
+      { href: "/competencia",        label: "Competencia",     icon: "trending",  permiso: null },
       { href: "/recursos",           label: "Acceso rápido",   icon: "bookmark", permiso: null },
     ],
   },
