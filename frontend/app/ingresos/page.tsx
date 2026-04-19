@@ -84,6 +84,12 @@ function BarraHorizontal({ pct, color = "bg-orange-500" }: { pct: number; color?
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 
+const PIPELINE_STAGES = [
+  { estado: "respondio",      label: "Respondió",      prob: 0.15 },
+  { estado: "cita_agendada",  label: "Cita agendada",  prob: 0.35 },
+  { estado: "en_negociacion", label: "En negociación", prob: 0.65 },
+] as const;
+
 type PipelineStage = {
   estado: string;
   label: string;
@@ -97,12 +103,6 @@ export default function IngresosPage() {
   const [pipeline, setPipeline] = useState<PipelineStage[]>([]);
   const [loading, setLoading] = useState(true);
   const [periodoMeses, setPeriodoMeses] = useState(6);
-
-  const PIPELINE_STAGES: { estado: string; label: string; prob: number }[] = [
-    { estado: "respondio",      label: "Respondió",      prob: 0.15 },
-    { estado: "cita_agendada",  label: "Cita agendada",  prob: 0.35 },
-    { estado: "en_negociacion", label: "En negociación", prob: 0.65 },
-  ];
 
   const cargar = useCallback(async () => {
     setLoading(true);

@@ -42,6 +42,19 @@ type StatsFilaCiudad = {
   tasaConversion: number;
 };
 
+type StatsFilaComercial = {
+  id: string;
+  nombre: string;
+  total: number;
+  contactados: number;
+  respondieron: number;
+  citasAgendadas: number;
+  cerrados: number;
+  tasaContacto: number;
+  tasaRespuesta: number;
+  tasaCierre: number;
+};
+
 type SeguimientoCounts = {
   recordatorio1: number;
   recordatorio2: number;
@@ -151,6 +164,7 @@ export default function MetricasPage() {
   const [diasHastaCierre, setDiasHastaCierre] = useState<number | null>(null);
   const [statsCiudad, setStatsCiudad] = useState<StatsFilaCiudad[]>([]);
   const [statsFormulario, setStatsFormulario] = useState<StatsFilaFormulario[]>([]);
+  const [statsComercial, setStatsComercial] = useState<StatsFilaComercial[]>([]);
   const [loading, setLoading] = useState(true);
   const [ejecutandoSeguimiento, setEjecutandoSeguimiento] = useState<string | null>(null);
   const [mensajeSeguimiento, setMensajeSeguimiento] = useState<string | null>(null);
@@ -211,6 +225,7 @@ export default function MetricasPage() {
         cargarLeadsSinTocar(comercialId),
         cargarStatsProducto(fechaInicio, comercialId),
         cargarStatsFormulario(fechaInicio, comercialId),
+        comercialId === "todos" ? cargarStatsComercial(fechaInicio) : Promise.resolve(),
       ]);
       setLoading(false);
     }
@@ -516,6 +531,53 @@ export default function MetricasPage() {
       .sort((a, b) => b.total - a.total);
 
     setStatsFormulario(rows);
+  }
+
+  // ── Stats por comercial ──────────────────────────────────────────────────────
+
+  async function cargarStatsComercial(fechaInicio: string | null) {
+    const { data: coms } = await supabase.from("comerciales").select("id, nombre, apellidos").eq("activo", true).order("nombre");
+    if (!coms || coms.length === 0) return;
+
+    const rows: StatsFilaComercial[] = await Promise.all(
+      coms.map(async (c) => {
+        const makeQ = () => {
+          let q = supabase.from("leads").select("*", { count: "exact", head: true }).eq("comercial_asignado", c.id);
+          if (fechaInicio) q = q.gte("fecha_captacion", fechaInicio);
+          return q;
+        };
+        const [
+          { count: total },
+          { count: contactados },
+          { count: respondieron },
+          { count: citasAgendadas },
+          { count: cerrados },
+        ] = await Promise.all([
+          makeQ(),
+          makeQ().in("estado", ["mensaje_enviado", "respondio", "cita_agendada", "en_negociacion", "cerrado_ganado", "cerrado_perdido"]),
+          makeQ().in("estado", ["respondio", "cita_agendada", "en_negociacion", "cerrado_ganado"]),
+          makeQ().in("estado", ["cita_agendada", "en_negociacion", "cerrado_ganado"]),
+          makeQ().eq("estado", "cerrado_ganado"),
+        ]);
+        const t = total ?? 0;
+        const cont = contactados ?? 0;
+        const resp = respondieron ?? 0;
+        const cerr = cerrados ?? 0;
+        return {
+          id: c.id,
+          nombre: `${c.nombre} ${c.apellidos ?? ""}`.trim(),
+          total: t,
+          contactados: cont,
+          respondieron: resp,
+          citasAgendadas: citasAgendadas ?? 0,
+          cerrados: cerr,
+          tasaContacto: t > 0 ? Math.round((cont / t) * 100) : 0,
+          tasaRespuesta: cont > 0 ? Math.round((resp / cont) * 100) : 0,
+          tasaCierre: t > 0 ? Math.round((cerr / t) * 100) : 0,
+        };
+      })
+    );
+    setStatsComercial(rows.filter((r) => r.total > 0).sort((a, b) => b.cerrados - a.cerrados || b.total - a.total));
   }
 
   // ── Días promedio hasta cierre ────────────────────────────────────────────────
@@ -1006,6 +1068,63 @@ export default function MetricasPage() {
                         </td>
                       </tr>
                     ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          )}
+
+          {/* ── Sección 3e: Conversión por comercial ────────────────────────────── */}
+          {comercialId === "todos" && statsComercial.length > 0 && (
+            <section>
+              <h2 className="text-base font-semibold text-slate-800 mb-1">Rendimiento por comercial</h2>
+              <p className="text-xs text-slate-400 mb-4">Comparativa del embudo individual — identifica quién necesita apoyo</p>
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wide">
+                      <th className="px-4 py-3 text-left">#</th>
+                      <th className="px-4 py-3 text-left">Comercial</th>
+                      <th className="px-4 py-3 text-right">Leads</th>
+                      <th className="px-4 py-3 text-right">Contactados</th>
+                      <th className="px-4 py-3 text-right">Respondieron</th>
+                      <th className="px-4 py-3 text-right">Citas</th>
+                      <th className="px-4 py-3 text-right">Cierres</th>
+                      <th className="px-4 py-3 text-right">T. cierre</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {statsComercial.map((row, i) => {
+                      const esLider = i === 0;
+                      const necesitaApoyo = row.total >= 10 && row.tasaContacto < 30;
+                      return (
+                        <tr key={row.id} className={`transition-colors ${necesitaApoyo ? "bg-amber-50 hover:bg-amber-100" : "hover:bg-slate-50"}`}>
+                          <td className="px-4 py-3 text-slate-400 text-xs font-medium">
+                            {esLider ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                          </td>
+                          <td className="px-4 py-3 font-medium text-slate-800">
+                            {row.nombre}
+                            {necesitaApoyo && <span className="ml-2 text-xs font-normal text-amber-500">baja actividad</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right text-slate-600">{row.total.toLocaleString("es-ES")}</td>
+                          <td className="px-4 py-3 text-right">
+                            <span className="text-slate-600">{row.contactados}</span>
+                            <span className="text-xs text-slate-400 ml-1">({row.tasaContacto}%)</span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <span className="text-slate-600">{row.respondieron}</span>
+                            {row.contactados > 0 && (
+                              <span className="text-xs text-slate-400 ml-1">({Math.round((row.respondieron / row.contactados) * 100)}%)</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right text-slate-600">{row.citasAgendadas}</td>
+                          <td className="px-4 py-3 text-right font-semibold text-emerald-700">
+                            {row.cerrados > 0 ? row.cerrados : <span className="text-slate-300 font-normal">—</span>}
+                          </td>
+                          <td className="px-4 py-3 text-right"><TasaBadge valor={row.tasaCierre} /></td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
