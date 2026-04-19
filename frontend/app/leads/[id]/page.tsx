@@ -244,6 +244,17 @@ export default function LeadDetailPage() {
   const router = useRouter();
   const citasRef = useRef<HTMLDivElement>(null);
 
+  const [leadListIds, setLeadListIds] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("leadListIds");
+      if (stored) setLeadListIds(JSON.parse(stored));
+    } catch {}
+  }, []);
+  const currentIdx = leadListIds.indexOf(id);
+  const prevId = currentIdx > 0 ? leadListIds[currentIdx - 1] : null;
+  const nextId = currentIdx >= 0 && currentIdx < leadListIds.length - 1 ? leadListIds[currentIdx + 1] : null;
+
   const [lead, setLead] = useState<Lead | null>(null);
   const [interactions, setInteractions] = useState<Interaction[]>([]);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -963,11 +974,35 @@ export default function LeadDetailPage() {
         </div>
       )}
 
-      {/* Back + feedback guardado */}
+      {/* Back + prev/next navigation + feedback guardado */}
       <div className="flex items-center justify-between">
-        <button onClick={() => router.back()} className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1">
-          ← Volver
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => router.back()} className="text-sm text-slate-500 hover:text-slate-800 flex items-center gap-1">
+            ← Volver
+          </button>
+          {leadListIds.length > 1 && currentIdx >= 0 && (
+            <>
+              <span className="text-slate-300 text-sm">|</span>
+              <button
+                onClick={() => prevId && router.push(`/leads/${prevId}`)}
+                disabled={!prevId}
+                className="text-sm px-2 py-0.5 rounded border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:border-slate-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                title="Lead anterior"
+              >
+                ‹ Ant.
+              </button>
+              <span className="text-xs text-slate-400">{currentIdx + 1}/{leadListIds.length}</span>
+              <button
+                onClick={() => nextId && router.push(`/leads/${nextId}`)}
+                disabled={!nextId}
+                className="text-sm px-2 py-0.5 rounded border border-slate-200 bg-white text-slate-500 hover:text-slate-800 hover:border-slate-400 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                title="Lead siguiente"
+              >
+                Sig. ›
+              </button>
+            </>
+          )}
+        </div>
         {guardadoOk && (
           <span className="text-xs text-emerald-600 font-medium bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
             ✓ Guardado

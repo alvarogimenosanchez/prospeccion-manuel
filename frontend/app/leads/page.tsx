@@ -138,8 +138,13 @@ function LeadsContent() {
     const totalCount = count ?? 0;
     if (nuevoOffset === 0) {
       setLeads(resultado);
+      try { localStorage.setItem("leadListIds", JSON.stringify(resultado.map((l) => l.id))); } catch {}
     } else {
-      setLeads((prev) => [...prev, ...resultado]);
+      setLeads((prev) => {
+        const next = [...prev, ...resultado];
+        try { localStorage.setItem("leadListIds", JSON.stringify(next.map((l) => l.id))); } catch {}
+        return next;
+      });
     }
     setTotal(totalCount);
     setOffset(nuevoOffset);
