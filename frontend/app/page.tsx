@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import type { LeadDashboard } from "@/lib/supabase";
 import { LeadRow } from "@/components/LeadRow";
+import { usePermisos } from "@/components/PermisosProvider";
 
 type Stats = {
   // Leads
@@ -24,8 +25,12 @@ type Stats = {
   // Clientes
   clientes_activos: number;
   renovaciones_30d: number;
+  renovaciones_7d: number;
+  renovaciones_vencidas: number;
   // Acciones vencidas
   acciones_vencidas: number;
+  // Equipo
+  calientes_sin_seguimiento: number;
 };
 
 type CitaHoy = {
@@ -51,6 +56,7 @@ const ESTADO_LABEL: Record<string, string> = {
 const PIPELINE_ACTIVO = ["nuevo", "enriquecido", "segmentado", "mensaje_enviado", "respondio", "cita_agendada", "en_negociacion"];
 
 export default function DashboardPage() {
+  const { puede, cargando: cargandoPermisos } = usePermisos();
   const [stats, setStats] = useState<Stats | null>(null);
   const [leadsUrgentes, setLeadsUrgentes] = useState<LeadDashboard[]>([]);
   const [accionesVencidas, setAccionesVencidas] = useState<LeadDashboard[]>([]);
@@ -73,7 +79,10 @@ export default function DashboardPage() {
       const hoy = new Date();
       const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).toISOString();
       const finHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 1).toISOString();
+      const en7dias = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 7).toISOString().split("T")[0];
       const en30dias = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 30).toISOString();
+      const hace7dias = new Date(Date.now() - 7 * 86400_000).toISOString();
+      const hoyStr = hoy.toISOString().split("T")[0];
 
       const [
         leadsRes,
@@ -85,6 +94,9 @@ export default function DashboardPage() {
         citasProxRes,
         clientesRes,
         renovRes,
+        renov7dRes,
+        renovVenRes,
+        calSinSeguRes,
       ] = await Promise.all([
         supabase.from("leads").select("estado, temperatura").neq("estado", "descartado"),
         supabase.from("leads").select("id", { count: "exact", head: true }).gte("fecha_captacion", inicioHoy),
@@ -94,7 +106,10 @@ export default function DashboardPage() {
         supabase.from("appointments").select("id, tipo, fecha_hora, lead_id").gte("fecha_hora", inicioHoy).lt("fecha_hora", finHoy).in("estado", ["pendiente", "confirmada"]).order("fecha_hora"),
         supabase.from("appointments").select("id", { count: "exact", head: true }).gt("fecha_hora", finHoy).in("estado", ["pendiente", "confirmada"]),
         supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "activo"),
-        supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "activo").lte("fecha_renovacion", en30dias).gte("fecha_renovacion", inicioHoy),
+        supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "activo").lte("fecha_renovacion", en30dias).gte("fecha_renovacion", hoyStr),
+        supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "activo").lte("fecha_renovacion", en7dias).gte("fecha_renovacion", hoyStr),
+        supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "activo").lt("fecha_renovacion", hoyStr),
+        supabase.from("leads").select("id", { count: "exact", head: true }).eq("temperatura", "caliente").not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)").lt("updated_at", hace7dias),
       ]);
 
       const leads = (leadsRes.data ?? []) as { estado: string; temperatura: string }[];
@@ -142,7 +157,10 @@ export default function DashboardPage() {
         citas_proximas: citasProxRes.count ?? 0,
         clientes_activos: clientesRes.count ?? 0,
         renovaciones_30d: renovRes.count ?? 0,
+        renovaciones_7d: renov7dRes.count ?? 0,
+        renovaciones_vencidas: renovVenRes.count ?? 0,
         acciones_vencidas: (vencidasRes.data ?? []).length,
+        calientes_sin_seguimiento: calSinSeguRes.count ?? 0,
       });
 
       setLoading(false);
@@ -194,6 +212,50 @@ export default function DashboardPage() {
               Ver pipeline
             </a>
           </div>
+        </div>
+      )}
+
+      {/* ── Banner renovaciones urgentes ── */}
+      {(stats!.renovaciones_vencidas > 0 || stats!.renovaciones_7d > 0) && (
+        <div className={`flex items-center gap-3 rounded-xl border px-4 py-3 ${stats!.renovaciones_vencidas > 0 ? "bg-red-50 border-red-200" : "bg-amber-50 border-amber-200"}`}>
+          <span className="text-xl shrink-0">📋</span>
+          <div className="flex-1">
+            {stats!.renovaciones_vencidas > 0 ? (
+              <>
+                <p className="text-sm font-semibold text-red-800">
+                  {stats!.renovaciones_vencidas} póliza{stats!.renovaciones_vencidas > 1 ? "s" : ""} vencida{stats!.renovaciones_vencidas > 1 ? "s" : ""} sin renovar
+                </p>
+                <p className="text-xs text-red-600 mt-0.5">Contacta a estos clientes urgentemente para evitar cancelaciones</p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-amber-800">
+                  {stats!.renovaciones_7d} póliza{stats!.renovaciones_7d > 1 ? "s" : ""} vencen en los próximos 7 días
+                </p>
+                <p className="text-xs text-amber-600 mt-0.5">Prepara las renovaciones antes de que venzan</p>
+              </>
+            )}
+          </div>
+          <Link href="/renovaciones" className="text-xs font-medium px-3 py-1.5 rounded-lg text-white shrink-0"
+            style={{ background: stats!.renovaciones_vencidas > 0 ? "#dc2626" : "#d97706" }}>
+            Ver renovaciones →
+          </Link>
+        </div>
+      )}
+
+      {/* ── Banner coaching: calientes sin seguimiento (solo directores/admin) ── */}
+      {!cargandoPermisos && puede("gestionar_equipo") && stats!.calientes_sin_seguimiento > 0 && (
+        <div className="flex items-center gap-3 rounded-xl border border-orange-200 px-4 py-3" style={{ background: "#fff7ed" }}>
+          <span className="text-xl shrink-0">🔥</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-orange-800">
+              {stats!.calientes_sin_seguimiento} lead{stats!.calientes_sin_seguimiento > 1 ? "s" : ""} caliente{stats!.calientes_sin_seguimiento > 1 ? "s" : ""} sin seguimiento en +7 días
+            </p>
+            <p className="text-xs text-orange-600 mt-0.5">Estos leads de alta intención llevan más de una semana sin contacto — riesgo de enfriamiento</p>
+          </div>
+          <Link href="/coaching" className="text-xs font-medium px-3 py-1.5 rounded-lg text-white shrink-0" style={{ background: "#ea650d" }}>
+            Ver coaching →
+          </Link>
         </div>
       )}
 
@@ -386,11 +448,11 @@ export default function DashboardPage() {
         <h2 className="text-sm font-semibold text-slate-700 mb-3">Accesos rápidos</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <QuickLink href="/leads/nuevo" icon="➕" label="Nuevo lead" sub="Añadir manualmente" highlight />
-          <QuickLink href="/mensajes" icon="💬" label="Mensajes" sub="WhatsApp pendientes" />
+          <QuickLink href="/mensajes" icon="💬" label="Mensajes IA" sub={stats!.mensajes_pendientes > 0 ? `${stats!.mensajes_pendientes} pendientes` : "Sin pendientes"} />
           <QuickLink href="/pipeline" icon="📊" label="Pipeline" sub="Vista Kanban" />
-          <QuickLink href="/ia" icon="✦" label="Asistente IA" sub="Scripts y mensajes" />
-          <QuickLink href="/prospeccion" icon="📥" label="Prospectar" sub="Importar leads" />
-          <QuickLink href="/ajustes" icon="⚙️" label="Ajustes" sub="Plantillas y config" />
+          <QuickLink href="/renovaciones" icon="📋" label="Renovaciones" sub={stats!.renovaciones_30d > 0 ? `${stats!.renovaciones_30d} en 30 días` : "Al día"} />
+          <QuickLink href="/cross-sell" icon="🎯" label="Cross-sell" sub="Ampliar cartera" />
+          <QuickLink href="/importar" icon="📥" label="Importar CSV" sub="Añadir leads en masa" />
         </div>
       </div>
     </div>
