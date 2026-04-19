@@ -126,16 +126,33 @@ function waUrl(tel: string, mensaje: string): string {
 }
 
 function mensajeWA(lead: LeadRow, tipo: "primer_contacto" | "seguimiento" | "recordatorio" | "negociacion"): string {
-  const nombre = lead.nombre;
+  const n = lead.nombre;
+  const emp = lead.empresa ? ` en ${lead.empresa}` : "";
+  const ciu = lead.ciudad || "tu zona";
+  const sec = (lead.sector || "").toLowerCase();
+
+  const esAutonomo = sec.includes("hostel") || sec.includes("restaur") || sec.includes("bar") || sec.includes("taller") || sec.includes("peluq") || sec.includes("belleza") || sec.includes("clinica") || sec.includes("clínica") || sec.includes("medic") || sec.includes("dental");
+  const esInmobiliaria = sec.includes("inmobil");
+  const esAsesoria = sec.includes("asesor") || sec.includes("gestor") || sec.includes("contab");
+
   switch (tipo) {
     case "primer_contacto":
-      return `Hola ${nombre}, soy de Nationale-Nederlanden. ¿Tienes un momento para hablar?`;
+      if (esInmobiliaria)
+        return `Hola ${n}, soy Manuel de Nationale-Nederlanden en ${ciu}. Trabajo con inmobiliarias en acuerdos de derivación hipotecaria — cuando tu cliente necesita hipoteca, vosotros generáis comisión sin trabajo extra. El mes pasado la media fue 900€/operación. ¿15 minutos esta semana?`;
+      if (esAsesoria)
+        return `Hola ${n}, soy Manuel de Nationale-Nederlanden. Muchos de vuestros clientes autónomos no tienen cubierta la baja desde el primer día. Tenemos un seguro desde 5€/mes — ¿os interesaría ofrecerlo como valor añadido? Hablaríamos de comisión.`;
+      if (esAutonomo)
+        return `Hola ${n}, soy Manuel, asesor en ${ciu}. Vi que tienes negocio${emp}. Si un día te pones enfermo y no puedes trabajar, ¿cuánto cobrarías? Contigo Autónomo cubre desde el primer día de baja desde ~5€/mes. ¿Tienes 5 minutos?`;
+      return `Hola ${n}, soy Manuel de Nationale-Nederlanden en ${ciu}. Quería presentarte opciones de protección financiera adaptadas a tu situación${emp}. ¿Tienes 10 minutos esta semana?`;
+
     case "seguimiento":
-      return `Hola ${nombre}, ¿has podido revisar lo que te comenté? Quedo a tu disposición para cualquier duda.`;
+      return `Hola ${n}, soy Manuel de nuevo. ¿Has podido revisar lo que te comenté sobre proteger tus ingresos${emp ? ` en ${lead.empresa}` : ""}? Quedo a tu disposición para cualquier duda o para prepararte una propuesta sin compromiso.`;
+
     case "recordatorio":
-      return `Hola ${nombre}, te escribo de nuevo por si no viste mi mensaje anterior. ¿Tienes un momento?`;
+      return `Hola ${n}, te escribo de nuevo por si no viste mi mensaje anterior. Entiendo que igual no era buen momento — cuando quieras que te cuente cómo funciona, aquí estoy. ¿Hay algún momento mejor para hablar?`;
+
     case "negociacion":
-      return `Hola ${nombre}, ¿has podido pensar en lo que hablamos? Dime si necesitas más información.`;
+      return `Hola ${n}, ¿has podido pensar en lo que hablamos? Si tienes alguna duda sobre coberturas o precio, con gusto te lo aclaro. Mi objetivo es que la solución se adapte exactamente a lo que necesitas.`;
   }
 }
 
