@@ -184,7 +184,11 @@ export default function AjustesPage() {
   const [miNombre, setMiNombre] = useState("");
   const [plantillas, setPlantillas] = useState<PlantillaWA[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [tabActiva, setTabActiva] = useState<"plantillas" | "cuestionario" | "scraping">("plantillas");
+  const [tabActiva, setTabActiva] = useState<"plantillas" | "cuestionario" | "formularios" | "scraping">("plantillas");
+  const [formularios, setFormularios] = useState<{id:string;slug:string;nombre:string;titulo:string;subtitulo:string|null;emoji:string;color_hex:string;pedir_email:boolean;pedir_ciudad:boolean;texto_cta:string;activo:boolean}[]>([]);
+  const [editandoFormId, setEditandoFormId] = useState<string|null>(null);
+  const [fTitulo, setFTitulo] = useState(""); const [fSubtitulo, setFSubtitulo] = useState(""); const [fTextoCta, setFTextoCta] = useState(""); const [fPedirEmail, setFPedirEmail] = useState(false); const [fActivo, setFActivo] = useState(true);
+  const [guardandoForm, setGuardandoForm] = useState(false);
   const [esDirector, setEsDirector] = useState(false);
   const [comercialesLimites, setComerciales] = useState<{id: string; nombre: string; email: string; limite_leads_mes: number; usoMes?: number}[]>([]);
   const [guardandoLimite, setGuardandoLimite] = useState<string | null>(null);
@@ -252,6 +256,11 @@ export default function AjustesPage() {
   }
 
   // ── Load plantillas ─────────────────────────────────────────────────────────
+  async function cargarFormularios() {
+    const { data } = await supabase.from("formularios_captacion").select("id,slug,nombre,titulo,subtitulo,emoji,color_hex,pedir_email,pedir_ciudad,texto_cta,activo").order("created_at");
+    if (data) setFormularios(data as typeof formularios);
+  }
+
   async function cargarPlantillas(cid: string) {
     const { data } = await supabase
       .from("recursos_rapidos")
@@ -268,6 +277,7 @@ export default function AjustesPage() {
     if (miComercialId) {
       cargarPlantillas(miComercialId);
       cargarConfig();
+      cargarFormularios();
     }
   }, [miComercialId]);
 
@@ -435,9 +445,10 @@ export default function AjustesPage() {
       <div className="flex gap-1 mb-6 border-b border-slate-200">
         {(([
           { id: "plantillas",   label: "Plantillas WA" },
-          { id: "cuestionario", label: "Cuestionario de captación" },
+          { id: "formularios",  label: "Formularios de captación" },
+          { id: "cuestionario", label: "Cuestionario" },
           ...(esDirector ? [{ id: "scraping" as const, label: "Límites scraping" }] : []),
-        ]) as { id: "plantillas" | "cuestionario" | "scraping"; label: string }[]).map(t => (
+        ]) as { id: "plantillas" | "cuestionario" | "formularios" | "scraping"; label: string }[]).map(t => (
           <button
             key={t.id}
             onClick={() => setTabActiva(t.id)}
@@ -1190,6 +1201,139 @@ export default function AjustesPage() {
                 })}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Sección formularios de captación ──────────────────────────────── */}
+      {tabActiva === "formularios" && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-base font-semibold text-slate-800">Formularios de captación</h2>
+              <p className="text-sm text-slate-500 mt-0.5">Comparte el enlace en tus anuncios. Cada formulario crea un lead automáticamente.</p>
+            </div>
+          </div>
+
+          {formularios.length === 0 ? (
+            <div className="py-8 text-center text-slate-400 text-sm">Cargando formularios...</div>
+          ) : (
+            <div className="space-y-3">
+              {formularios.map(f => {
+                const url = `${typeof window !== "undefined" ? window.location.origin : ""}/f/${f.slug}`;
+                const editando = editandoFormId === f.id;
+                return (
+                  <div key={f.id} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                    {/* Header */}
+                    <div className="flex items-center gap-3 px-4 py-3 border-b border-slate-100">
+                      <span className="text-xl">{f.emoji}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-slate-800">{f.nombre}</p>
+                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${f.activo ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}>
+                            {f.activo ? "Activo" : "Inactivo"}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-400 truncate">{f.titulo}</p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => { navigator.clipboard.writeText(url); }}
+                          className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                          title="Copiar enlace"
+                        >
+                          📋 Copiar URL
+                        </button>
+                        <a href={url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                          👁 Vista previa
+                        </a>
+                        <button
+                          onClick={() => {
+                            if (editando) { setEditandoFormId(null); return; }
+                            setEditandoFormId(f.id);
+                            setFTitulo(f.titulo); setFSubtitulo(f.subtitulo ?? "");
+                            setFTextoCta(f.texto_cta); setFPedirEmail(f.pedir_email); setFActivo(f.activo);
+                          }}
+                          className="text-xs px-3 py-1.5 rounded-lg transition-colors font-medium"
+                          style={editando ? { background: "#fff5f0", color: "#ea650d", border: "1px solid #f5a677" } : { background: "#f8f7f5", color: "#6b6560", border: "1px solid #e5e7eb" }}
+                        >
+                          {editando ? "Cancelar" : "✏️ Editar"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* URL pública */}
+                    <div className="px-4 py-2 bg-slate-50 flex items-center gap-2">
+                      <span className="text-xs text-slate-400 font-mono truncate flex-1">{url}</span>
+                    </div>
+
+                    {/* Form de edición */}
+                    {editando && (
+                      <div className="px-4 py-4 border-t border-slate-100 space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1 block">Título (mostrado al cliente)</label>
+                            <input value={fTitulo} onChange={e => setFTitulo(e.target.value)}
+                              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300" />
+                          </div>
+                          <div>
+                            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1 block">Subtítulo</label>
+                            <input value={fSubtitulo} onChange={e => setFSubtitulo(e.target.value)}
+                              placeholder="Opcional"
+                              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300" />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1 block">Texto del botón CTA</label>
+                          <input value={fTextoCta} onChange={e => setFTextoCta(e.target.value)}
+                            className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300" />
+                        </div>
+                        <div className="flex items-center gap-6">
+                          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                            <input type="checkbox" checked={fPedirEmail} onChange={e => setFPedirEmail(e.target.checked)} className="rounded" />
+                            Pedir email (opcional)
+                          </label>
+                          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                            <input type="checkbox" checked={fActivo} onChange={e => setFActivo(e.target.checked)} className="rounded" />
+                            Formulario activo
+                          </label>
+                        </div>
+                        <div className="flex justify-end">
+                          <button
+                            disabled={guardandoForm}
+                            onClick={async () => {
+                              setGuardandoForm(true);
+                              await supabase.from("formularios_captacion").update({
+                                titulo: fTitulo, subtitulo: fSubtitulo || null,
+                                texto_cta: fTextoCta, pedir_email: fPedirEmail, activo: fActivo,
+                                updated_at: new Date().toISOString(),
+                              }).eq("id", f.id);
+                              await cargarFormularios();
+                              setEditandoFormId(null);
+                              setGuardandoForm(false);
+                            }}
+                            className="px-4 py-2 text-sm font-semibold text-white rounded-lg disabled:opacity-50"
+                            style={{ background: "#ea650d" }}
+                          >
+                            {guardandoForm ? "Guardando..." : "Guardar cambios"}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+            <p className="font-medium text-slate-700 mb-1">¿Cómo funciona?</p>
+            <ul className="space-y-1 text-xs">
+              <li>1. Copia el enlace del formulario que corresponda al anuncio</li>
+              <li>2. Pégalo en tu ad de Meta, Google o en tu bio de redes</li>
+              <li>3. Cuando alguien rellena el formulario, aparece automáticamente en <strong>/leads</strong> con el origen marcado</li>
+            </ul>
           </div>
         </div>
       )}
