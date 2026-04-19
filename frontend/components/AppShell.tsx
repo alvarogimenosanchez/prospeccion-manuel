@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { PermisosProvider } from "./PermisosProvider";
 import { BusquedaGlobal } from "./BusquedaGlobal";
+import { QuickCreate } from "./QuickCreate";
 
 const PUBLIC_ROUTES = ["/login", "/auth"];
 
@@ -18,6 +19,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <PermisosProvider>
     <BusquedaGlobal />
+    <QuickCreate />
     <div className="flex min-h-screen" style={{ background: "#f1edeb" }}>
       {/* Mobile overlay */}
       {sidebarOpen && (
