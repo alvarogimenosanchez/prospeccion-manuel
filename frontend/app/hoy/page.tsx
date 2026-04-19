@@ -201,6 +201,7 @@ export default function HoyPage() {
   const [guardandoAccion, setGuardandoAccion] = useState<string | null>(null);
   const [citaParaRegistrar, setCitaParaRegistrar] = useState<CitaRow | null>(null);
   const [objetivos, setObjetivos] = useState<{ cierres: number; citas: number; cierresMes: number; citasMes: number } | null>(null);
+  const [renovaciones, setRenovaciones] = useState<{ id: string; nombre: string; empresa: string | null; producto: string | null; fecha_renovacion: string; telefono_whatsapp: string | null; comercial_asignado: string | null }[]>([]);
 
   // ─── Get logged comercial ──────────────────────────────────────────────────
   useEffect(() => {
@@ -389,6 +390,28 @@ export default function HoyPage() {
     }
     cargarTeamPulse();
   }, [cargandoPermisos, puede]);
+
+  // ─── Renovaciones próximas ────────────────────────────────────────────────
+  useEffect(() => {
+    async function cargarRenovaciones() {
+      const hoy = new Date();
+      const en30dias = new Date(hoy.getTime() + 30 * 86_400_000).toISOString().split("T")[0];
+      const hoyStr = hoy.toISOString().split("T")[0];
+
+      let q = supabase.from("clientes")
+        .select("id, nombre, empresa, producto, fecha_renovacion, telefono_whatsapp, comercial_asignado")
+        .gte("fecha_renovacion", hoyStr)
+        .lte("fecha_renovacion", en30dias)
+        .order("fecha_renovacion", { ascending: true })
+        .limit(10);
+
+      if (comercialId) q = q.eq("comercial_asignado", comercialId);
+
+      const { data } = await q;
+      setRenovaciones(data ?? []);
+    }
+    if (comercialCargado) cargarRenovaciones();
+  }, [comercialCargado, comercialId]);
 
   // ─── Actions ──────────────────────────────────────────────────────────────
 
@@ -649,6 +672,45 @@ export default function HoyPage() {
                         <span className="text-xs text-slate-400">Al día ✓</span>
                       )}
                     </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Renovaciones próximas ── */}
+        {renovaciones.length > 0 && (
+          <div className="rounded-xl border border-blue-200 bg-blue-50/50 overflow-hidden">
+            <div className="px-4 py-3 border-b border-blue-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-base">🔄</span>
+                <h2 className="text-sm font-semibold text-blue-800">Renovaciones en los próximos 30 días</h2>
+              </div>
+              <Link href="/clientes" className="text-xs text-blue-400 hover:text-blue-600 transition-colors">Ver todos →</Link>
+            </div>
+            <div className="divide-y divide-blue-100">
+              {renovaciones.map(r => {
+                const diasParaRenovar = Math.round((new Date(r.fecha_renovacion).getTime() - Date.now()) / 86_400_000);
+                const urgente = diasParaRenovar <= 7;
+                const telLimpio = r.telefono_whatsapp?.replace(/\D/g, "");
+                const waLink = telLimpio ? `https://wa.me/${telLimpio}?text=${encodeURIComponent(`Hola ${r.nombre}, soy Manuel de Nationale-Nederlanden. Tu seguro ${r.producto ?? ""} vence en ${diasParaRenovar} días. Quería asegurarme de que mantienes tu cobertura sin interrupción. ¿Podemos hablar un momento?`)}` : null;
+                return (
+                  <div key={r.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${urgente ? "bg-red-500" : "bg-amber-400"}`} />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-slate-800 truncate">{r.nombre}{r.empresa ? ` · ${r.empresa}` : ""}</p>
+                      <p className="text-xs text-slate-400">{r.producto ?? "Seguro"} · vence {new Date(r.fecha_renovacion).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}</p>
+                    </div>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold shrink-0 ${urgente ? "bg-red-100 text-red-700" : "bg-amber-100 text-amber-700"}`}>
+                      {diasParaRenovar === 0 ? "¡Hoy!" : `${diasParaRenovar}d`}
+                    </span>
+                    {waLink && (
+                      <a href={waLink} target="_blank" rel="noopener noreferrer"
+                        className="text-xs font-medium px-2 py-1 rounded-lg bg-green-100 text-green-700 hover:bg-green-200 transition-colors shrink-0">
+                        WA
+                      </a>
+                    )}
                   </div>
                 );
               })}
