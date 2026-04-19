@@ -62,6 +62,7 @@ export default function IAPage() {
   const [resultadosBusqueda, setResultadosBusqueda] = useState<LeadBasico[]>([]);
   const [buscandoLead, setBuscandoLead] = useState(false);
   const [copiadoIdx, setCopiadoIdx] = useState<number | null>(null);
+  const [guardadoIdx, setGuardadoIdx] = useState<number | null>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -69,6 +70,18 @@ export default function IAPage() {
     navigator.clipboard.writeText(content);
     setCopiadoIdx(idx);
     setTimeout(() => setCopiadoIdx(null), 2000);
+  }
+
+  async function guardarComoNota(content: string, idx: number) {
+    if (!leadContexto) return;
+    await supabase.from("interactions").insert({
+      lead_id: leadContexto.id,
+      tipo: "nota_manual",
+      mensaje: `🤖 IA: ${content}`,
+      origen: "bot",
+    });
+    setGuardadoIdx(idx);
+    setTimeout(() => setGuardadoIdx(null), 2500);
   }
 
   // Auto-scroll al último mensaje
@@ -277,17 +290,25 @@ export default function IAPage() {
                   <div className="flex items-center gap-2 pl-1">
                     <button
                       onClick={() => copiarMensaje(m.content, i)}
-                      className="text-xs text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1"
+                      className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
                     >
                       {copiadoIdx === i ? "✓ Copiado" : "Copiar"}
                     </button>
                     <button
                       onClick={() => setInput(m.content)}
                       className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
-                      title="Editar en el input"
                     >
                       Editar
                     </button>
+                    {leadContexto && (
+                      <button
+                        onClick={() => guardarComoNota(m.content, i)}
+                        className="text-xs font-medium transition-colors"
+                        style={{ color: guardadoIdx === i ? "#16a34a" : "#ea650d" }}
+                      >
+                        {guardadoIdx === i ? "✓ Guardado en lead" : "Guardar como nota →"}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
