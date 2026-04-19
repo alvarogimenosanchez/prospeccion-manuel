@@ -79,6 +79,8 @@ export default function DesempenoPage() {
   const [filtroRol, setFiltroRol] = useState<"todos" | "admin" | "director" | "manager" | "comercial">("todos");
   const [equipos, setEquipos] = useState<{ id: string; nombre: string }[]>([]);
   const [teamMembers, setTeamMembers] = useState<{ comercial_id: string; team_id: string }[]>([]);
+  const [mostrarResumen, setMostrarResumen] = useState(false);
+  const [textoCopied, setTextoCopied] = useState(false);
 
   useEffect(() => {
     supabase.from("teams").select("id, nombre").eq("activo", true).order("nombre")
@@ -381,6 +383,46 @@ export default function DesempenoPage() {
   const todosEnCeroFiltrado = statsFiltrados.every(s => s.cerradosGanados === 0);
   if (!cargandoPermisos && !puede("ver_metricas")) return <SinAcceso />;
 
+  function generarTextoResumen(): string {
+    const fecha = new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    const periodoLabel = periodo === "semana" ? "última semana" : periodo === "mes" ? "este mes" : "todo el periodo";
+    const totalCierres = statsFiltrados.reduce((s, x) => s + x.cerradosGanados, 0);
+    const totalCitas = statsFiltrados.reduce((s, x) => s + x.citasAgendadas, 0);
+    const totalLeads = statsFiltrados.reduce((s, x) => s + x.totalLeads, 0);
+    const totalActivos = statsFiltrados.reduce((s, x) => s + (x.totalLeads - x.cerradosGanados), 0);
+
+    const lineas = [
+      `📊 Resumen de desempeño — ${fecha}`,
+      `Período: ${periodoLabel}`,
+      ``,
+      `🏆 Resultados del equipo`,
+      `• Cierres totales: ${totalCierres}`,
+      `• Citas realizadas: ${totalCitas}`,
+      `• Leads activos: ${totalActivos} de ${totalLeads} total`,
+      ``,
+      `👥 Por comercial:`,
+      ...statsFiltrados
+        .sort((a, b) => b.cerradosGanados - a.cerradosGanados)
+        .map(s => {
+          const nombre = [s.comercial.nombre, s.comercial.apellidos].filter(Boolean).join(" ");
+          const obj = s.objetivoCierres > 0 ? ` (obj: ${s.objetivoCierres})` : "";
+          const alerta = vaAtrasado(s.cerradosGanados, s.objetivoCierres) ? " ⚠️" : "";
+          return `• ${nombre}: ${s.cerradosGanados} cierres${obj}${alerta}, ${s.citasAgendadas} citas, ${s.totalLeads} leads`;
+        }),
+      ``,
+      `⚠️ Alertas: ${alertas.length} lead${alertas.length !== 1 ? "s" : ""} requieren atención inmediata`,
+      ``,
+      `Generado desde CRM NN España`,
+    ];
+    return lineas.join("\n");
+  }
+
+  async function copiarResumen() {
+    await navigator.clipboard.writeText(generarTextoResumen());
+    setTextoCopied(true);
+    setTimeout(() => setTextoCopied(false), 2000);
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -407,6 +449,12 @@ export default function DesempenoPage() {
               </button>
             ))}
           </div>
+          <button
+            onClick={() => setMostrarResumen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-200 text-slate-600 hover:border-orange-300 hover:bg-orange-50 transition-colors"
+          >
+            📋 Resumen
+          </button>
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
             {(["semana", "mes", "todo"] as const).map(p => (
               <button key={p} onClick={() => setPeriodo(p)}
@@ -663,6 +711,37 @@ export default function DesempenoPage() {
             </section>
           )}
         </>
+      )}
+
+      {/* Modal resumen */}
+      {mostrarResumen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center px-4"
+          style={{ background: "rgba(15,23,42,0.5)" }}
+          onClick={e => { if (e.target === e.currentTarget) setMostrarResumen(false); }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <h2 className="text-base font-semibold text-slate-800">Resumen de desempeño</h2>
+              <button onClick={() => setMostrarResumen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            <div className="px-5 py-4">
+              <pre className="text-xs text-slate-700 bg-slate-50 rounded-lg p-4 whitespace-pre-wrap font-mono leading-relaxed max-h-80 overflow-y-auto border border-slate-200">
+                {generarTextoResumen()}
+              </pre>
+            </div>
+            <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-between gap-3">
+              <p className="text-xs text-slate-400">Listo para copiar y pegar en WhatsApp, email o Slack</p>
+              <button
+                onClick={copiarResumen}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+                style={{ background: textoCopied ? "#16a34a" : "#ea650d" }}
+              >
+                {textoCopied ? "✓ Copiado" : "📋 Copiar"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
