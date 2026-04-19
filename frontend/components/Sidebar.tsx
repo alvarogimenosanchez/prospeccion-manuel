@@ -107,7 +107,8 @@ const NAV_GROUPS = [
   {
     label: "Dirección",
     items: [
-      { href: "/resumen",            label: "Resumen",     icon: "clipboard", permiso: "ver_metricas" },
+      { href: "/mando",               label: "Centro mando", icon: "sparkle",   permiso: "ver_metricas" },
+      { href: "/resumen",            label: "Resumen",      icon: "clipboard", permiso: "ver_metricas" },
       { href: "/comisiones",        label: "Comisiones",  icon: "trending",  permiso: "ver_metricas" },
       { href: "/ingresos",          label: "Ingresos",    icon: "chart",    permiso: "ver_metricas" },
       { href: "/forecast",          label: "Forecast",    icon: "trending", permiso: "ver_metricas" },
