@@ -91,6 +91,7 @@ const NAV_GROUPS = [
       { href: "/ingresos",   label: "Ingresos",   icon: "chart",     permiso: "ver_metricas" },
       { href: "/recuperar",  label: "Recuperar",  icon: "target",    permiso: "asignar_leads" },
       { href: "/exportar",   label: "Exportar",   icon: "download",  permiso: "exportar_datos" },
+      { href: "/objetivos",  label: "Objetivos",  icon: "target",    permiso: "ver_metricas" },
       { href: "/equipos",    label: "Equipos",    icon: "team",      permiso: "gestionar_equipo" },
       { href: "/ajustes",    label: "Ajustes",    icon: "settings",  permiso: "gestionar_ajustes" },
       { href: "/reportes",   label: "Reportes",   icon: "flag",      permiso: "ver_reportes" },
