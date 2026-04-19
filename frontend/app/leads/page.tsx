@@ -38,6 +38,7 @@ function LeadsContent() {
   const [estado,       setEstado      ] = useState<EstadoFiltro>((searchParams.get("estado") as EstadoFiltro) ?? "");
   const [soloMios,     setSoloMios    ] = useState(true);
   const [temperatura,  setTemperatura ] = useState(searchParams.get("temperatura") ?? "");
+  const [fuente,       setFuente      ] = useState(searchParams.get("fuente") ?? "");
 
   // ── Comercial del usuario logueado ────────────────────────────────────────
   const [comercialId, setComercialId] = useState<string | null>(null);
@@ -97,6 +98,7 @@ function LeadsContent() {
     if (estado)      query = query.eq("estado",      estado);
     if (teamId)      query = query.eq("team_id",     teamId);
     if (temperatura) query = query.eq("temperatura", temperatura);
+    if (fuente)      query = query.eq("fuente",      fuente);
 
     // "Mis leads": filtrar por comercial asignado
     if (soloMios && comercialId) {
@@ -122,7 +124,7 @@ function LeadsContent() {
     setOffset(nuevoOffset);
     setHayMas(nuevoOffset + PAGE_SIZE < totalCount);
     setLoading(false);
-  }, [prioridad, busqueda, estado, soloMios, comercialId, comercialCargado, teamId, temperatura]);
+  }, [prioridad, busqueda, estado, soloMios, comercialId, comercialCargado, teamId, temperatura, fuente]);
 
   // Reset y recargar cuando cambian los filtros
   useEffect(() => {
@@ -209,12 +211,14 @@ function LeadsContent() {
           soloMios={soloMios}
           teamId={teamId}
           temperatura={temperatura}
+          fuente={fuente}
           onPrioridad={(v)    => setPrioridad(v)}
           onBusqueda={(v)     => setBusqueda(v)}
           onEstado={(v)       => setEstado(v)}
           onSoloMios={(v)     => setSoloMios(v)}
           onTeam={(v)         => setTeamId(v)}
           onTemperatura={(v)  => setTemperatura(v)}
+          onFuente={(v)       => setFuente(v)}
         />
       </div>
 

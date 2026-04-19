@@ -22,12 +22,14 @@ type FiltrosBarProps = {
   soloMios: boolean;
   teamId?: string;
   temperatura?: string;
+  fuente?: string;
   onPrioridad: (v: string) => void;
   onBusqueda: (v: string) => void;
   onEstado: (v: EstadoFiltro) => void;
   onSoloMios: (v: boolean) => void;
   onTeam?: (v: string) => void;
   onTemperatura?: (v: string) => void;
+  onFuente?: (v: string) => void;
 };
 
 const ESTADO_BTNS: { value: EstadoFiltro; label: string }[] = [
@@ -64,12 +66,14 @@ export function FiltrosBar({
   soloMios,
   teamId = "",
   temperatura = "",
+  fuente = "",
   onPrioridad,
   onBusqueda,
   onEstado,
   onSoloMios,
   onTeam,
   onTemperatura,
+  onFuente,
 }: FiltrosBarProps) {
   const [teams, setTeams] = useState<{ id: string; nombre: string }[]>([]);
 
@@ -127,6 +131,22 @@ export function FiltrosBar({
                 {t.nombre}
               </option>
             ))}
+          </select>
+        )}
+
+        {onFuente && (
+          <select
+            value={fuente}
+            onChange={(e) => onFuente(e.target.value)}
+            className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:border-slate-400 text-slate-600"
+          >
+            <option value="">Todas las fuentes</option>
+            <option value="formulario_web">Formularios</option>
+            <option value="scraping">Web (scraping)</option>
+            <option value="linkedin">LinkedIn</option>
+            <option value="inbound">Inbound</option>
+            <option value="referido">Referido</option>
+            <option value="manual">Manual</option>
           </select>
         )}
 

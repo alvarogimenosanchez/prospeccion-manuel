@@ -124,7 +124,7 @@ export default function DashboardPage() {
 
       const inicioSemana = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - hoy.getDay()).toISOString();
       const { count: cuestionariosCount } = await supabase.from("leads").select("id", { count: "exact", head: true })
-        .eq("fuente_detalle", "formulario_captacion").gte("fecha_captacion", inicioSemana);
+        .eq("fuente", "formulario_web").gte("fecha_captacion", inicioSemana);
       setCuestionariosSemana(cuestionariosCount ?? 0);
 
       sinAtencion = (urgentesRes.data ?? []).length;
@@ -359,23 +359,23 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Cuestionario */}
+        {/* Formularios */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-slate-700">Cuestionario</h2>
-            <Link href="/cuestionario" className="text-xs hover:underline" style={{ color: "#ea650d" }}>Ver resultados →</Link>
+            <h2 className="text-sm font-semibold text-slate-700">Formularios</h2>
+            <Link href="/ajustes?tab=formularios" className="text-xs hover:underline" style={{ color: "#ea650d" }}>Gestionar →</Link>
           </div>
           <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-600">Esta semana</span>
+              <span className="text-sm text-slate-600">Leads esta semana</span>
               <span className={`text-sm font-bold ${cuestionariosSemana > 0 ? "" : "text-slate-400"}`}
                 style={cuestionariosSemana > 0 ? { color: "#ea650d" } : undefined}>
                 {cuestionariosSemana}
               </span>
             </div>
-            <Link href="/captacion" target="_blank" className="block text-center text-xs rounded-lg py-2 border transition-colors hover:bg-slate-50"
+            <Link href="/leads?fuente=formulario_web" className="block text-center text-xs rounded-lg py-2 border transition-colors hover:bg-slate-50"
               style={{ borderColor: "#e5ded9", color: "#6b6560" }}>
-              🔗 Abrir formulario público
+              📋 Ver leads de formularios
             </Link>
           </div>
         </div>
@@ -388,7 +388,7 @@ export default function DashboardPage() {
           <QuickLink href="/leads/nuevo" icon="➕" label="Nuevo lead" sub="Añadir manualmente" highlight />
           <QuickLink href="/mensajes" icon="💬" label="Mensajes" sub="WhatsApp pendientes" />
           <QuickLink href="/pipeline" icon="📊" label="Pipeline" sub="Vista Kanban" />
-          <QuickLink href="/cuestionario" icon="📋" label="Cuestionario" sub="Leads del formulario" />
+          <QuickLink href="/ajustes?tab=formularios" icon="📋" label="Formularios" sub="Captación por anuncios" />
           <QuickLink href="/prospeccion" icon="📥" label="Prospectar" sub="Importar leads" />
           <QuickLink href="/ajustes" icon="⚙️" label="Ajustes" sub="Plantillas y config" />
         </div>
