@@ -303,6 +303,14 @@ export default function LeadDetailPage() {
   const [stateHistory, setStateHistory] = useState<{ id: string; estado_anterior: string; estado_nuevo: string; created_at: string }[]>([]);
   const [generandoMensajeIA, setGenerandoMensajeIA] = useState(false);
 
+  // Asistente IA en ficha de lead
+  const [mensajesIA, setMensajesIA] = useState<{ role: "user" | "assistant"; content: string }[]>([]);
+  const [inputIA, setInputIA] = useState("");
+  const [cargandoIA, setCargandoIA] = useState(false);
+  const [iaExpandida, setIaExpandida] = useState(true);
+  const [guardandoNotaIA, setGuardandoNotaIA] = useState<number | null>(null);
+  const chatIARef = useRef<HTMLDivElement>(null);
+
   const cargarComerciales = useCallback(async () => {
     const { data } = await supabase.from("comerciales").select("id, nombre, apellidos").eq("activo", true).order("nombre");
     setComerciales((data as { id: string; nombre: string; apellidos: string | null }[]) ?? []);
@@ -769,6 +777,48 @@ export default function LeadDetailPage() {
     await navigator.clipboard.writeText(mensajeWhatsapp);
     setCopiado(true);
     setTimeout(() => setCopiado(false), 2000);
+  }
+
+  async function enviarIA(textoOverride?: string) {
+    const texto = textoOverride ?? inputIA.trim();
+    if (!texto || cargandoIA) return;
+    const nuevosMensajes = [...mensajesIA, { role: "user" as const, content: texto }];
+    setMensajesIA(nuevosMensajes);
+    setInputIA("");
+    setCargandoIA(true);
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://prospeccion-manuel-production.up.railway.app";
+      const res = await fetch(`${API_URL}/ia/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: nuevosMensajes, lead_id: lead?.id }),
+      });
+      const data = await res.json();
+      setMensajesIA(prev => [...prev, { role: "assistant" as const, content: data.respuesta }]);
+      setTimeout(() => chatIARef.current?.scrollTo({ top: chatIARef.current.scrollHeight, behavior: "smooth" }), 50);
+    } catch {
+      setMensajesIA(prev => [...prev, { role: "assistant" as const, content: "Error al conectar con el asistente. Inténtalo de nuevo." }]);
+    } finally {
+      setCargandoIA(false);
+    }
+  }
+
+  async function guardarNotaIA(contenido: string, idx: number) {
+    if (!lead) return;
+    setGuardandoNotaIA(idx);
+    try {
+      const { data } = await supabase.from("interactions").insert({
+        lead_id: lead.id,
+        tipo: "nota_manual",
+        mensaje: `🤖 IA: ${contenido}`,
+        origen: "bot",
+      }).select().single();
+      if (data) {
+        setInteractions(prev => [...prev, data as Interaction]);
+      }
+    } finally {
+      setGuardandoNotaIA(null);
+    }
   }
 
   const RESULTADOS_CITA_LEAD = [
@@ -1788,6 +1838,77 @@ export default function LeadDetailPage() {
               )}
             </div>
           )}
+
+          {/* Asistente IA */}
+          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-800">Asistente IA</h2>
+              <button onClick={() => setIaExpandida(v => !v)} className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
+                {iaExpandida ? "Colapsar ▲" : "Expandir ▼"}
+              </button>
+            </div>
+            {iaExpandida && (
+              <div className="p-4 space-y-3">
+                {/* Botones rápidos */}
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: "¿Cómo abordar?", prompt: `Este lead es ${lead?.nombre ?? ""} ${lead?.apellidos ?? ""}${lead?.tipo_lead ? `, ${lead.tipo_lead}` : ""}${lead?.sector ? ` del sector ${lead.sector}` : ""}${lead?.ciudad ? ` en ${lead.ciudad}` : ""}. Nivel de interés: ${lead?.nivel_interes ?? "?"}/10. Estado: ${lead?.estado ?? ""}. ¿Cómo debería abordarle?` },
+                    { label: "Mensaje WA", prompt: `Genera un mensaje WhatsApp inicial para ${lead?.nombre ?? ""}${lead?.empresa ? ` de ${lead.empresa}` : ""}${lead?.tipo_lead ? `, ${lead.tipo_lead}` : ""}${lead?.sector ? ` del sector ${lead.sector}` : ""}${lead?.ciudad ? ` en ${lead.ciudad}` : ""}. Producto más relevante: ${lead?.producto_interes_principal ?? (lead?.productos_recomendados?.[0] ?? "Contigo Autónomo")}.` },
+                    { label: "Script llamada", prompt: `Prepara un script de llamada para ${lead?.nombre ?? ""}${lead?.empresa ? ` de ${lead.empresa}` : ""}${lead?.tipo_lead ? `, ${lead.tipo_lead}` : ""}${lead?.sector ? ` del sector ${lead.sector}` : ""}. Producto: ${lead?.producto_interes_principal ?? (lead?.productos_recomendados?.[0] ?? "Contigo Autónomo")}.` },
+                    { label: "Objeciones", prompt: `Para un${lead?.tipo_lead ? ` ${lead.tipo_lead}` : " lead"} del sector ${lead?.sector ?? "general"}, ¿cuáles son las objeciones más comunes y cómo responderlas?` },
+                  ].map(btn => (
+                    <button key={btn.label} onClick={() => enviarIA(btn.prompt)}
+                      className="text-xs px-2.5 py-1 rounded-full border border-slate-200 text-slate-600 hover:border-orange-300 hover:text-orange-600 transition-colors">
+                      {btn.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Mensajes */}
+                <div ref={chatIARef} className="max-h-72 overflow-y-auto space-y-2">
+                  {mensajesIA.length === 0 && (
+                    <p className="text-xs text-slate-400 text-center py-4">Pregúntame sobre este lead o usa los botones rápidos.</p>
+                  )}
+                  {mensajesIA.map((m, i) => (
+                    <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                      <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-wrap ${m.role === "user" ? "text-white" : "bg-slate-50 border border-slate-100 text-slate-700"}`}
+                        style={m.role === "user" ? { background: "#c2530b" } : undefined}>
+                        {m.content}
+                        {m.role === "assistant" && (
+                          <button onClick={() => guardarNotaIA(m.content, i)}
+                            disabled={guardandoNotaIA === i}
+                            className="mt-1.5 block text-xs text-slate-400 hover:text-orange-600 transition-colors">
+                            {guardandoNotaIA === i ? "Guardando…" : "💾 Guardar como nota"}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {cargandoIA && (
+                    <div className="flex justify-start">
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl px-3 py-2">
+                        <span className="flex gap-1">{[0,1,2].map(i => <span key={i} className="w-1.5 h-1.5 rounded-full bg-slate-300 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />)}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Input */}
+                <div className="flex gap-2">
+                  <textarea value={inputIA} onChange={e => setInputIA(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviarIA(); } }}
+                    placeholder="Escribe tu pregunta…"
+                    rows={2}
+                    className="flex-1 resize-none text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300 focus:ring-1 focus:ring-orange-200" />
+                  <button onClick={() => enviarIA()} disabled={!inputIA.trim() || cargandoIA}
+                    className="px-3 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-40 transition-colors"
+                    style={{ background: "#c2530b" }}>
+                    Enviar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Historial de interacciones */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">

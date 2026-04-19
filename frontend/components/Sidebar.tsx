@@ -53,6 +53,7 @@ const NAV_GROUPS = [
     label: "Comunicación",
     items: [
       { href: "/mensajes",           label: "Mensajes WA",     icon: "message"   },
+      { href: "/ia",                 label: "Asistente IA",    icon: "chat"      },
       { href: "/mensajes-internos",  label: "Chat interno",    icon: "chat"      },
       { href: "/agenda",             label: "Agenda",          icon: "calendar"  },
       { href: "/recursos",           label: "Acceso rápido",   icon: "bookmark"  },

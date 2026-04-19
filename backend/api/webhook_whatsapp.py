@@ -27,6 +27,7 @@ from agents.agent1_scraper import ejecutar_campana
 from agents.agent2_seguimiento import ejecutar_seguimiento, obtener_resumen_pendientes, _verificar_renovaciones_clientes
 from agents.agent4_linkedin import enriquecer_leads_sin_nombre
 from agents.agent3_mensajes import generar_mensajes_lote, aprobar_mensaje, descartar_mensaje, generar_mensaje_whatsapp
+from agents.agent7_asistente import responder_asistente
 
 load_dotenv()
 
@@ -454,6 +455,32 @@ async def get_dashboard_resumen():
         "citas_hoy": citas_hoy.count,
         "sin_atencion_urgente": sin_atencion.data or []
     }
+
+
+# ============================================================
+# IA ASISTENTE INTERNO — Agente 7
+# ============================================================
+
+class ChatIARequest(BaseModel):
+    messages: List[dict]
+    lead_id: Optional[str] = None
+
+@app.post("/ia/chat")
+async def chat_ia(payload: ChatIARequest):
+    """
+    Chat libre con el asistente IA para uso interno del equipo comercial.
+    Si se provee lead_id, la IA recibe el contexto completo del lead.
+    El historial multi-turno lo gestiona el frontend (stateless).
+    """
+    lead = None
+    if payload.lead_id:
+        try:
+            result = supabase.table("leads").select("*").eq("id", payload.lead_id).single().execute()
+            lead = result.data
+        except Exception as e:
+            logging.warning(f"No se pudo cargar lead {payload.lead_id}: {e}")
+    respuesta = responder_asistente(payload.messages, lead)
+    return {"respuesta": respuesta}
 
 
 # ============================================================
