@@ -156,6 +156,40 @@ function LeadsContent() {
     cargarLeads(offset + PAGE_SIZE);
   }
 
+  function exportarCSV() {
+    const cols = [
+      "Nombre", "Apellidos", "Empresa", "Sector", "Ciudad",
+      "WhatsApp", "Teléfono", "Email", "Estado", "Prioridad",
+      "Nivel interés", "Temperatura", "Fuente", "Fecha creación",
+    ];
+    const rows = leads.map(l => [
+      l.nombre ?? "",
+      l.apellidos ?? "",
+      l.empresa ?? "",
+      l.sector ?? "",
+      l.ciudad ?? "",
+      l.telefono_whatsapp ?? "",
+      l.telefono ?? "",
+      l.email ?? "",
+      l.estado ?? "",
+      l.prioridad ?? "",
+      String(l.nivel_interes ?? ""),
+      l.temperatura ?? "",
+      l.fuente ?? "",
+      l.created_at ? new Date(l.created_at).toLocaleDateString("es-ES") : "",
+    ]);
+    const csv = [cols, ...rows]
+      .map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `leads-${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   // Calcular texto de resumen
   const sinFiltros = !prioridad && !estado && !teamId && !temperatura;
   const labelFiltrado = [
@@ -192,6 +226,15 @@ function LeadsContent() {
             <option value="interes_bajo">Menor interés</option>
             <option value="prioridad_alta">Prioridad</option>
           </select>
+          {leads.length > 0 && (
+            <button
+              onClick={exportarCSV}
+              className="text-sm text-slate-500 hover:text-slate-800 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
+              title="Exportar leads a CSV"
+            >
+              ↓ CSV
+            </button>
+          )}
           <button
             onClick={() => cargarLeads(0)}
             className="text-sm text-slate-500 hover:text-slate-800 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors"
