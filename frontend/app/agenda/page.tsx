@@ -296,11 +296,11 @@ export default function AgendaPage() {
   }, [nuevaCitaLeadQuery, supabase]);
 
   async function guardarNuevaCita() {
-    if (!nuevaCitaLeadSel || !nuevaCitaFecha) { setNuevaCitaError("Selecciona un lead y una fecha."); return; }
+    if (!nuevaCitaFecha) { setNuevaCitaError("Selecciona la fecha y hora de la cita."); return; }
     setGuardandoNuevaCita(true);
     setNuevaCitaError("");
-    const { data } = await supabase.from("appointments").insert({
-      lead_id: nuevaCitaLeadSel.id,
+    const { data, error } = await supabase.from("appointments").insert({
+      lead_id: nuevaCitaLeadSel?.id ?? null,
       tipo: nuevaCitaTipo,
       estado: "confirmada",
       fecha_hora: new Date(nuevaCitaFecha).toISOString(),
@@ -308,15 +308,21 @@ export default function AgendaPage() {
       notas_previas: nuevaCitaNotas || null,
       comercial_id: nuevaCitaComercial || null,
     }).select(`*, lead:leads(nombre, apellidos, empresa, telefono_whatsapp, temperatura), comercial:comerciales(nombre, apellidos)`).single();
+    if (error) {
+      setNuevaCitaError("Error al guardar la cita. Inténtalo de nuevo.");
+      setGuardandoNuevaCita(false);
+      return;
+    }
     if (data) {
       setCitas(prev => [...prev, data as CitaConLead].sort((a, b) => a.fecha_hora.localeCompare(b.fecha_hora)));
-      // Log interaction
-      await supabase.from("interactions").insert({
-        lead_id: nuevaCitaLeadSel.id, tipo: "nota_manual",
-        mensaje: `📅 Cita agendada: ${nuevaCitaTipo === "llamada" ? "Llamada" : nuevaCitaTipo === "videollamada" ? "Videollamada" : "Reunión presencial"} · ${format(new Date(nuevaCitaFecha), "d MMM HH:mm", { locale: es })}`,
-        origen: "comercial",
-      });
-      await supabase.from("leads").update({ estado: "cita_agendada", temperatura: "caliente", updated_at: new Date().toISOString() }).eq("id", nuevaCitaLeadSel.id);
+      if (nuevaCitaLeadSel) {
+        await supabase.from("interactions").insert({
+          lead_id: nuevaCitaLeadSel.id, tipo: "nota_manual",
+          mensaje: `📅 Cita agendada: ${nuevaCitaTipo === "llamada" ? "Llamada" : nuevaCitaTipo === "videollamada" ? "Videollamada" : "Reunión presencial"} · ${format(new Date(nuevaCitaFecha), "d MMM HH:mm", { locale: es })}`,
+          origen: "comercial",
+        });
+        await supabase.from("leads").update({ estado: "cita_agendada", temperatura: "caliente", updated_at: new Date().toISOString() }).eq("id", nuevaCitaLeadSel.id);
+      }
     }
     setModalNuevaCita(false);
     setNuevaCitaLeadQuery(""); setNuevaCitaLeadSel(null); setNuevaCitaFecha("");
@@ -348,7 +354,9 @@ export default function AgendaPage() {
             <div className="p-6 space-y-4">
               {/* Lead search */}
               <div>
-                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">Lead</label>
+                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5 block">
+                  Lead <span className="font-normal text-slate-400 normal-case">(opcional)</span>
+                </label>
                 {nuevaCitaLeadSel ? (
                   <div className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
                     <div>
@@ -360,8 +368,11 @@ export default function AgendaPage() {
                 ) : (
                   <div className="relative">
                     <input value={nuevaCitaLeadQuery} onChange={e => setNuevaCitaLeadQuery(e.target.value)}
-                      placeholder="Buscar por nombre o empresa..."
+                      placeholder="Escribe para buscar entre tus leads..."
                       className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300" />
+                    {nuevaCitaLeadQuery.trim().length >= 2 && nuevaCitaLeadResultados.length === 0 && (
+                      <p className="text-xs text-slate-400 mt-1.5 pl-1">No se encontraron leads con ese nombre. Puedes agendar sin lead.</p>
+                    )}
                     {nuevaCitaLeadResultados.length > 0 && (
                       <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-10 overflow-hidden">
                         {nuevaCitaLeadResultados.map(l => (
@@ -429,7 +440,7 @@ export default function AgendaPage() {
               {nuevaCitaError && <p className="text-xs text-red-500">{nuevaCitaError}</p>}
             </div>
             <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
-              <button onClick={guardarNuevaCita} disabled={guardandoNuevaCita || !nuevaCitaLeadSel || !nuevaCitaFecha}
+              <button onClick={guardarNuevaCita} disabled={guardandoNuevaCita || !nuevaCitaFecha}
                 className="flex-1 py-2.5 text-white text-sm font-semibold rounded-xl disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}>
                 {guardandoNuevaCita ? "Guardando..." : "Agendar cita"}
               </button>
