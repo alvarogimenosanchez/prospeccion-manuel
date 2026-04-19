@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { usePermisos } from "@/components/PermisosProvider";
 
 const SECTORES_SUGERIDOS = [
   "Hostelería", "Restauración", "Inmobiliaria", "Asesoría", "Gestoría",
@@ -45,9 +46,12 @@ const PRODUCTOS = [
 
 export default function NuevoLeadPage() {
   const router = useRouter();
+  const { puede, cargando: cargandoPermisos } = usePermisos();
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
   const [duplicado, setDuplicado] = useState<{ id: string; nombre: string } | null>(null);
+  const [comercialesLista, setComercialLista] = useState<{ id: string; nombre: string }[]>([]);
+  const [asignarA, setAsignarA] = useState<string>("");
 
   const [form, setForm] = useState({
     nombre: "",
@@ -66,6 +70,13 @@ export default function NuevoLeadPage() {
   });
 
   const productoSugerido = sugerirProducto(form.sector, form.tipo_lead);
+
+  useEffect(() => {
+    if (!cargandoPermisos && puede("asignar_leads")) {
+      supabase.from("comerciales").select("id, nombre").eq("activo", true).order("nombre")
+        .then(({ data }) => setComercialLista(data ?? []));
+    }
+  }, [cargandoPermisos, puede]);
 
   function set(field: string, value: string) {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -93,10 +104,10 @@ export default function NuevoLeadPage() {
     setGuardando(true);
     setError("");
 
-    // Obtener comercial del usuario logueado para auto-asignar
+    // Obtener comercial del usuario logueado para auto-asignar (o usar el seleccionado)
     const { data: { user } } = await supabase.auth.getUser();
-    let comercialId: string | null = null;
-    if (user?.email) {
+    let comercialId: string | null = asignarA || null;
+    if (!comercialId && user?.email) {
       const { data } = await supabase
         .from("comerciales")
         .select("id")
@@ -304,6 +315,21 @@ export default function NuevoLeadPage() {
                 className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg resize-none focus:outline-none focus:border-orange-300"
               />
             </div>
+            {!cargandoPermisos && puede("asignar_leads") && comercialesLista.length > 0 && (
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Asignar a comercial</label>
+                <select
+                  value={asignarA}
+                  onChange={e => setAsignarA(e.target.value)}
+                  className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:border-orange-300 bg-white"
+                >
+                  <option value="">Auto (mi cuenta)</option>
+                  {comercialesLista.map(c => (
+                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         </div>
 
