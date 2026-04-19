@@ -174,6 +174,39 @@ def score_lead(
     )
 
 
+def score_desde_cuestionario(lead_data: dict) -> int:
+    """
+    Puntos de scoring adicionales basados en datos del cuestionario de captación.
+    Se suma al resultado de score_lead() para leads con fuente 'inbound'.
+    """
+    puntos = 0
+    tipo_lead = lead_data.get("tipo_lead")
+    tiene_hijos = lead_data.get("tiene_hijos")
+    tiene_hipoteca = lead_data.get("tiene_hipoteca")
+    fuente = lead_data.get("fuente")
+    notas = lead_data.get("notas") or ""
+
+    # Lead vino a nosotros (inbound) → intención alta por definición
+    if fuente == "inbound":
+        puntos += 3
+
+    # Autónomo con hijos → necesidad doble (cobertura profesional + familiar)
+    if tipo_lead == "autonomo" and tiene_hijos:
+        puntos += 4
+
+    # Hipoteca → necesidad clara de MiHogar o seguro de vida
+    if tiene_hipoteca:
+        puntos += 3
+
+    # Urgencia declarada en el formulario
+    if "Urgencia: hoy_manana" in notas or "hoy_manana" in notas:
+        puntos += 5
+    elif "Urgencia: esta_semana" in notas or "esta_semana" in notas:
+        puntos += 2
+
+    return puntos
+
+
 # ============================================================
 # Demo / test local
 # ============================================================
