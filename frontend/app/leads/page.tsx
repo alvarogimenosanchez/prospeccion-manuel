@@ -43,6 +43,7 @@ function LeadsContent() {
   const [fuente,       setFuente      ] = useState(searchParams.get("fuente") ?? "");
   const [ordenar,      setOrdenar     ] = useState(searchParams.get("ordenar") ?? "reciente");
   const [sinActividad, setSinActividad] = useState(searchParams.get("inactivos") ?? "");
+  const [soloSinAsignar, setSoloSinAsignar] = useState(false);
 
   // ── Comercial del usuario logueado ────────────────────────────────────────
   const [comercialId, setComercialId] = useState<string | null>(null);
@@ -62,6 +63,16 @@ function LeadsContent() {
     }
     obtenerComercial();
   }, []);
+
+  // ── Leads sin asignar (solo para gestores) ────────────────────────────────
+  const [leadsSinAsignar, setLeadsSinAsignar] = useState(0);
+  useEffect(() => {
+    if (cargandoPermisos || !puede("asignar_leads")) return;
+    supabase.from("leads").select("id", { count: "exact", head: true })
+      .is("comercial_asignado", null)
+      .not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)")
+      .then(({ count }) => setLeadsSinAsignar(count ?? 0));
+  }, [cargandoPermisos, puede]);
 
   // ── Counts por estado (funnel bar) ────────────────────────────────────────
   const [countsPorEstado, setCountsPorEstado] = useState<Record<string, number>>({});
@@ -169,10 +180,15 @@ function LeadsContent() {
       if (horas) query = query.gte("horas_sin_atencion", horas);
     }
 
-    // "Mis leads": filtrar por comercial asignado. Forzado para usuarios sin ver_todos_leads.
-    const filtrarPorMios = soloMios || sinPermisoVerTodos;
-    if (filtrarPorMios && comercialId) {
-      query = query.eq("comercial_asignado", comercialId);
+    // Filtro sin asignar (gestores)
+    if (soloSinAsignar) {
+      query = query.is("comercial_asignado", null);
+    } else {
+      // "Mis leads": filtrar por comercial asignado. Forzado para usuarios sin ver_todos_leads.
+      const filtrarPorMios = soloMios || sinPermisoVerTodos;
+      if (filtrarPorMios && comercialId) {
+        query = query.eq("comercial_asignado", comercialId);
+      }
     }
 
     // Búsqueda server-side para buscar en todos los leads, no solo los cargados
@@ -199,7 +215,7 @@ function LeadsContent() {
     setOffset(nuevoOffset);
     setHayMas(nuevoOffset + PAGE_SIZE < totalCount);
     setLoading(false);
-  }, [prioridad, busqueda, estado, soloMios, sinPermisoVerTodos, comercialId, comercialCargado, teamId, temperatura, fuente, ordenar, sinActividad]);
+  }, [prioridad, busqueda, estado, soloMios, soloSinAsignar, sinPermisoVerTodos, comercialId, comercialCargado, teamId, temperatura, fuente, ordenar, sinActividad]);
 
   // Reset y recargar cuando cambian los filtros
   useEffect(() => {
@@ -253,13 +269,14 @@ function LeadsContent() {
     setTeamId("");
     setSinActividad("");
     setOrdenar("reciente");
+    setSoloSinAsignar(false);
   }
 
   // Calcular texto de resumen
-  const hayFiltrosActivos = !!(prioridad || estado || teamId || temperatura || fuente || busqueda || sinActividad);
+  const hayFiltrosActivos = !!(prioridad || estado || teamId || temperatura || fuente || busqueda || sinActividad || soloSinAsignar);
   const sinFiltros = !prioridad && !estado && !teamId && !temperatura;
   const labelFiltrado = [
-    soloMios ? "mis leads" : null,
+    soloSinAsignar ? "sin asignar" : soloMios ? "mis leads" : null,
     estado ? `en "${estado}"` : null,
     prioridad ? `prioridad ${prioridad}` : null,
     temperatura ? `${temperatura === "caliente" ? "🔴" : temperatura === "templado" ? "🟡" : "🔵"} ${temperatura}` : null,
@@ -384,6 +401,28 @@ function LeadsContent() {
             className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
           >
             ✕ Limpiar filtros
+          </button>
+        </div>
+      )}
+
+      {/* Alerta leads sin asignar (solo gestores) */}
+      {leadsSinAsignar > 0 && !cargandoPermisos && puede("asignar_leads") && (
+        <div className="flex items-center gap-3 rounded-xl border px-4 py-3" style={{ background: "#f0f9ff", borderColor: "#bae6fd" }}>
+          <span className="text-lg shrink-0">👥</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold" style={{ color: "#0369a1" }}>
+              {leadsSinAsignar} lead{leadsSinAsignar !== 1 ? "s" : ""} sin asignar
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: "#0284c7" }}>
+              Hay leads activos sin un comercial asignado — asígnalos para que el equipo los trabaje
+            </p>
+          </div>
+          <button
+            onClick={() => { setSoloMios(false); setSoloSinAsignar(true); }}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white shrink-0"
+            style={{ background: "#0284c7" }}
+          >
+            Ver sin asignar →
           </button>
         </div>
       )}
