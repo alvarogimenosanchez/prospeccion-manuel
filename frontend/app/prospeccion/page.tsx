@@ -454,9 +454,9 @@ export default function ProspeccionPage() {
                 <span className="font-semibold text-slate-800">{headerStats.total}</span> total
               </span>
               <span className="text-slate-300">|</span>
-              <span className="text-sm" style={{ color: "#ea650d" }}>
-                <span className="font-semibold">{headerStats.sinContactar}</span> sin contactar
-              </span>
+              <Link href="/mensajes" className="text-sm hover:underline" style={{ color: "#ea650d" }}>
+                <span className="font-semibold">{headerStats.sinContactar}</span> sin contactar →
+              </Link>
               <span className="text-slate-300">|</span>
               <span className="text-sm text-slate-600">
                 <span className="font-semibold text-slate-800">{headerStats.estaSemana}</span> esta semana
@@ -1038,12 +1038,26 @@ export default function ProspeccionPage() {
             {seleccionados.size} seleccionados
           </span>
           <div className="flex items-center gap-2 ml-auto">
+            <Link
+              href="/mensajes"
+              onClick={async () => {
+                await fetch("/api/backend/mensajes/generar", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ limite: seleccionados.size }),
+                });
+              }}
+              className="px-4 py-1.5 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5"
+              style={{ background: "#7c3aed" }}
+            >
+              ✦ Generar mensajes IA
+            </Link>
             <button
               onClick={marcarContactado}
               className="px-4 py-1.5 text-white text-sm font-medium rounded-lg transition-colors"
               style={{ background: "#ea650d" }}
             >
-              Marcar como contactados
+              Marcar contactados
             </button>
             <button
               onClick={descartarSeleccionados}
