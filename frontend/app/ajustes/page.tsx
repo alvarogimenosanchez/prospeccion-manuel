@@ -142,7 +142,7 @@ export default function AjustesPage() {
       .from("recursos_rapidos")
       .select("*")
       .eq("tipo", "plantilla_wa")
-      .eq("creado_por", cid)
+      .or(`es_global.eq.true,creado_por.eq.${cid}`)
       .order("orden", { ascending: true })
       .order("created_at", { ascending: true });
     if (data) setPlantillas(data as PlantillaWA[]);
@@ -436,12 +436,21 @@ export default function AjustesPage() {
           </div>
         ) : (
           <div>
-            {[...plantillas].sort((a, b) => a.orden - b.orden).map((p, i) => (
-              <div
-                key={p.id}
-                style={{
-                  padding: "16px 20px",
-                  borderBottom: i < plantillas.length - 1 ? "1px solid #f0ebe7" : "none",
+            {/* Agrupar por categoría */}
+            {(() => {
+              const sorted = [...plantillas].sort((a, b) => a.orden - b.orden);
+              const categorias = [...new Set(sorted.map(p => p.categoria ?? "General"))];
+              return categorias.map(cat => {
+                const grupo = sorted.filter(p => (p.categoria ?? "General") === cat);
+                return (
+                  <div key={cat}>
+                    <div style={{ padding: "8px 20px 4px", background: "#faf8f6", borderBottom: "1px solid #f0ebe7", borderTop: "1px solid #f0ebe7" }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: "#a09890", textTransform: "uppercase", letterSpacing: "0.12em" }}>{cat}</p>
+                    </div>
+                    {grupo.map((p, i) => (
+                      <div key={p.id} style={{
+                        padding: "16px 20px",
+                        borderBottom: i < grupo.length - 1 ? "1px solid #f0ebe7" : "none",
                   background: p.orden === 0 ? "#fffbf8" : "#ffffff",
                 }}
               >
@@ -631,7 +640,11 @@ export default function AjustesPage() {
                   </button>
                 </div>
               </div>
-            ))}
+                    ))}
+                  </div>
+                );
+              });
+            })()}
           </div>
         )}
       </div>
