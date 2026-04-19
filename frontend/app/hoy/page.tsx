@@ -5,6 +5,7 @@ import Link from "next/link";
 import { format, formatDistanceToNow, addDays, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
+import { usePermisos } from "@/components/PermisosProvider";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -169,10 +170,21 @@ function badgeAccion(tipo: string | null) {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
+type TeamPulseItem = {
+  id: string;
+  nombre: string;
+  accionesVencidas: number;
+  accionesHoy: number;
+  negociacionSinActividad: number;
+  respondieronSinSeguimiento: number;
+};
+
 export default function HoyPage() {
+  const { puede, cargando: cargandoPermisos } = usePermisos();
   const [comercialId,  setComercialId ] = useState<string | null>(null);
   const [comercialNombre, setComercialNombre] = useState("Manuel");
   const [comercialCargado, setComercialCargado] = useState(false);
+  const [teamPulse, setTeamPulse] = useState<TeamPulseItem[]>([]);
 
   const [accionesGestionadas, setAccionesGestionadas] = useState(0);
 
@@ -313,6 +325,58 @@ export default function HoyPage() {
   }, [comercialCargado, comercialId]);
 
   useEffect(() => { cargarDatos(); }, [cargarDatos]);
+
+  // ─── Team pulse (solo para gestores) ─────────────────────────────────────
+  useEffect(() => {
+    if (cargandoPermisos || !puede("gestionar_equipo")) return;
+    async function cargarTeamPulse() {
+      const ahora = new Date();
+      const hoyStr = ahora.toISOString().split("T")[0];
+      const hace2dias = new Date(ahora.getTime() - 2 * 86400000).toISOString();
+      const hace3dias = new Date(ahora.getTime() - 3 * 86400000).toISOString();
+
+      const { data: comerciales } = await supabase
+        .from("comerciales")
+        .select("id, nombre")
+        .eq("activo", true)
+        .order("nombre");
+      if (!comerciales?.length) return;
+
+      const items = await Promise.all(comerciales.map(async (c) => {
+        const [vencidas, hoyQ, negoc, resp] = await Promise.all([
+          supabase.from("leads").select("id", { count: "exact", head: true })
+            .eq("comercial_asignado", c.id)
+            .lt("proxima_accion_fecha", ahora.toISOString())
+            .not("proxima_accion", "is", null)
+            .not("proxima_accion", "eq", "ninguna")
+            .not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)"),
+          supabase.from("leads").select("id", { count: "exact", head: true })
+            .eq("comercial_asignado", c.id)
+            .gte("proxima_accion_fecha", `${hoyStr}T00:00:00`)
+            .lte("proxima_accion_fecha", `${hoyStr}T23:59:59`)
+            .not("proxima_accion", "is", null),
+          supabase.from("leads").select("id", { count: "exact", head: true })
+            .eq("comercial_asignado", c.id)
+            .eq("estado", "en_negociacion")
+            .lt("updated_at", hace2dias),
+          supabase.from("leads").select("id", { count: "exact", head: true })
+            .eq("comercial_asignado", c.id)
+            .eq("estado", "respondio")
+            .lt("updated_at", hace3dias),
+        ]);
+        return {
+          id: c.id,
+          nombre: c.nombre,
+          accionesVencidas: vencidas.count ?? 0,
+          accionesHoy: hoyQ.count ?? 0,
+          negociacionSinActividad: negoc.count ?? 0,
+          respondieronSinSeguimiento: resp.count ?? 0,
+        };
+      }));
+      setTeamPulse(items);
+    }
+    cargarTeamPulse();
+  }, [cargandoPermisos, puede]);
 
   // ─── Actions ──────────────────────────────────────────────────────────────
 
@@ -532,6 +596,53 @@ export default function HoyPage() {
       </div>
 
       <div className="mx-auto max-w-4xl space-y-4 px-4 pt-4">
+
+        {/* ── Team Pulse (solo gestores) ── */}
+        {!cargandoPermisos && puede("gestionar_equipo") && teamPulse.length > 0 && (
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-700">Pulso del equipo hoy</h2>
+              <Link href="/desempeno" className="text-xs text-slate-400 hover:text-orange-500 transition-colors">Ver desempeño →</Link>
+            </div>
+            <div className="divide-y divide-slate-50">
+              {teamPulse.map(m => {
+                const urgentes = m.accionesVencidas + m.negociacionSinActividad + m.respondieronSinSeguimiento;
+                const sinProblemas = urgentes === 0 && m.accionesHoy === 0;
+                return (
+                  <div key={m.id} className="flex items-center gap-3 px-4 py-2.5">
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${urgentes > 0 ? "bg-red-400" : m.accionesHoy > 0 ? "bg-amber-400" : "bg-green-400"}`} />
+                    <span className="text-sm font-medium text-slate-700 w-32 truncate">{m.nombre}</span>
+                    <div className="flex gap-2 flex-wrap">
+                      {m.accionesVencidas > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: "#fee2e2", color: "#ef4444" }}>
+                          {m.accionesVencidas} vencida{m.accionesVencidas !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {m.accionesHoy > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: "#fff7ed", color: "#ea650d" }}>
+                          {m.accionesHoy} para hoy
+                        </span>
+                      )}
+                      {m.negociacionSinActividad > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: "#ede9fe", color: "#7c3aed" }}>
+                          {m.negociacionSinActividad} negoc. parada{m.negociacionSinActividad !== 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {m.respondieronSinSeguimiento > 0 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: "#dcfce7", color: "#16a34a" }}>
+                          {m.respondieronSinSeguimiento} resp. sin seguimiento
+                        </span>
+                      )}
+                      {sinProblemas && (
+                        <span className="text-xs text-slate-400">Al día ✓</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ── Empty state ── */}
         {totalTareas === 0 && (
