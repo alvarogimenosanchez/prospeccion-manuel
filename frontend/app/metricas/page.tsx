@@ -166,6 +166,9 @@ export default function MetricasPage() {
   const [statsFormulario, setStatsFormulario] = useState<StatsFilaFormulario[]>([]);
   const [statsComercial, setStatsComercial] = useState<StatsFilaComercial[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pipelineHealth, setPipelineHealth] = useState<{
+    activos: number; calientes: number; enNegociacion: number; estancados: number; citasEstaSemana: number;
+  } | null>(null);
   const [ejecutandoSeguimiento, setEjecutandoSeguimiento] = useState<string | null>(null);
   const [mensajeSeguimiento, setMensajeSeguimiento] = useState<string | null>(null);
   const [soloTrabajados, setSoloTrabajados] = useState(false);
@@ -216,6 +219,7 @@ export default function MetricasPage() {
       }
 
       await Promise.all([
+        cargarPipelineHealth(comercialId),
         cargarFunnel(fechaInicio, comercialId),
         cargarStatsFuente(fechaInicio, comercialId),
         cargarStatsSector(fechaInicio, comercialId),
@@ -232,6 +236,49 @@ export default function MetricasPage() {
     cargarDatos();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [periodo, comercialId]);
+
+  // ── Pipeline health (siempre en tiempo real, sin filtro de período) ──────────
+
+  async function cargarPipelineHealth(cid: string) {
+    const hace7dias = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    const inicioSemana = new Date(Date.now() - 7 * 86_400_000).toISOString();
+    const finSemana = new Date(Date.now() + 7 * 86_400_000).toISOString();
+
+    const makeQ = () => {
+      let q = supabase.from("leads").select("*", { count: "exact", head: true })
+        .not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)");
+      if (cid !== "todos") q = q.eq("comercial_asignado", cid);
+      return q;
+    };
+
+    const [
+      { count: activos },
+      { count: calientes },
+      { count: enNegociacion },
+      { count: estancados },
+      { count: citasEstaSemana },
+    ] = await Promise.all([
+      makeQ(),
+      makeQ().eq("temperatura", "caliente"),
+      makeQ().eq("estado", "en_negociacion"),
+      makeQ().lt("updated_at", hace7dias),
+      (() => {
+        let q = supabase.from("appointments").select("*", { count: "exact", head: true })
+          .gte("fecha_hora", inicioSemana).lte("fecha_hora", finSemana)
+          .not("estado", "in", "(cancelada,no_show)");
+        if (cid !== "todos") q = q.eq("comercial_id", cid);
+        return q;
+      })(),
+    ]);
+
+    setPipelineHealth({
+      activos: activos ?? 0,
+      calientes: calientes ?? 0,
+      enNegociacion: enNegociacion ?? 0,
+      estancados: estancados ?? 0,
+      citasEstaSemana: citasEstaSemana ?? 0,
+    });
+  }
 
   // ── Builder de query base ────────────────────────────────────────────────────
 
@@ -742,6 +789,27 @@ export default function MetricasPage() {
         </div>
       ) : (
         <>
+          {/* ── Pipeline Health KPIs ──────────────────────────────────────────── */}
+          {pipelineHealth && (
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {[
+                { label: "Leads activos",    value: pipelineHealth.activos,        color: "#334155", bg: "#f8fafc", icon: "👥" },
+                { label: "Calientes",        value: pipelineHealth.calientes,      color: "#dc2626", bg: "#fff5f5", icon: "🔥" },
+                { label: "En negociación",   value: pipelineHealth.enNegociacion,  color: "#7c3aed", bg: "#faf5ff", icon: "💼" },
+                { label: "Estancados +7d",   value: pipelineHealth.estancados,     color: "#d97706", bg: "#fffbeb", icon: "⏸️" },
+                { label: "Citas esta semana",value: pipelineHealth.citasEstaSemana,color: "#0d9488", bg: "#f0fdfa", icon: "📅" },
+              ].map(kpi => (
+                <div key={kpi.label} className="rounded-xl border p-4 flex flex-col gap-1" style={{ background: kpi.bg, borderColor: kpi.color + "20" }}>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-base">{kpi.icon}</span>
+                    <span className="text-xs text-slate-500">{kpi.label}</span>
+                  </div>
+                  <p className="text-2xl font-bold" style={{ color: kpi.color }}>{kpi.value.toLocaleString("es-ES")}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* ── Stat: leads sin tocar ──────────────────────────────────────────── */}
           {leadsSinTocar > 0 && (
             <div style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
