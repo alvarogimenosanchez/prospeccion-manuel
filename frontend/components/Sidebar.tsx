@@ -334,9 +334,14 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium truncate leading-tight" style={{ color: "#414141" }}>
+              <Link
+                href="/perfil"
+                className="text-xs font-medium truncate leading-tight block hover:underline"
+                style={{ color: "#414141" }}
+                onClick={onClose}
+              >
                 {user.user_metadata?.full_name?.split(" ")[0] ?? user.email}
-              </p>
+              </Link>
               <button
                 onClick={cerrarSesion}
                 className="text-[10px] leading-tight flex items-center gap-1 mt-0.5 transition-colors"
