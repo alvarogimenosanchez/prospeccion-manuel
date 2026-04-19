@@ -190,7 +190,18 @@ function LeadsContent() {
     URL.revokeObjectURL(url);
   }
 
+  function limpiarFiltros() {
+    setPrioridad("");
+    setBusqueda("");
+    setEstado("");
+    setTemperatura("");
+    setFuente("");
+    setTeamId("");
+    setOrdenar("reciente");
+  }
+
   // Calcular texto de resumen
+  const hayFiltrosActivos = !!(prioridad || estado || teamId || temperatura || fuente || busqueda);
   const sinFiltros = !prioridad && !estado && !teamId && !temperatura;
   const labelFiltrado = [
     soloMios ? "mis leads" : null,
@@ -296,6 +307,18 @@ function LeadsContent() {
           onFuente={(v)       => setFuente(v)}
         />
       </div>
+
+      {/* Limpiar filtros */}
+      {hayFiltrosActivos && (
+        <div className="flex justify-end">
+          <button
+            onClick={limpiarFiltros}
+            className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 transition-colors"
+          >
+            ✕ Limpiar filtros
+          </button>
+        </div>
+      )}
 
       {/* Alerta leads de formulario sin contactar */}
       {formulariosSinContactar > 0 && !fuente && !estado && (
