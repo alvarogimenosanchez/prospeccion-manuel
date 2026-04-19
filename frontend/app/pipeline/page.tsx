@@ -272,6 +272,12 @@ function PipelineContent() {
 
   // Stats del pipeline
   const totalActivos = leadsFiltrados.filter(l => !["cerrado_ganado", "cerrado_perdido"].includes(l.estado)).length;
+
+  function avgInteresColumna(estado: Estado): number | null {
+    const col = leadsFiltrados.filter(l => l.estado === estado);
+    if (col.length === 0) return null;
+    return Math.round(col.reduce((s, l) => s + l.nivel_interes, 0) / col.length * 10) / 10;
+  }
   const enNegociacion = leadsFiltrados.filter(l => l.estado === "en_negociacion").length;
   const conCita = leadsFiltrados.filter(l => l.estado === "cita_agendada").length;
   const avgInteres = totalActivos > 0
@@ -377,6 +383,7 @@ function PipelineContent() {
               const hayMas = !busqueda && colLeads.length > limite;
               const vacia = colLeads.length === 0;
               const colapsada = colapsadas.has(col.estado);
+              const avgInteres = avgInteresColumna(col.estado);
 
               // Columna vacía colapsada: ancho mínimo
               if (vacia) {
@@ -407,6 +414,11 @@ function PipelineContent() {
                     <div className={`w-2 h-2 rounded-full flex-shrink-0 ${col.dot}`} />
                     {!colapsada && (
                       <span className="text-sm font-semibold text-slate-700 truncate">{col.label}</span>
+                    )}
+                    {!colapsada && avgInteres !== null && (
+                      <span className="text-xs text-slate-400 flex-shrink-0" title="Interés medio">
+                        ⭐{avgInteres}
+                      </span>
                     )}
                     <span className={`text-xs font-medium text-slate-500 bg-white rounded-full px-2 py-0.5 border border-slate-200 flex-shrink-0 ${colapsada ? "mx-auto" : "ml-auto"}`}>
                       {colLeads.length}
