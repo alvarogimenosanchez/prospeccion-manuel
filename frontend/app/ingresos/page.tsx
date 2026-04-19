@@ -118,7 +118,7 @@ export default function IngresosPage() {
           .eq("estado", s.estado)
       ),
     ]);
-    setClientes((clientesData as ClienteRow[]) ?? []);
+    setClientes((clientesData as unknown as ClienteRow[]) ?? []);
     const pctMap: Record<string, number> = {};
     for (const p of (productsData ?? []) as { id: string; comision_pct: number | null }[]) {
       pctMap[p.id] = p.comision_pct ?? 20;

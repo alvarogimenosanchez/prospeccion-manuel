@@ -82,7 +82,7 @@ export default function RecuperarPage() {
     q = q.order("nivel_interes", { ascending: false }).order("updated_at", { ascending: false }).limit(100);
 
     const { data } = await q;
-    setLeads((data as LeadPerdido[]) ?? []);
+    setLeads((data as unknown as LeadPerdido[]) ?? []);
     setLoading(false);
   }, [ventana, cargandoPermisos, puede, miId]);
 

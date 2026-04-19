@@ -140,6 +140,7 @@ export default function CalendarioEquipoPage() {
 
     setAcciones((accionesData ?? []).map(a => ({
       ...a,
+      lead_id: a.id,
       comercial_nombre: a.comercial_asignado ? comMap[a.comercial_asignado] : undefined,
     })));
 

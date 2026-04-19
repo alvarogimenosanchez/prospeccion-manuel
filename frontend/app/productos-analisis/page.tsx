@@ -72,9 +72,9 @@ export default function ProductosAnalisisPage() {
       cerrados_mes: number; en_pipeline: number;
     }> = {};
 
-    function addProd(key: string, ...fields: Partial<typeof map[string]>) {
+    function addProd(key: string, fields: Partial<{ total: number; mes: number; mes_ant: number; cerrados: number; cerrados_mes: number; en_pipeline: number }>) {
       if (!map[key]) map[key] = { total: 0, mes: 0, mes_ant: 0, cerrados: 0, cerrados_mes: 0, en_pipeline: 0 };
-      for (const [k, v] of Object.entries(fields[0] ?? {})) {
+      for (const [k, v] of Object.entries(fields)) {
         (map[key] as Record<string, number>)[k] = ((map[key] as Record<string, number>)[k] ?? 0) + (v as number);
       }
     }
