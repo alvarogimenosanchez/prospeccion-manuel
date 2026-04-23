@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -180,11 +181,16 @@ const CONFIG_DEFAULT = `{
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function AjustesPage() {
   const supabase = createClient();
+  const searchParams = useSearchParams();
   const [miComercialId, setMiComercialId] = useState<string | null>(null);
   const [miNombre, setMiNombre] = useState("");
   const [plantillas, setPlantillas] = useState<PlantillaWA[]>([]);
   const [cargando, setCargando] = useState(true);
-  const [tabActiva, setTabActiva] = useState<"plantillas" | "cuestionario" | "formularios" | "scraping" | "roles" | "productos">("plantillas");
+  const tabFromUrl = searchParams.get("tab") as "plantillas" | "cuestionario" | "formularios" | "scraping" | "roles" | "productos" | null;
+  const validTabs = ["plantillas", "cuestionario", "formularios", "scraping", "roles", "productos"];
+  const [tabActiva, setTabActiva] = useState<"plantillas" | "cuestionario" | "formularios" | "scraping" | "roles" | "productos">(
+    tabFromUrl && validTabs.includes(tabFromUrl) ? tabFromUrl : "plantillas"
+  );
   const [productos, setProductos] = useState<{ id: string; nombre: string; comision_pct: number | null; activo: boolean }[]>([]);
   const [guardandoProducto, setGuardandoProducto] = useState<string | null>(null);
   const [comisionEdits, setComisionEdits] = useState<Record<string, string>>({});

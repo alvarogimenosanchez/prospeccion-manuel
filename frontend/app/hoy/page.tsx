@@ -201,7 +201,7 @@ export default function HoyPage() {
   const [guardandoAccion, setGuardandoAccion] = useState<string | null>(null);
   const [citaParaRegistrar, setCitaParaRegistrar] = useState<CitaRow | null>(null);
   const [objetivos, setObjetivos] = useState<{ cierres: number; citas: number; cierresMes: number; citasMes: number } | null>(null);
-  const [renovaciones, setRenovaciones] = useState<{ id: string; nombre: string; empresa: string | null; producto: string | null; fecha_renovacion: string; telefono_whatsapp: string | null; comercial_asignado: string | null }[]>([]);
+  const [renovaciones, setRenovaciones] = useState<{ id: string; nombre: string; empresa: string | null; producto: string | null; fecha_renovacion: string; telefono: string | null; comercial_asignado: string | null }[]>([]);
 
   // ─── Get logged comercial ──────────────────────────────────────────────────
   useEffect(() => {
@@ -399,7 +399,7 @@ export default function HoyPage() {
       const hoyStr = hoy.toISOString().split("T")[0];
 
       let q = supabase.from("clientes")
-        .select("id, nombre, empresa, producto, fecha_renovacion, telefono_whatsapp, comercial_asignado")
+        .select("id, nombre, empresa, producto, fecha_renovacion, telefono, comercial_asignado")
         .gte("fecha_renovacion", hoyStr)
         .lte("fecha_renovacion", en30dias)
         .order("fecha_renovacion", { ascending: true })
@@ -693,7 +693,7 @@ export default function HoyPage() {
               {renovaciones.map(r => {
                 const diasParaRenovar = Math.round((new Date(r.fecha_renovacion).getTime() - Date.now()) / 86_400_000);
                 const urgente = diasParaRenovar <= 7;
-                const telLimpio = r.telefono_whatsapp?.replace(/\D/g, "");
+                const telLimpio = r.telefono?.replace(/\D/g, "");
                 const waLink = telLimpio ? `https://wa.me/${telLimpio}?text=${encodeURIComponent(`Hola ${r.nombre}, soy Manuel de Nationale-Nederlanden. Tu seguro ${r.producto ?? ""} vence en ${diasParaRenovar} días. Quería asegurarme de que mantienes tu cobertura sin interrupción. ¿Podemos hablar un momento?`)}` : null;
                 return (
                   <div key={r.id} className="flex items-center gap-3 px-4 py-2.5">

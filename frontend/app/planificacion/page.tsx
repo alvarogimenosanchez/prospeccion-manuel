@@ -124,6 +124,7 @@ function KPIRow({
 
 export default function PlanificacionPage() {
   const { puede, cargando: cargandoPermisos } = usePermisos();
+  const [mounted, setMounted] = useState(false);
   const [semanaOffset, setSemanaOffset] = useState(0);
   const [miId, setMiId] = useState<string | null>(null);
   const [miPlan, setMiPlan] = useState<Plan | null>(null);
@@ -160,7 +161,7 @@ export default function PlanificacionPage() {
       .select("*")
       .eq("comercial_id", cId)
       .eq("semana_inicio", semanaInicioStr)
-      .single();
+      .maybeSingle();
 
     setMiPlan(plan ?? null);
     setNotas(plan?.notas ?? "");
@@ -234,6 +235,7 @@ export default function PlanificacionPage() {
     setCargando(false);
   }, [semanaOffset]);
 
+  useEffect(() => { setMounted(true); }, []);
   useEffect(() => { cargar(); }, [cargar]);
 
   async function actualizarObjetivo(campo: keyof Plan, valor: number) {
@@ -290,6 +292,8 @@ export default function PlanificacionPage() {
   const scoreSemana = totalObjetivos > 0 ? Math.round((totalActuals / totalObjetivos) * 100) : 0;
 
   const dias = eachDayOfInterval({ start: lunes, end: viernes });
+
+  if (!mounted) return null;
 
   return (
     <div className="space-y-6 max-w-4xl">

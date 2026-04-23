@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { usePermisos } from "@/components/PermisosProvider";
@@ -69,10 +69,10 @@ export default function SeguimientoPage() {
   const [miId, setMiId] = useState<string | null>(null);
   const [completando, setCompletando] = useState<string | null>(null);
 
-  const hoy = startOfDay(new Date());
-  const semanaInicio = startOfWeek(addDays(hoy, semanaOffset * 7), { weekStartsOn: 1 });
-  const semanaFin = endOfWeek(semanaInicio, { weekStartsOn: 1 });
-  const diasSemana = eachDayOfInterval({ start: semanaInicio, end: semanaFin });
+  const hoy = useMemo(() => startOfDay(new Date()), []);
+  const semanaInicio = useMemo(() => startOfWeek(addDays(hoy, semanaOffset * 7), { weekStartsOn: 1 }), [hoy, semanaOffset]);
+  const semanaFin = useMemo(() => endOfWeek(semanaInicio, { weekStartsOn: 1 }), [semanaInicio]);
+  const diasSemana = useMemo(() => eachDayOfInterval({ start: semanaInicio, end: semanaFin }), [semanaInicio, semanaFin]);
 
   useEffect(() => {
     async function cargarMiId() {

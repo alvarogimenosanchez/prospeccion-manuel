@@ -482,7 +482,7 @@ export default function AgendaPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Agenda</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <p className="text-sm text-slate-500 mt-0.5" suppressHydrationWarning>
             {vista === "hoy"
               ? format(new Date(), "EEEE d MMMM yyyy", { locale: es })
               : `${format(semanaBase, "d MMM", { locale: es })} – ${format(addDays(semanaBase, 6), "d MMM yyyy", { locale: es })}`}

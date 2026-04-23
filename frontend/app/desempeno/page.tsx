@@ -71,6 +71,7 @@ const PRODUCTOS_NOMBRE: Record<string, string> = {
 
 export default function DesempenoPage() {
   const { puede, cargando: cargandoPermisos } = usePermisos();
+  const [mounted, setMounted] = useState(false);
   const [stats, setStats] = useState<StatsComercial[]>([]);
   const [alertas, setAlertas] = useState<AlertaDecision[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +82,8 @@ export default function DesempenoPage() {
   const [teamMembers, setTeamMembers] = useState<{ comercial_id: string; team_id: string }[]>([]);
   const [mostrarResumen, setMostrarResumen] = useState(false);
   const [textoCopied, setTextoCopied] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     supabase.from("teams").select("id, nombre").eq("activo", true).order("nombre")
@@ -430,7 +433,7 @@ export default function DesempenoPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Desempeño comercial</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}
+            {mounted ? new Date().toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" }) : ""}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
