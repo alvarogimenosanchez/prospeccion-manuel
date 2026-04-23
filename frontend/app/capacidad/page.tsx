@@ -72,6 +72,76 @@ export default function CapacidadPage() {
   const [nuevoMax, setNuevoMax] = useState("");
   const [guardandoMax, setGuardandoMax] = useState(false);
 
+  // ── Distribuir leads ────────────────────────────────────────────────────────
+  const [modalDistribuir, setModalDistribuir] = useState(false);
+  const [leadsSinAsignar, setLeadsSinAsignar] = useState(0);
+  const [distribuyendo, setDistribuyendo] = useState(false);
+  const [distribuirResultado, setDistribuirResultado] = useState<string | null>(null);
+
+  async function abrirModalDistribuir() {
+    const { count } = await supabase
+      .from("leads")
+      .select("id", { count: "exact", head: true })
+      .is("comercial_asignado", null)
+      .not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)");
+    setLeadsSinAsignar(count ?? 0);
+    setDistribuirResultado(null);
+    setModalDistribuir(true);
+  }
+
+  async function distribuirLeads() {
+    setDistribuyendo(true);
+    const agentesDisponibles = agentes.filter(a => a.estado_capacidad !== "saturado" && a.capacidad_libre > 0);
+    if (agentesDisponibles.length === 0) { setDistribuyendo(false); return; }
+
+    const { data: leads } = await supabase
+      .from("leads")
+      .select("id")
+      .is("comercial_asignado", null)
+      .not("estado", "in", "(cerrado_ganado,cerrado_perdido,descartado)")
+      .order("created_at", { ascending: true });
+
+    if (!leads || leads.length === 0) { setDistribuyendo(false); return; }
+
+    // Round-robin weighted by free capacity
+    const asignaciones: Record<string, string[]> = {};
+    agentesDisponibles.forEach(a => { asignaciones[a.id] = []; });
+
+    let idx = 0;
+    for (const lead of leads) {
+      const agente = agentesDisponibles[idx % agentesDisponibles.length];
+      if (asignaciones[agente.id].length < agente.capacidad_libre) {
+        asignaciones[agente.id].push(lead.id);
+        idx++;
+      } else {
+        // Skip saturated agent in rotation
+        idx++;
+        const next = agentesDisponibles[idx % agentesDisponibles.length];
+        if (next && asignaciones[next.id].length < next.capacidad_libre) {
+          asignaciones[next.id].push(lead.id);
+        }
+      }
+    }
+
+    // Batch update per agent
+    let totalAsignados = 0;
+    for (const [agenteId, leadIds] of Object.entries(asignaciones)) {
+      if (leadIds.length === 0) continue;
+      await supabase.from("leads")
+        .update({ comercial_asignado: agenteId, updated_at: new Date().toISOString() })
+        .in("id", leadIds);
+      totalAsignados += leadIds.length;
+    }
+
+    const resumen = agentesDisponibles
+      .filter(a => asignaciones[a.id].length > 0)
+      .map(a => `${a.nombre}: ${asignaciones[a.id].length} leads`)
+      .join(" · ");
+    setDistribuirResultado(`✅ ${totalAsignados} leads asignados — ${resumen}`);
+    setDistribuyendo(false);
+    cargar();
+  }
+
   const cargar = useCallback(async () => {
     setLoading(true);
     const ahora = new Date();
@@ -193,11 +263,20 @@ export default function CapacidadPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-slate-900">Capacidad del equipo</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
-          Carga de trabajo actual y capacidad disponible por agente
-        </p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Capacidad del equipo</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Carga de trabajo actual y capacidad disponible por agente
+          </p>
+        </div>
+        {!loading && puede("asignar_leads") && (
+          <button onClick={abrirModalDistribuir}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors"
+            style={{ background: "#ea650d" }}>
+            ⚡ Distribuir leads sin asignar
+          </button>
+        )}
       </div>
 
       {/* Summary */}
@@ -339,6 +418,69 @@ export default function CapacidadPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Modal distribuir leads */}
+      {modalDistribuir && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-slate-900">Distribuir leads sin asignar</h2>
+              <button onClick={() => setModalDistribuir(false)} className="text-slate-400 hover:text-slate-600 text-xl">×</button>
+            </div>
+
+            {distribuirResultado ? (
+              <div className="space-y-4">
+                <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-800">{distribuirResultado}</div>
+                <button onClick={() => setModalDistribuir(false)}
+                  className="w-full py-2.5 text-sm font-medium text-white rounded-xl" style={{ background: "#ea650d" }}>
+                  Cerrar
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-orange-50 border border-orange-100 rounded-xl px-4 py-3">
+                  <p className="text-sm font-semibold text-orange-900">{leadsSinAsignar} leads sin comercial asignado</p>
+                  <p className="text-xs text-orange-700 mt-1">Se distribuirán en round-robin entre los agentes disponibles, respetando su capacidad máxima.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-slate-600 uppercase tracking-wide">Distribución estimada</p>
+                  {agentes.filter(a => a.estado_capacidad !== "saturado" && a.capacidad_libre > 0).length === 0 ? (
+                    <p className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">⚠️ Todos los agentes están saturados. Aumenta la capacidad máxima antes de distribuir.</p>
+                  ) : (
+                    agentes.filter(a => a.estado_capacidad !== "saturado" && a.capacidad_libre > 0).map(a => {
+                      const disponibles = agentes.filter(x => x.estado_capacidad !== "saturado" && x.capacidad_libre > 0);
+                      const totalLibre = disponibles.reduce((s, x) => s + x.capacidad_libre, 0);
+                      const estimado = totalLibre > 0 ? Math.round((a.capacidad_libre / totalLibre) * Math.min(leadsSinAsignar, totalLibre)) : 0;
+                      return (
+                        <div key={a.id} className="flex items-center justify-between py-1.5 border-b border-slate-100 last:border-0">
+                          <span className="text-sm text-slate-700">{a.nombre} {a.apellidos ?? ""}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-400">{a.leads_activos}/{a.max_leads_activos} actuales</span>
+                            <span className="text-sm font-semibold text-orange-600">+{estimado}</span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  <button onClick={() => setModalDistribuir(false)}
+                    className="flex-1 py-2.5 text-sm font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors">
+                    Cancelar
+                  </button>
+                  <button onClick={distribuirLeads} disabled={distribuyendo || agentes.filter(a => a.estado_capacidad !== "saturado" && a.capacidad_libre > 0).length === 0}
+                    className="flex-1 py-2.5 text-sm font-medium text-white rounded-xl transition-colors disabled:opacity-50"
+                    style={{ background: "#ea650d" }}>
+                    {distribuyendo ? "Distribuyendo..." : "Confirmar y distribuir"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

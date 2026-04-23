@@ -168,7 +168,7 @@ export default function ClasificacionPage() {
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Clasificación del equipo</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <p className="text-sm text-slate-500 mt-0.5" suppressHydrationWarning>
             Ranking del mes de {mesLabel} — {porcentajeMesTranscurrido}% del mes transcurrido (día {diaActual}/{diasEnMes})
           </p>
         </div>
