@@ -34,7 +34,6 @@ const GRUPOS: Grupo[] = [
       { tecla: "/hoy",       descripcion: "Resumen del día y tareas pendientes" },
       { tecla: "/leads",     descripcion: "Gestión de leads con filtros avanzados" },
       { tecla: "/pipeline",  descripcion: "Vista Kanban del embudo de ventas" },
-      { tecla: "/mensajes",  descripcion: "Revisar mensajes IA generados" },
       { tecla: "/agenda",    descripcion: "Citas y agenda personal" },
     ],
   },

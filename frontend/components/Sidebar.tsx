@@ -64,10 +64,7 @@ const NAV_GROUPS = [
   {
     label: "Comunicación",
     items: [
-      { href: "/mensajes",           label: "Mensajes WA",     icon: "message",  permiso: null },
-      { href: "/llamadas",           label: "Llamadas",        icon: "chat",     permiso: null },
       { href: "/anuncios",           label: "Anuncios",        icon: "flag",     permiso: null },
-      { href: "/campanas",           label: "Campañas",        icon: "flag",     permiso: "asignar_leads" },
       { href: "/ia",                 label: "Asistente IA",    icon: "sparkle",  permiso: null },
       { href: "/mensajes-internos",  label: "Chat interno",    icon: "chat",     permiso: null },
       { href: "/agenda",             label: "Agenda",          icon: "calendar", permiso: null },
@@ -149,7 +146,7 @@ const NAV_GROUPS = [
   },
 ];
 
-type Badges = { mensajes: number; hoy: number; agenda: number; anuncios: number; formaciones: number; };
+type Badges = { hoy: number; agenda: number; anuncios: number; formaciones: number; };
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export function Sidebar({ onClose }: { onClose?: () => void }) {
@@ -157,7 +154,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
   const supabase = createClient();
   const [user, setUser] = useState<User | null>(null);
-  const [badges, setBadges] = useState<Badges>({ mensajes: 0, hoy: 0, agenda: 0, anuncios: 0, formaciones: 0 });
+  const [badges, setBadges] = useState<Badges>({ hoy: 0, agenda: 0, anuncios: 0, formaciones: 0 });
   const [chatNoLeidos, setChatNoLeidos] = useState(0);
   const { puede, cargando: cargandoPermisos } = usePermisos();
 
@@ -187,8 +184,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
         qCalientes = qCalientes.eq("comercial_asignado", comId);
       }
 
-      const [{ count: mensajes }, { count: accionesVencidas }, { count: calientes }, { count: citasHoy }] = await Promise.all([
-        supabase.from("mensajes_pendientes").select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
+      const [{ count: accionesVencidas }, { count: calientes }, { count: citasHoy }] = await Promise.all([
         qVencidas,
         qCalientes,
         supabase.from("appointments").select("id", { count: "exact", head: true }).gte("fecha_hora", inicioDia.toISOString()).lte("fecha_hora", finDia.toISOString()).not("estado", "in", "(cancelada,no_asistio)"),
@@ -208,7 +204,6 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
       }
 
       setBadges({
-        mensajes: mensajes ?? 0,
         hoy: (accionesVencidas ?? 0) + (calientes ?? 0),
         agenda: citasHoy ?? 0,
         anuncios: anunciosBadge,
@@ -332,7 +327,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
             <div className="space-y-0.5">
               {itemsVisibles.map(({ href, label, icon }) => {
                 const active = isActive(href);
-                const badge = href === "/mensajes" ? badges.mensajes : href === "/hoy" ? badges.hoy : href === "/agenda" ? badges.agenda : href === "/mensajes-internos" ? chatNoLeidos : href === "/anuncios" ? badges.anuncios : href === "/formaciones" ? badges.formaciones : 0;
+                const badge = href === "/hoy" ? badges.hoy : href === "/agenda" ? badges.agenda : href === "/mensajes-internos" ? chatNoLeidos : href === "/anuncios" ? badges.anuncios : href === "/formaciones" ? badges.formaciones : 0;
                 return (
                   <Link
                     key={href}
@@ -362,7 +357,7 @@ export function Sidebar({ onClose }: { onClose?: () => void }) {
                     <span className="flex-1">{label}</span>
                     {badge > 0 && (
                       <span style={{
-                        background: href === "/mensajes" ? "#ea650d" : href === "/agenda" ? "#f59e0b" : href === "/formaciones" ? "#7c3aed" : "#ef4444",
+                        background: href === "/agenda" ? "#f59e0b" : href === "/formaciones" ? "#7c3aed" : "#ef4444",
                         color: "#fff",
                         borderRadius: "9999px",
                         fontSize: "10px",

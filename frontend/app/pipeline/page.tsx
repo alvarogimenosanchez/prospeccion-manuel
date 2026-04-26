@@ -385,7 +385,7 @@ function PipelineContent() {
         <div className="flex items-center gap-3 rounded-xl border px-4 py-3" style={{ background: "#fffbeb", borderColor: "#fbbf24" }}>
           <span className="text-lg">📬</span>
           <p className="text-sm text-amber-800 flex-1">
-            <strong>{leadsColumna("nuevo").length} leads</strong> en Nuevo sin contactar — usa <a href="/mensajes" style={{ color: "#ea650d" }} className="underline">Mensajes IA</a> para procesarlos en lote
+            <strong>{leadsColumna("nuevo").length} leads</strong> en Nuevo sin contactar — entra en cada lead y pulsa el botón de WhatsApp para iniciar el contacto manual.
           </p>
         </div>
       )}
@@ -608,7 +608,7 @@ function TarjetaLead({
 
         {/* Próxima acción */}
         <div className="mt-2 flex items-center gap-1">
-          <span className={`text-[11px] leading-tight ${accionInfo.clase}`}>
+          <span className={`text-[11px] leading-tight ${accionInfo.clase}`} suppressHydrationWarning>
             {accionInfo.texto}
           </span>
         </div>

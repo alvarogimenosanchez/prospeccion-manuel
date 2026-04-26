@@ -394,7 +394,7 @@ export default function IncidenciasPage() {
                       {inc.responsable_nombre && <span>→ {inc.responsable_nombre}</span>}
                       {inc.cliente_nombre && <span>Cliente: {inc.cliente_nombre}</span>}
                       {diasRestantes !== null && (
-                        <span className={diasRestantes <= 2 ? "text-amber-500" : ""}>
+                        <span className={diasRestantes <= 2 ? "text-amber-500" : ""} suppressHydrationWarning>
                           {diasRestantes === 0 ? "Vence hoy" : `${diasRestantes}d restantes`}
                         </span>
                       )}

@@ -40,3 +40,4 @@ frontend/.env.local
 # Documentos PDF (grandes, no necesarios en el repo de código)
 "Documentos de servicios "/
 Documentos de servicios /
+.playwright-mcp/

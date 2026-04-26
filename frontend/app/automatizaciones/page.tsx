@@ -30,15 +30,6 @@ const AGENTS: Agent[] = [
     permiso: "usar_scraping",
   },
   {
-    id: "mensajes",
-    nombre: "Generador de mensajes IA",
-    descripcion: "Genera mensajes de WhatsApp personalizados para leads sin contactar",
-    emoji: "✍️",
-    endpoint: "/mensajes/generar",
-    stats_key: "mensajes",
-    permiso: "asignar_leads",
-  },
-  {
     id: "seguimiento",
     nombre: "Seguimiento automático",
     descripcion: "Envía recordatorios a leads fríos que no han respondido en varios días",
@@ -69,7 +60,6 @@ const AGENTS: Agent[] = [
 
 type StatsData = {
   leads_nuevos_hoy: number;
-  mensajes_pendientes: number;
   leads_sin_mensaje: number;
   leads_frios: number;
   renovaciones_7d: number;
@@ -91,7 +81,6 @@ export default function AutomatizacionesPage() {
 
     const [
       { count: leadsNuevos },
-      { count: mensajesPendientes },
       { count: leadsSinMensaje },
       { count: leadsFrios },
       { count: renovaciones7d },
@@ -99,8 +88,6 @@ export default function AutomatizacionesPage() {
     ] = await Promise.all([
       supabase.from("leads").select("id", { count: "exact", head: true })
         .gte("fecha_captacion", inicioHoy),
-      supabase.from("mensajes_pendientes").select("id", { count: "exact", head: true })
-        .eq("estado", "pendiente"),
       supabase.from("leads").select("id", { count: "exact", head: true })
         .eq("estado", "nuevo").not("telefono_whatsapp", "is", null),
       supabase.from("leads").select("id", { count: "exact", head: true })
@@ -120,7 +107,6 @@ export default function AutomatizacionesPage() {
 
     setStats({
       leads_nuevos_hoy: leadsNuevos ?? 0,
-      mensajes_pendientes: mensajesPendientes ?? 0,
       leads_sin_mensaje: leadsSinMensaje ?? 0,
       leads_frios: leadsFrios ?? 0,
       renovaciones_7d: renovaciones7d ?? 0,
@@ -195,14 +181,7 @@ export default function AutomatizacionesPage() {
 
       {/* Overview */}
       {stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          <div className={`rounded-xl border p-4 ${stats.mensajes_pendientes > 0 ? "bg-orange-50 border-orange-200" : "bg-white border-slate-200"}`}>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Mensajes por revisar</p>
-            <p className="text-2xl font-bold mt-1" style={stats.mensajes_pendientes > 0 ? { color: "#ea650d" } : undefined}>
-              {stats.mensajes_pendientes}
-            </p>
-            <a href="/mensajes" className="text-xs hover:underline" style={{ color: "#ea650d" }}>Revisar →</a>
-          </div>
+        <div className="grid grid-cols-2 gap-4">
           <div className="bg-white rounded-xl border border-slate-200 p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Leads sin contactar</p>
             <p className="text-2xl font-bold text-slate-900 mt-1">{stats.leads_sin_mensaje}</p>

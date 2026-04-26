@@ -581,7 +581,7 @@ export default function HoyPage() {
         <div className="mx-auto max-w-4xl">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-slate-900">
+              <h1 className="text-xl font-bold text-slate-900" suppressHydrationWarning>
                 {emojiSaludo} {saludo}, {comercialNombre}
               </h1>
               {totalTareas > 0 ? (
@@ -592,7 +592,7 @@ export default function HoyPage() {
                   )}
                 </p>
               ) : (
-                <p className="mt-0.5 text-sm text-green-600 font-medium">Todo al día ✓ {fraseExito}</p>
+                <p className="mt-0.5 text-sm text-green-600 font-medium" suppressHydrationWarning>Todo al día ✓ {fraseExito}</p>
               )}
             </div>
             <div className="flex items-center gap-3">
@@ -603,8 +603,8 @@ export default function HoyPage() {
                 ↺
               </button>
               <div className="text-right">
-                <p className="text-sm font-medium text-slate-700">{format(hoy, "EEEE d 'de' MMMM", { locale: es })}</p>
-                <p className="text-xs text-slate-400">{format(hoy, "yyyy")}</p>
+                <p className="text-sm font-medium text-slate-700" suppressHydrationWarning>{format(hoy, "EEEE d 'de' MMMM", { locale: es })}</p>
+                <p className="text-xs text-slate-400" suppressHydrationWarning>{format(hoy, "yyyy")}</p>
               </div>
             </div>
           </div>
@@ -723,7 +723,7 @@ export default function HoyPage() {
           <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-slate-700">Objetivos del mes</h2>
-              <span className="text-xs text-slate-400">{new Date().toLocaleString("es-ES", { month: "long" })}</span>
+              <span className="text-xs text-slate-400" suppressHydrationWarning>{new Date().toLocaleString("es-ES", { month: "long" })}</span>
             </div>
             <div className="space-y-3">
               {objetivos.cierres > 0 && (() => {
@@ -789,10 +789,6 @@ export default function HoyPage() {
                     className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
                     style={{ background: "#ea650d" }}>
                     Ver leads nuevos →
-                  </Link>
-                  <Link href="/mensajes"
-                    className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium border border-slate-200 text-slate-600 hover:bg-white transition-colors">
-                    Revisar mensajes pendientes
                   </Link>
                   <Link href="/agenda"
                     className="inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium border border-slate-200 text-slate-600 hover:bg-white transition-colors">
@@ -904,9 +900,9 @@ export default function HoyPage() {
                       </a>
                     )}
                     {lead.proxima_accion === "enviar_info" && (
-                      <Link href={`/mensajes?lead=${lead.id}`}
+                      <Link href={`/leads/${lead.id}`}
                         className={`rounded px-2 py-1 text-xs font-medium transition-colors ${cfgAccion?.color ?? ""}`}>
-                        📎 Generar mensaje
+                        📎 Ver lead
                       </Link>
                     )}
                     <BtnAccion loading={guardandoAccion === `${lead.id}-hecha`}

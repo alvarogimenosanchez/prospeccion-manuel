@@ -180,7 +180,6 @@ export function Navbar() {
     { href: "/hoy", label: "🎯 Hoy" },
     { href: "/leads", label: "Leads" },
     { href: "/pipeline", label: "Pipeline" },
-    { href: "/mensajes", label: "Mensajes" },
     { href: "/mensajes-internos", label: "Chat" },
     { href: "/agenda", label: "Agenda" },
     { href: "/prospeccion", label: "Prospección" },

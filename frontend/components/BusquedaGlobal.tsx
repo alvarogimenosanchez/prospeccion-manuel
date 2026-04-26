@@ -168,7 +168,6 @@ export function BusquedaGlobal() {
               {[
                 { href: "/leads/nuevo", label: "Nuevo lead", icon: "➕" },
                 { href: "/agenda", label: "Agenda hoy", icon: "📅" },
-                { href: "/mensajes", label: "Mensajes", icon: "💬" },
                 { href: "/pipeline", label: "Pipeline", icon: "🔄" },
               ].map(({ href, label, icon }) => (
                 <button

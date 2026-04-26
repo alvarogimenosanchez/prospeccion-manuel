@@ -135,6 +135,8 @@ export default function PlanificacionPage() {
   const [vistaActual, setVistaActual] = useState<"mi_plan" | "equipo">("mi_plan");
   const [guardando, setGuardando] = useState(false);
   const [notas, setNotas] = useState("");
+  const [notasMsg, setNotasMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [guardandoNotas, setGuardandoNotas] = useState(false);
 
   const lunes = getLunesDeEstaSemana(semanaOffset);
   const viernes = endOfWeek(lunes, { weekStartsOn: 1 });
@@ -263,20 +265,33 @@ export default function PlanificacionPage() {
 
   async function guardarNotas() {
     if (!miId) return;
-    if (miPlan) {
-      await supabase.from("planes_semana").update({ notas, updated_at: new Date().toISOString() }).eq("id", miPlan.id);
-    } else {
-      const { data } = await supabase.from("planes_semana").upsert({
-        comercial_id: miId,
-        semana_inicio: semanaInicioStr,
-        objetivo_llamadas: 0,
-        objetivo_mensajes: 0,
-        objetivo_citas: 0,
-        objetivo_cierres: 0,
-        objetivo_referidos: 0,
-        notas,
-      }, { onConflict: "comercial_id,semana_inicio" }).select().single();
-      setMiPlan(data);
+    setGuardandoNotas(true);
+    setNotasMsg(null);
+    try {
+      if (miPlan) {
+        const { error } = await supabase.from("planes_semana").update({ notas, updated_at: new Date().toISOString() }).eq("id", miPlan.id);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from("planes_semana").upsert({
+          comercial_id: miId,
+          semana_inicio: semanaInicioStr,
+          objetivo_llamadas: 0,
+          objetivo_mensajes: 0,
+          objetivo_citas: 0,
+          objetivo_cierres: 0,
+          objetivo_referidos: 0,
+          notas,
+        }, { onConflict: "comercial_id,semana_inicio" }).select().single();
+        if (error) throw error;
+        setMiPlan(data);
+      }
+      setNotasMsg({ type: "ok", text: "Notas guardadas" });
+      setTimeout(() => setNotasMsg(null), 3000);
+    } catch (e) {
+      const msg = (e as { message?: string })?.message ?? "Error al guardar";
+      setNotasMsg({ type: "err", text: msg });
+    } finally {
+      setGuardandoNotas(false);
     }
   }
 
@@ -423,11 +438,18 @@ export default function PlanificacionPage() {
                 placeholder="Leads prioritarios, recordatorios, objetivos especiales..."
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:border-orange-400 resize-none" />
               {semanaOffset === 0 && (
-                <button onClick={guardarNotas}
-                  className="mt-2 w-full py-2 text-xs text-white rounded-lg font-medium"
-                  style={{ background: "#ea650d" }}>
-                  Guardar notas
-                </button>
+                <>
+                  <button onClick={guardarNotas} disabled={guardandoNotas}
+                    className="mt-2 w-full py-2 text-xs text-white rounded-lg font-medium disabled:opacity-50"
+                    style={{ background: "#ea650d" }}>
+                    {guardandoNotas ? "Guardando…" : "Guardar notas"}
+                  </button>
+                  {notasMsg && (
+                    <p className={`mt-2 text-xs ${notasMsg.type === "ok" ? "text-green-600" : "text-red-600"}`}>
+                      {notasMsg.text}
+                    </p>
+                  )}
+                </>
               )}
             </div>
 

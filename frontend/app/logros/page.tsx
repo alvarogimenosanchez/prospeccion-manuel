@@ -243,7 +243,7 @@ export default function LogrosPage() {
                   {getRango(miAgente.puntos).nombre}
                 </span>
               </div>
-              <div className="text-sm text-slate-500 mt-0.5">
+              <div className="text-sm text-slate-500 mt-0.5" suppressHydrationWarning>
                 {periodoLabel} · Posición #{agentes.findIndex(a => a.comercial.id === miId) + 1} de {agentes.length}
               </div>
               <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">

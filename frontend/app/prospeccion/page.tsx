@@ -272,15 +272,40 @@ export default function ProspeccionPage() {
 
   const lanzarCampana = async () => {
     // Combinar ciudades seleccionadas + zonas personalizadas escritas a mano
+    // Mapear códigos postales conocidos a ciudades reales (Google Places no entiende CPs)
+    const CP_A_CIUDAD: Record<string, string> = {
+      "28220": "Majadahonda",
+      "28221": "Majadahonda",
+      "28222": "Majadahonda",
+      "28223": "Pozuelo de Alarcón",
+      "28224": "Pozuelo de Alarcón",
+      "28230": "Las Rozas",
+      "28231": "Las Rozas",
+      "28232": "Las Rozas",
+      "28250": "Torrelodones",
+      "28260": "Galapagar",
+    };
     const zonasCustom = zonaPersonalizada
       .split(",")
       .map(z => z.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .map(z => /^\d{5}$/.test(z) && CP_A_CIUDAD[z] ? `${CP_A_CIUDAD[z]} (${z})` : z);
     const todasLasZonas = [...new Set([...ciudadesElegidas, ...zonasCustom])];
 
     if (todasLasZonas.length === 0 || categoriasElegidas.length === 0) {
       alert("Selecciona al menos una zona y una categoría.");
       return;
+    }
+    // Avisar si alguna zona es solo un código postal numérico no reconocido
+    const cpsSinResolver = zonasCustom.filter(z => /^\d{5}$/.test(z));
+    if (cpsSinResolver.length > 0) {
+      const ok = confirm(
+        `⚠️ Has escrito códigos postales sin ciudad: ${cpsSinResolver.join(", ")}.\n\n` +
+        `Google Places no reconoce CPs como búsqueda — probablemente no encuentre ningún lead.\n\n` +
+        `Recomendación: escribe el nombre del barrio o municipio (ej: "Majadahonda", "Salamanca").\n\n` +
+        `¿Continuar de todos modos?`
+      );
+      if (!ok) return;
     }
     // Advertir sobre zonas re-scrapeadas recientes
     const hace30Dias = new Date();
@@ -321,19 +346,31 @@ export default function ProspeccionPage() {
       });
 
       if (resp.ok) {
-        const data = await resp.json();
+        await resp.json();
         setEstadoCampana("completada");
-        setMensajeCampana(`✅ Campaña lanzada — leads en proceso`);
+        setMensajeCampana(`⏳ Campaña en curso — esperando resultados (puede tardar 30-60s)…`);
 
-        // Guardar en historial local
-        const leadsEstimados = data?.nuevos_leads ?? 0;
+        // Esperar y comprobar el resultado real consultando leads creados después de iniciar
+        const inicio = new Date(Date.now() - 5000).toISOString();
+        await new Promise(r => setTimeout(r, 30000));
+        const { count } = await supabase.from("leads").select("id", { count: "exact", head: true })
+          .eq("fuente", "scraping").gte("fecha_captacion", inicio);
+        const leadsReales = count ?? 0;
+
+        if (leadsReales === 0) {
+          setMensajeCampana(`⚠️ La campaña terminó pero no se añadió ningún lead nuevo. Comprueba que la zona es un nombre de ciudad/barrio reconocible (no solo un código postal).`);
+        } else {
+          setMensajeCampana(`✅ Campaña completada — ${leadsReales} leads nuevos añadidos`);
+        }
+
+        // Guardar en historial local con conteo real
         const porEntrada = todasLasZonas.length * categoriasElegidas.length;
         const nuevasEntradas = todasLasZonas.flatMap(zona =>
           categoriasElegidas.map(cat => ({
             zona,
             categoria: cat,
             fecha: new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "2-digit" }),
-            leadsEstimados: porEntrada > 0 ? Math.round(leadsEstimados / porEntrada) : leadsEstimados,
+            leadsEstimados: porEntrada > 0 ? Math.round(leadsReales / porEntrada) : leadsReales,
           }))
         );
         const historialActualizado = [...nuevasEntradas, ...historialCampanas].slice(0, 10);
@@ -345,7 +382,7 @@ export default function ProspeccionPage() {
           setEstadoCampana("idle");
           setMostrarConfig(false);
           cargarLeads();
-        }, 3000);
+        }, 5000);
       } else {
         let detail = `HTTP ${resp.status}`;
         try {
@@ -530,7 +567,7 @@ export default function ProspeccionPage() {
                 <span className="font-semibold text-slate-800">{headerStats.total}</span> total
               </span>
               <span className="text-slate-300">|</span>
-              <Link href="/mensajes" className="text-sm hover:underline" style={{ color: "#ea650d" }}>
+              <Link href="/leads?estado=nuevo" className="text-sm hover:underline" style={{ color: "#ea650d" }}>
                 <span className="font-semibold">{headerStats.sinContactar}</span> sin contactar →
               </Link>
               <span className="text-slate-300">|</span>
@@ -1204,20 +1241,6 @@ export default function ProspeccionPage() {
             {seleccionados.size} seleccionados
           </span>
           <div className="flex items-center gap-2 ml-auto">
-            <Link
-              href="/mensajes"
-              onClick={async () => {
-                await fetch("/api/backend/mensajes/generar", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ limite: seleccionados.size }),
-                });
-              }}
-              className="px-4 py-1.5 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1.5"
-              style={{ background: "#7c3aed" }}
-            >
-              ✦ Generar mensajes IA
-            </Link>
             <button
               onClick={marcarContactado}
               className="px-4 py-1.5 text-white text-sm font-medium rounded-lg transition-colors"

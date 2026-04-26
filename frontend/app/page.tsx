@@ -17,8 +17,6 @@ type Stats = {
   sin_atencion: number;
   // Pipeline
   por_estado: Record<string, number>;
-  // Mensajes
-  mensajes_pendientes: number;
   // Agenda
   citas_hoy: number;
   citas_proximas: number;
@@ -89,7 +87,6 @@ export default function DashboardPage() {
         leadsHoyRes,
         urgentesRes,
         vencidasRes,
-        mensajesRes,
         citasHoyRes,
         citasProxRes,
         clientesRes,
@@ -102,7 +99,6 @@ export default function DashboardPage() {
         supabase.from("leads").select("id", { count: "exact", head: true }).gte("fecha_captacion", inicioHoy),
         supabase.from("leads_dashboard").select("*").eq("temperatura", "caliente").gt("horas_sin_atencion", 2).order("horas_sin_atencion", { ascending: false }).limit(5),
         supabase.from("leads_dashboard").select("*").not("proxima_accion", "is", null).neq("proxima_accion", "ninguna").lt("proxima_accion_fecha", hoy.toISOString()).order("proxima_accion_fecha", { ascending: true }).limit(5),
-        supabase.from("mensajes_pendientes").select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
         supabase.from("appointments").select("id, tipo, fecha_hora, lead_id").gte("fecha_hora", inicioHoy).lt("fecha_hora", finHoy).in("estado", ["pendiente", "confirmada"]).order("fecha_hora"),
         supabase.from("appointments").select("id", { count: "exact", head: true }).gt("fecha_hora", finHoy).in("estado", ["pendiente", "confirmada"]),
         supabase.from("clientes").select("id", { count: "exact", head: true }).eq("estado", "activo"),
@@ -152,7 +148,6 @@ export default function DashboardPage() {
         leads_frios: frios,
         sin_atencion: sinAtencion,
         por_estado: porEstado,
-        mensajes_pendientes: mensajesRes.count ?? 0,
         citas_hoy: citasRaw.length,
         citas_proximas: citasProxRes.count ?? 0,
         clientes_activos: clientesRes.count ?? 0,
@@ -201,15 +196,12 @@ export default function DashboardPage() {
               {stats!.por_estado["nuevo"]} leads en estado "Nuevo" sin contactar
             </p>
             <p className="text-xs text-amber-600 mt-0.5">
-              Genera mensajes con IA para empezar a trabajarlos
+              Contáctalos manualmente desde el pipeline
             </p>
           </div>
           <div className="flex gap-2 shrink-0">
-            <a href="/mensajes" className="text-xs font-medium px-3 py-1.5 rounded-lg text-white" style={{ background: "#ea650d" }}>
-              Generar mensajes →
-            </a>
-            <a href="/pipeline" className="text-xs font-medium px-3 py-1.5 rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-50">
-              Ver pipeline
+            <a href="/pipeline" className="text-xs font-medium px-3 py-1.5 rounded-lg text-white" style={{ background: "#ea650d" }}>
+              Ver pipeline →
             </a>
           </div>
         </div>
@@ -380,27 +372,8 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* ── Mensajes + Clientes + Cuestionario ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Mensajes */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-slate-700">Mensajes</h2>
-            <Link href="/mensajes" className="text-xs hover:underline" style={{ color: "#ea650d" }}>Ver todos →</Link>
-          </div>
-          <div className="bg-white border border-slate-200 rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-600">Pendientes IA</span>
-              <span className={`text-sm font-bold ${stats!.mensajes_pendientes > 0 ? "" : "text-slate-400"}`} style={stats!.mensajes_pendientes > 0 ? { color: "#ea650d" } : undefined}>
-                {stats!.mensajes_pendientes}
-              </span>
-            </div>
-            <Link href="/mensajes" className="block w-full text-center text-xs rounded-lg py-2 transition-colors" style={{ color: "#ea650d", border: "1px solid #f5c5a8" }} onMouseEnter={e => (e.currentTarget.style.background = "#fff5f0")} onMouseLeave={e => (e.currentTarget.style.background = "")}>
-              Revisar mensajes →
-            </Link>
-          </div>
-        </div>
-
+      {/* ── Clientes + Cuestionario ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         {/* Clientes */}
         <div>
           <div className="flex items-center justify-between mb-3">
@@ -448,7 +421,6 @@ export default function DashboardPage() {
         <h2 className="text-sm font-semibold text-slate-700 mb-3">Accesos rápidos</h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <QuickLink href="/leads/nuevo" icon="➕" label="Nuevo lead" sub="Añadir manualmente" highlight />
-          <QuickLink href="/mensajes" icon="💬" label="Mensajes IA" sub={stats!.mensajes_pendientes > 0 ? `${stats!.mensajes_pendientes} pendientes` : "Sin pendientes"} />
           <QuickLink href="/pipeline" icon="📊" label="Pipeline" sub="Vista Kanban" />
           <QuickLink href="/renovaciones" icon="📋" label="Renovaciones" sub={stats!.renovaciones_30d > 0 ? `${stats!.renovaciones_30d} en 30 días` : "Al día"} />
           <QuickLink href="/cross-sell" icon="🎯" label="Cross-sell" sub="Ampliar cartera" />

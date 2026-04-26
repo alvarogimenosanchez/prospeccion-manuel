@@ -65,7 +65,6 @@ export default function DiagnosticoPage() {
       { count: sinSector },
       { count: citasSinConfirmar },
       { count: renovacionesVencidas },
-      { count: mensajesPendientes },
       { count: comercialesSinObjetivo },
       { count: clientesSinRenovacion },
       { count: leadsDuplicadosTel },
@@ -108,9 +107,6 @@ export default function DiagnosticoPage() {
       // Clientes con pólizas vencidas sin renovar
       supabase.from("clientes").select("id", { count: "exact", head: true })
         .eq("estado", "activo").lt("fecha_renovacion", hoyStr),
-      // Mensajes IA pendientes de revisión
-      supabase.from("mensajes_pendientes").select("id", { count: "exact", head: true })
-        .eq("estado", "pendiente"),
       // Comerciales sin objetivos mensuales configurados
       supabase.from("comerciales").select("id", { count: "exact", head: true })
         .eq("activo", true).not("rol", "eq", "admin")
@@ -267,19 +263,6 @@ export default function DiagnosticoPage() {
         severidad: getSeveridad(clientesSinRenovacion ?? 0, 5, 20),
         link: "/clientes",
         link_label: "Ver clientes",
-      },
-      // ── Mensajes ───────────────────────────────────────────────────────
-      {
-        id: "mensajes_pendientes",
-        categoria: "Mensajes",
-        titulo: "Mensajes IA pendientes de revisión",
-        descripcion: `${mensajesPendientes ?? 0} mensajes generados esperando revisión comercial antes de enviar`,
-        valor: mensajesPendientes ?? 0,
-        umbral_alerta: 20,
-        umbral_critico: 100,
-        severidad: getSeveridad(mensajesPendientes ?? 0, 20, 100),
-        link: "/mensajes",
-        link_label: "Revisar mensajes",
       },
     ];
 

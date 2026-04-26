@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
 
 type PermisosContextType = {
@@ -51,13 +51,15 @@ export function PermisosProvider({ children }: { children: React.ReactNode }) {
     cargar();
   }, []);
 
-  function puede(permiso: string): boolean {
+  const puede = useCallback((permiso: string): boolean => {
     if (cargando || mapa === null) return true; // show while loading
     return mapa[permiso] ?? false;
-  }
+  }, [cargando, mapa]);
+
+  const value = useMemo(() => ({ rol, puede, cargando }), [rol, puede, cargando]);
 
   return (
-    <PermisosCtx.Provider value={{ rol, puede, cargando }}>
+    <PermisosCtx.Provider value={value}>
       {children}
     </PermisosCtx.Provider>
   );

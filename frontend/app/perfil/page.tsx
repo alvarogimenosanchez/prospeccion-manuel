@@ -287,7 +287,7 @@ export default function PerfilPage() {
             { href: "/hoy", label: "Mi día de hoy", emoji: "🎯" },
             { href: "/leads", label: "Mis leads", emoji: "👤" },
             { href: "/agenda", label: "Mi agenda", emoji: "📅" },
-            { href: "/mensajes", label: "Mensajes WA", emoji: "💬" },
+            { href: "/pipeline", label: "Pipeline", emoji: "🔄" },
           ].map(({ href, label, emoji }) => (
             <a key={href} href={href} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-200 hover:border-orange-300 hover:bg-orange-50 transition-all">
               <span className="text-base">{emoji}</span>

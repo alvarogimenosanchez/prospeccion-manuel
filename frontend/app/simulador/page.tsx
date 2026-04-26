@@ -353,10 +353,20 @@ export default function SimuladorPage() {
     <div className="max-w-4xl space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Simulador de productos</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900">Simulador de productos</h1>
+          <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full" style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fbbf24" }}>
+            Demo · No operativo
+          </span>
+        </div>
         <p className="text-sm text-slate-500 mt-0.5">
           Introduce el perfil del cliente para ver qué productos encajan mejor y recibir argumentarios listos para usar.
         </p>
+        <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5">
+          <p className="text-xs text-amber-800">
+            <strong>Versión demo:</strong> esta funcionalidad aún no se usa en producción. Las recomendaciones son orientativas y no están conectadas con datos reales del cliente.
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
