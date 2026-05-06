@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase-browser";
 
@@ -180,6 +180,14 @@ const CONFIG_DEFAULT = `{
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function AjustesPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-slate-400">Cargando…</div>}>
+      <AjustesContent />
+    </Suspense>
+  );
+}
+
+function AjustesContent() {
   const supabase = createClient();
   const searchParams = useSearchParams();
   const [miComercialId, setMiComercialId] = useState<string | null>(null);
