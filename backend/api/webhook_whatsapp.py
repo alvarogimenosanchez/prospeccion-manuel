@@ -649,7 +649,7 @@ async def debug_config(request: Request):
 @app.post("/scraping/debug-test")
 async def debug_test_scraping(payload: CampanaRequest, request: Request):
     """
-    Endpoint temporal SIN AUTH para diagnosticar el flujo de scraping.
+    Endpoint temporal SIN AUTH para EJECUTAR una campaña real (síncrono) y devolver el resultado.
     Protegido por un secreto en el header X-Debug-Secret.
     """
     secret = request.headers.get("X-Debug-Secret", "")
@@ -657,43 +657,47 @@ async def debug_test_scraping(payload: CampanaRequest, request: Request):
         raise HTTPException(403, "secret incorrecto")
 
     import traceback
-    result = {"steps": [], "errors": []}
+    from datetime import datetime, timezone
+    result: dict = {"steps": [], "errors": []}
     try:
-        result["steps"].append(f"Payload recibido: ciudades={payload.ciudades} categorias={payload.categorias}")
+        result["steps"].append(f"Payload: ciudades={payload.ciudades} categorias={payload.categorias} paginas={payload.paginas}")
 
-        # Test scraping_campaigns insert
-        try:
-            camp_row = supabase.table('scraping_campaigns').insert({
-                "ciudades": payload.ciudades,
-                "categorias": payload.categorias,
-                "paginas_por_ciudad": payload.paginas,
-                "estado": "debug",
-            }).execute()
-            campaign_id = (camp_row.data or [{}])[0].get('id')
-            result["steps"].append(f"scraping_campaigns insert OK, id={campaign_id}")
-        except Exception as e:
-            result["errors"].append(f"scraping_campaigns insert FAIL: {type(e).__name__}: {e}")
+        # 1) Snapshot de leads ANTES de la campaña
+        before = supabase.table('leads').select('id', count='exact', head=True).eq('fuente', 'scraping').execute()
+        leads_antes = before.count or 0
+        result["steps"].append(f"Leads scraping ANTES: {leads_antes}")
 
-        # Test ejecutar_campana SÍNCRONO (no en background) para ver logs
+        inicio = datetime.now(timezone.utc).isoformat()
+        result["steps"].append(f"Inicio: {inicio}")
+
+        # 2) Ejecutar campaña SÍNCRONA (no background) para capturar errores
         try:
             from agents.agent1_scraper import ejecutar_campana
-            result["steps"].append("ejecutar_campana importado OK")
-            # Solo log, no ejecutar (para no consumir API en debug)
-            import os
-            result["steps"].append(f"GOOGLE_PLACES_API_KEY set: {bool(os.environ.get('GOOGLE_PLACES_API_KEY'))}")
+            ejecutar_campana(
+                ciudades=payload.ciudades,
+                categorias=payload.categorias,
+                paginas_por_ciudad=payload.paginas,
+                solo_con_telefono=False,
+                solo_con_web=False,
+            )
+            result["steps"].append("ejecutar_campana terminó sin excepción")
         except Exception as e:
-            result["errors"].append(f"import ejecutar_campana FAIL: {type(e).__name__}: {e}")
+            result["errors"].append(f"ejecutar_campana FAIL: {type(e).__name__}: {e}")
+            result["errors"].append(traceback.format_exc()[:2000])
 
-        # Test que comerciales table existe y tiene limite_leads_mes
-        try:
-            sample = supabase.table('comerciales').select('id, email, limite_leads_mes').limit(1).execute()
-            result["steps"].append(f"comerciales sample: {sample.data}")
-        except Exception as e:
-            result["errors"].append(f"comerciales select FAIL: {type(e).__name__}: {e}")
+        # 3) Snapshot de leads DESPUÉS
+        after = supabase.table('leads').select('id', count='exact', head=True).eq('fuente', 'scraping').execute()
+        leads_despues = after.count or 0
+        result["steps"].append(f"Leads scraping DESPUÉS: {leads_despues}")
+        result["steps"].append(f"NUEVOS LEADS: {leads_despues - leads_antes}")
+
+        # 4) Listar los leads más recientes para ver si son de esta campaña
+        recent = supabase.table('leads').select('id, nombre, empresa, ciudad, sector, telefono, fecha_captacion').eq('fuente', 'scraping').order('fecha_captacion', desc=True).limit(5).execute()
+        result["recent_leads"] = recent.data
 
         return result
     except Exception as e:
-        return {"steps": result["steps"], "errors": result["errors"] + [f"GLOBAL: {type(e).__name__}: {e}\n{traceback.format_exc()}"]}
+        return {"steps": result["steps"], "errors": result["errors"] + [f"GLOBAL: {type(e).__name__}: {e}\n{traceback.format_exc()[:2000]}"]}
 
 
 @app.post("/scraping/lanzar")
