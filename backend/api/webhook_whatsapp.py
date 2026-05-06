@@ -643,6 +643,16 @@ async def debug_config(request: Request):
     except Exception as e:
         result["checks"]["supabase_py_client"] = {"error": f"{type(e).__name__}: {e}"}
 
+    # 4) Listar columnas de la tabla leads
+    try:
+        sample = supabase.table('leads').select('*').limit(1).execute()
+        if sample.data:
+            result["checks"]["leads_columns"] = sorted(sample.data[0].keys())
+        else:
+            result["checks"]["leads_columns"] = "(empty table)"
+    except Exception as e:
+        result["checks"]["leads_columns"] = {"error": f"{type(e).__name__}: {e}"}
+
     return result
 
 
