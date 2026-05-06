@@ -10,6 +10,7 @@ import { FuenteBadge } from "./FuenteBadge";
 import type { LeadDashboard } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
 import { apiFetch } from "@/lib/api";
+import { audit } from "@/lib/audit";
 import { usePermisos } from "./PermisosProvider";
 
 // ── Estado badge ──────────────────────────────────────────────────────────────
@@ -137,6 +138,12 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
     setAsignando(true);
     const com = listaComerciales?.find(c => c.id === nuevoId);
     await supabase.from("leads").update({ comercial_asignado: nuevoId || null, updated_at: new Date().toISOString() }).eq("id", lead.id);
+    audit({
+      accion: "lead_reasignar",
+      entidad_tipo: "lead",
+      entidad_id: lead.id,
+      detalles: { de: comercialAsignado, a: nuevoId || null },
+    });
     setComercialAsignado(nuevoId || null);
     setComercialNombreActual(com?.nombre ?? null);
     // Notificar al nuevo comercial vía mensajes internos

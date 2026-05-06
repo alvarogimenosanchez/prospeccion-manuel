@@ -43,8 +43,23 @@ ENV = os.environ.get("ENV", "production").lower()
 
 app = FastAPI(title="Manuel Prospección — API")
 
-# Rate limiter para endpoints públicos (captación, etc.)
-limiter = Limiter(key_func=get_remote_address)
+# Rate limiter — para endpoints autenticados usa el sub del JWT (1 cuota por usuario);
+# para endpoints públicos cae a IP.
+def _rate_key(request: Request) -> str:
+    auth = request.headers.get("authorization", "")
+    if auth.lower().startswith("bearer "):
+        token = auth.split(" ", 1)[1].strip()
+        try:
+            from jose import jwt as _jwt
+            claims = _jwt.get_unverified_claims(token)
+            sub = claims.get("sub") or claims.get("email")
+            if sub:
+                return f"user:{sub}"
+        except Exception:
+            pass
+    return f"ip:{get_remote_address(request)}"
+
+limiter = Limiter(key_func=_rate_key)
 app.state.limiter = limiter
 
 @app.exception_handler(RateLimitExceeded)
@@ -91,6 +106,30 @@ WASSENGER_WEBHOOK_SECRET = os.environ.get("WASSENGER_WEBHOOK_SECRET", "")
 
 # Shared HTTP client — avoids creating/tearing down a connection pool on every send
 _http = httpx.AsyncClient(timeout=10)
+
+
+def _audit_log(
+    comercial: dict | None,
+    accion: str,
+    entidad_tipo: str | None = None,
+    entidad_id: str | None = None,
+    detalles: dict | None = None,
+    request: Request | None = None,
+) -> None:
+    """Registra un evento en audit_log con service role (no falla si la inserción peta)."""
+    try:
+        supabase.table("audit_log").insert({
+            "comercial_id": (comercial or {}).get("id"),
+            "email": (comercial or {}).get("email"),
+            "accion": accion,
+            "entidad_tipo": entidad_tipo,
+            "entidad_id": entidad_id,
+            "detalles": detalles or {},
+            "ip_address": request.client.host if request and request.client else None,
+            "user_agent": request.headers.get("user-agent") if request else None,
+        }).execute()
+    except Exception:
+        logger.exception("Error escribiendo audit_log accion=%s", accion)
 
 
 def _verify_wassenger_signature(body: bytes, signature_header: str | None) -> bool:
@@ -500,7 +539,8 @@ class ChatIARequest(BaseModel):
     lead_id: Optional[str] = None
 
 @app.post("/ia/chat")
-async def chat_ia(payload: ChatIARequest, _comercial: dict = Depends(verify_supabase_jwt)):
+@limiter.limit("60/hour")
+async def chat_ia(request: Request, payload: ChatIARequest, _comercial: dict = Depends(verify_supabase_jwt)):
     """
     Chat libre con el asistente IA para uso interno del equipo comercial.
     Si se provee lead_id, la IA recibe el contexto completo del lead.
@@ -544,10 +584,11 @@ class CampanaRequest(BaseModel):
     excluir_sectores: List[str] = []
 
 @app.post("/scraping/lanzar")
+@limiter.limit("5/hour")
 async def lanzar_campana_scraping(
+    request: Request,
     payload: CampanaRequest,
     background_tasks: BackgroundTasks,
-    request: Request,
     comercial: dict = Depends(verify_supabase_jwt),
 ):
     """
@@ -673,7 +714,9 @@ class EnriquecimientoRequest(BaseModel):
     limite: int = 50
 
 @app.post("/linkedin/enriquecer")
+@limiter.limit("5/hour")
 async def lanzar_enriquecimiento_linkedin(
+    request: Request,
     payload: EnriquecimientoRequest,
     background_tasks: BackgroundTasks,
     _comercial: dict = Depends(verify_supabase_jwt),
@@ -739,7 +782,9 @@ class EnviarDirectoRequest(BaseModel):
 
 
 @app.post("/mensajes/generar")
+@limiter.limit("10/hour")
 async def lanzar_generacion_mensajes(
+    request: Request,
     payload: MensajesLoteRequest,
     background_tasks: BackgroundTasks,
     _comercial: dict = Depends(verify_supabase_jwt),
@@ -756,7 +801,8 @@ async def lanzar_generacion_mensajes(
 
 
 @app.post("/mensajes/generar-uno")
-async def generar_mensaje_para_lead(payload: MensajeUnicoRequest, _comercial: dict = Depends(verify_supabase_jwt)):
+@limiter.limit("60/hour")
+async def generar_mensaje_para_lead(request: Request, payload: MensajeUnicoRequest, _comercial: dict = Depends(verify_supabase_jwt)):
     """
     Genera (o regenera) el mensaje de WhatsApp para un lead específico.
     Devuelve el mensaje generado para previsualización inmediata.
@@ -807,7 +853,8 @@ async def get_mensajes_pendientes(limite: int = 50, _comercial: dict = Depends(v
 async def aprobar_mensaje_endpoint(
     mensaje_id: str,
     payload: AprobarMensajeRequest,
-    _comercial: dict = Depends(verify_supabase_jwt),
+    request: Request,
+    comercial: dict = Depends(verify_supabase_jwt),
 ):
     """
     Aprueba un mensaje (con o sin edición) y lo envía por WhatsApp al lead.
@@ -846,20 +893,38 @@ async def aprobar_mensaje_endpoint(
     except Exception as e:
         print(f"[aprobar] Error al enviar WhatsApp: {e}")
 
+    _audit_log(
+        comercial,
+        accion="mensaje_aprobar",
+        entidad_tipo="mensaje",
+        entidad_id=mensaje_id,
+        detalles={"editado": bool(payload.mensaje_editado)},
+        request=request,
+    )
+
     return {"status": "aprobado_y_enviado"}
 
 
 @app.post("/mensajes/{mensaje_id}/descartar")
-async def descartar_mensaje_endpoint(mensaje_id: str, _comercial: dict = Depends(verify_supabase_jwt)):
+async def descartar_mensaje_endpoint(
+    mensaje_id: str,
+    request: Request,
+    comercial: dict = Depends(verify_supabase_jwt),
+):
     """Descarta un mensaje sin enviarlo."""
     ok = descartar_mensaje(mensaje_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Mensaje no encontrado")
+    _audit_log(comercial, "mensaje_descartar", "mensaje", mensaje_id, request=request)
     return {"status": "descartado"}
 
 
 @app.post("/mensajes/enviar-directo")
-async def enviar_mensaje_directo(payload: EnviarDirectoRequest, _comercial: dict = Depends(verify_supabase_jwt)):
+async def enviar_mensaje_directo(
+    payload: EnviarDirectoRequest,
+    request: Request,
+    comercial: dict = Depends(verify_supabase_jwt),
+):
     """
     Envía un mensaje de WhatsApp directamente al lead vía Wassenger.
     No pasa por bandeja de aprobación — el comercial lo escribe/edita y lo envía al momento.
@@ -894,6 +959,15 @@ async def enviar_mensaje_directo(payload: EnviarDirectoRequest, _comercial: dict
             "estado": "mensaje_enviado",
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }).eq("id", payload.lead_id).execute()
+
+    _audit_log(
+        comercial,
+        accion="mensaje_enviar",
+        entidad_tipo="lead",
+        entidad_id=payload.lead_id,
+        detalles={"telefono": telefono, "longitud": len(payload.mensaje)},
+        request=request,
+    )
 
     return {"status": "enviado", "telefono": telefono}
 

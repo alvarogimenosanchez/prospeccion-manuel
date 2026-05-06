@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import { audit } from "@/lib/audit";
 import type { Cliente } from "@/lib/supabase";
 import { usePermisos } from "@/components/PermisosProvider";
 
@@ -225,9 +226,21 @@ function ClientesContent() {
     };
 
     if (modal === "nuevo") {
-      await supabase.from("clientes").insert(payload);
+      const { data } = await supabase.from("clientes").insert(payload).select("id").single();
+      audit({
+        accion: "cliente_crear",
+        entidad_tipo: "cliente",
+        entidad_id: data?.id ?? null,
+        detalles: { producto: payload.producto, valor: payload.valor_contrato },
+      });
     } else if (editando) {
       await supabase.from("clientes").update(payload).eq("id", editando.id);
+      audit({
+        accion: "cliente_editar",
+        entidad_tipo: "cliente",
+        entidad_id: editando.id,
+        detalles: { producto: payload.producto, valor: payload.valor_contrato },
+      });
     }
 
     setModal(null);
@@ -237,6 +250,12 @@ function ClientesContent() {
 
   async function cambiarEstado(id: string, estado: Cliente["estado"]) {
     await supabase.from("clientes").update({ estado }).eq("id", id);
+    audit({
+      accion: "cliente_editar",
+      entidad_tipo: "cliente",
+      entidad_id: id,
+      detalles: { estado_nuevo: estado },
+    });
     setClientes(prev => prev.map(c => c.id === id ? { ...c, estado } : c));
   }
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { audit } from "@/lib/audit";
 import { usePermisos } from "@/components/PermisosProvider";
 import Link from "next/link";
 
@@ -103,12 +104,18 @@ export default function EquipoPage() {
   async function crearComercial() {
     if (!formNuevo.nombre.trim()) return;
     setGuardandoNuevo(true);
-    await supabase.from("comerciales").insert({
+    const { data } = await supabase.from("comerciales").insert({
       nombre: formNuevo.nombre.trim(),
       apellidos: formNuevo.apellidos.trim() || null,
       email: formNuevo.email.trim() || null,
       telefono: formNuevo.telefono.trim() || null,
       activo: true,
+    }).select("id").single();
+    audit({
+      accion: "comercial_crear",
+      entidad_tipo: "comercial",
+      entidad_id: data?.id ?? null,
+      detalles: { email: formNuevo.email.trim() || null, nombre: formNuevo.nombre.trim() },
     });
     setFormNuevo({ nombre: "", apellidos: "", email: "", telefono: "" });
     setMostrarNuevo(false);
@@ -117,8 +124,15 @@ export default function EquipoPage() {
   }
 
   async function toggleActivo(comercial: Comercial) {
-    await supabase.from("comerciales").update({ activo: !comercial.activo }).eq("id", comercial.id);
-    setComerciales(prev => prev.map(c => c.id === comercial.id ? { ...c, activo: !c.activo } : c));
+    const nuevoActivo = !comercial.activo;
+    await supabase.from("comerciales").update({ activo: nuevoActivo }).eq("id", comercial.id);
+    audit({
+      accion: nuevoActivo ? "comercial_activar" : "comercial_desactivar",
+      entidad_tipo: "comercial",
+      entidad_id: comercial.id,
+      detalles: { email: comercial.email },
+    });
+    setComerciales(prev => prev.map(c => c.id === comercial.id ? { ...c, activo: nuevoActivo } : c));
   }
 
   async function guardarEdicionComercial() {
@@ -130,6 +144,12 @@ export default function EquipoPage() {
       email: editandoComercial.email || null,
       telefono: editandoComercial.telefono || null,
     }).eq("id", editandoComercial.id);
+    audit({
+      accion: "comercial_editar",
+      entidad_tipo: "comercial",
+      entidad_id: editandoComercial.id,
+      detalles: { email: editandoComercial.email },
+    });
     setComerciales(prev => prev.map(c => c.id === editandoComercial.id ? editandoComercial : c));
     setEditandoComercial(null);
     setGuardandoEdicion(false);
@@ -137,6 +157,12 @@ export default function EquipoPage() {
 
   async function reasignarLead(leadId: string, nuevoComercialId: string) {
     await supabase.from("leads").update({ comercial_asignado: nuevoComercialId, updated_at: new Date().toISOString() }).eq("id", leadId);
+    audit({
+      accion: "lead_reasignar",
+      entidad_tipo: "lead",
+      entidad_id: leadId,
+      detalles: { de: comercialSeleccionado?.id ?? null, a: nuevoComercialId },
+    });
     setLeadsComercial(prev => prev.filter(l => l.id !== leadId));
     // Refrescar stats
     cargarComerciales();
