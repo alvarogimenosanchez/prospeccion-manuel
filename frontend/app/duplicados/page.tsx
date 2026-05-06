@@ -74,6 +74,8 @@ export default function DuplicadosPage() {
   const [revisados, setRevisados] = useState<Set<string>>(new Set());
   const [filtroTipo, setFiltroTipo] = useState<"todos" | "telefono" | "whatsapp" | "email" | "nombre">("todos");
   const [mostrarRevisados, setMostrarRevisados] = useState(false);
+  const [procesando, setProcesando] = useState<Set<string>>(new Set());
+  const [mensaje, setMensaje] = useState<{ clave: string; texto: string; tipo: "ok" | "err" } | null>(null);
 
   // Load reviewed keys from localStorage
   useEffect(() => {
@@ -200,6 +202,98 @@ export default function DuplicadosPage() {
     nuevos.delete(clave);
     setRevisados(nuevos);
     localStorage.setItem("dup_revisados", JSON.stringify([...nuevos]));
+  }
+
+  async function mantenerYDescartarOtros(grupo: GrupoDuplicados, leadId: string) {
+    const otrosIds = grupo.leads.filter(l => l.id !== leadId).map(l => l.id);
+    if (otrosIds.length === 0) return;
+    const ganador = grupo.leads.find(l => l.id === leadId);
+    const nombreGanador = [ganador?.nombre, ganador?.apellidos].filter(Boolean).join(" ");
+    if (!confirm(`¿Mantener "${nombreGanador}" y descartar los otros ${otrosIds.length} duplicado(s)?\n\nLos descartados podrán recuperarse desde el detalle del lead.`)) return;
+
+    setProcesando(prev => new Set(prev).add(grupo.clave));
+    setMensaje(null);
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .update({ estado: "descartado", motivo_descarte: "duplicado", updated_at: new Date().toISOString() })
+        .in("id", otrosIds);
+      if (error) throw error;
+      marcarRevisado(grupo.clave);
+      setMensaje({ clave: grupo.clave, texto: `✓ ${otrosIds.length} duplicado(s) descartado(s)`, tipo: "ok" });
+      setTimeout(() => setMensaje(null), 3500);
+      cargar();
+    } catch (e) {
+      const msg = (e as { message?: string })?.message ?? "Error al descartar";
+      setMensaje({ clave: grupo.clave, texto: msg, tipo: "err" });
+    } finally {
+      setProcesando(prev => { const s = new Set(prev); s.delete(grupo.clave); return s; });
+    }
+  }
+
+  async function fusionarEnEste(grupo: GrupoDuplicados, leadId: string) {
+    const ganador = grupo.leads.find(l => l.id === leadId);
+    const otros = grupo.leads.filter(l => l.id !== leadId);
+    if (!ganador || otros.length === 0) return;
+    const nombreGanador = [ganador.nombre, ganador.apellidos].filter(Boolean).join(" ");
+    if (!confirm(`Fusionar en "${nombreGanador}":\n• Se copiarán los datos faltantes (teléfono, email, empresa…) desde los otros ${otros.length} lead(s).\n• Los otros se descartarán como duplicados.\n\n¿Continuar?`)) return;
+
+    setProcesando(prev => new Set(prev).add(grupo.clave));
+    setMensaje(null);
+    try {
+      // Obtener datos completos del ganador y otros
+      const ids = grupo.leads.map(l => l.id);
+      const { data: completos, error: errFetch } = await supabase
+        .from("leads")
+        .select("id, nombre, apellidos, empresa, telefono, telefono_whatsapp, email, web, direccion, ciudad, sector, cargo, notas, productos_recomendados, comercial_asignado")
+        .in("id", ids);
+      if (errFetch) throw errFetch;
+
+      const winnerFull = (completos ?? []).find(l => l.id === leadId);
+      const othersFull = (completos ?? []).filter(l => l.id !== leadId);
+      if (!winnerFull) throw new Error("Lead ganador no encontrado");
+
+      // Campos a fusionar: si están vacíos en el ganador, copiar del primero que lo tenga
+      type Field = keyof typeof winnerFull;
+      const camposCopiables: Field[] = ["empresa", "telefono", "telefono_whatsapp", "email", "web", "direccion", "ciudad", "sector", "cargo", "notas", "comercial_asignado"];
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      for (const campo of camposCopiables) {
+        if (!winnerFull[campo]) {
+          for (const otro of othersFull) {
+            if (otro[campo]) { updates[campo] = otro[campo]; break; }
+          }
+        }
+      }
+      // Productos recomendados: unión de todos
+      const productosUnion = new Set<string>();
+      for (const l of completos ?? []) {
+        for (const p of (l.productos_recomendados ?? []) as string[]) productosUnion.add(p);
+      }
+      if (productosUnion.size > 0) updates.productos_recomendados = [...productosUnion];
+
+      if (Object.keys(updates).length > 1) {
+        const { error: errUpdate } = await supabase.from("leads").update(updates).eq("id", leadId);
+        if (errUpdate) throw errUpdate;
+      }
+
+      // Marcar otros como descartados
+      const otrosIds = othersFull.map(l => l.id);
+      const { error: errDescarte } = await supabase
+        .from("leads")
+        .update({ estado: "descartado", motivo_descarte: `fusionado_con:${leadId}`, updated_at: new Date().toISOString() })
+        .in("id", otrosIds);
+      if (errDescarte) throw errDescarte;
+
+      marcarRevisado(grupo.clave);
+      setMensaje({ clave: grupo.clave, texto: `✓ Fusionado · ${otrosIds.length} duplicado(s) descartado(s)`, tipo: "ok" });
+      setTimeout(() => setMensaje(null), 3500);
+      cargar();
+    } catch (e) {
+      const msg = (e as { message?: string })?.message ?? "Error al fusionar";
+      setMensaje({ clave: grupo.clave, texto: msg, tipo: "err" });
+    } finally {
+      setProcesando(prev => { const s = new Set(prev); s.delete(grupo.clave); return s; });
+    }
   }
 
   if (!cargandoPermisos && !puede("asignar_leads")) return <SinAcceso />;
@@ -378,6 +472,27 @@ export default function DuplicadosPage() {
                         >
                           Ver →
                         </Link>
+                        {!grupo.revisado && (
+                          <>
+                            <button
+                              onClick={() => fusionarEnEste(grupo, lead.id)}
+                              disabled={procesando.has(grupo.clave)}
+                              title="Copia datos faltantes desde los otros y los descarta"
+                              className="text-xs font-medium text-white border rounded-md px-2 py-1 transition-colors disabled:opacity-50"
+                              style={{ background: "#ea650d", borderColor: "#ea650d" }}
+                            >
+                              ⇄ Fusionar aquí
+                            </button>
+                            <button
+                              onClick={() => mantenerYDescartarOtros(grupo, lead.id)}
+                              disabled={procesando.has(grupo.clave)}
+                              title="Mantiene este lead y descarta los demás como duplicados"
+                              className="text-xs font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-md px-2 py-1 transition-colors disabled:opacity-50"
+                            >
+                              ✓ Mantener éste
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   );
@@ -387,9 +502,17 @@ export default function DuplicadosPage() {
               {/* Group footer hint */}
               {!grupo.revisado && (
                 <div className="px-5 py-2.5 bg-slate-50 border-t border-slate-100">
-                  <p className="text-xs text-slate-400">
-                    Recomendación: mantén el lead más avanzado en el pipeline y descarta o fusiona manualmente los demás.
-                  </p>
+                  {mensaje && mensaje.clave === grupo.clave ? (
+                    <p className={`text-xs font-medium ${mensaje.tipo === "ok" ? "text-emerald-700" : "text-red-600"}`}>
+                      {mensaje.texto}
+                    </p>
+                  ) : procesando.has(grupo.clave) ? (
+                    <p className="text-xs text-slate-500">Procesando…</p>
+                  ) : (
+                    <p className="text-xs text-slate-400">
+                      <strong>Mantener éste</strong> descarta los otros · <strong>Fusionar aquí</strong> copia datos faltantes y descarta los demás.
+                    </p>
+                  )}
                 </div>
               )}
             </div>
