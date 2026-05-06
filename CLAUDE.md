@@ -86,11 +86,12 @@ Schema in `database/schema.sql`. Key tables:
 
 **Important:** `temperatura` is stored in DB but also derived from `estado` in some places — keep them in sync when updating state. Supabase `.in()` only accepts arrays, not subquery builders.
 
-### Auth
-- Google OAuth via Supabase Auth
-- `middleware.ts` protects all routes except `/login`, `/captacion`, `/landing`, `/auth/callback`
-- After OAuth, middleware checks `comerciales` table — users not in this table are rejected and signed out
-- Frontend uses **anon key** (respects RLS); backend uses **service role key** (bypasses RLS)
+### Auth (3 capas — ver `database/README_SECURITY.md`)
+- **UI**: Google OAuth via Supabase Auth + `middleware.ts` que filtra por `comerciales.activo`. Email signup está deshabilitado en Supabase Dashboard.
+- **DB**: RLS granular en Supabase (`database/schema_security_v2.sql`). Comerciales ven solo sus leads + huérfanos; directores ven todo. Helper SQL: `current_comercial_id()`, `current_comercial_es_director()`.
+- **Backend FastAPI**: `verify_supabase_jwt` (en `backend/api/auth.py`) en todos los endpoints sensibles. Crons internos usan `X-Cron-Secret` con `INTERNAL_CRON_SECRET`. El frontend llama al backend con el wrapper `lib/api.ts` que añade el JWT.
+- Frontend usa **anon key** (respeta RLS); backend usa **service role key** (bypassa RLS).
+- Ruta pública `/captacion`: insert va al endpoint `/api/public/captacion-lead` (rate limit + honeypot), no directo a Supabase.
 
 ### AI / Claude integration
 - `backend/agents/agent3_mensajes.py` uses `anthropic` SDK to generate WhatsApp messages
@@ -113,10 +114,13 @@ All `/api/*` calls from frontend are proxied to Railway:
 **Backend (Railway):**
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_JWT_SECRET` — para validar JWT de usuarios (Supabase Dashboard → Settings → API → JWT Secret)
+- `INTERNAL_CRON_SECRET` — secreto compartido con los crons de Railway (header `X-Cron-Secret`)
 - `ANTHROPIC_API_KEY`
-- `WASSENGER_API_KEY` + `WASSENGER_DEVICE_ID` + `WASSENGER_WEBHOOK_SECRET`
+- `WASSENGER_API_KEY` + `WASSENGER_DEVICE_ID` + `WASSENGER_WEBHOOK_SECRET` (obligatorio en producción)
 - `GOOGLE_PLACES_API_KEY`
-- `ALLOWED_ORIGINS` (comma-separated, defaults to `*`)
+- `ALLOWED_ORIGINS` — lista separada por comas (ej. `https://prospeccion-manuel.vercel.app,http://localhost:3000`). En producción, vacío o `*` rechaza CORS.
+- `ENV` — `production` o `development` (modo dev permite bypass de HMAC)
 
 ### Design system
 - Font: `Lato` (Google Fonts fallback for NNNittiGrotesk)

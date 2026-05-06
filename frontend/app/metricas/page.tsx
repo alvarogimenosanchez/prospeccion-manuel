@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api";
 import { usePermisos } from "@/components/PermisosProvider";
 import { SinAcceso } from "@/components/SinAcceso";
 
@@ -722,20 +723,13 @@ export default function MetricasPage() {
     setEjecutandoSeguimiento(tipo);
     setMensajeSeguimiento(null);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
-      const resp = await fetch(`${apiUrl}/api/seguimiento/ejecutar`, {
+      const data = await apiFetch<{ mensaje?: string }>(`/api/seguimiento/ejecutar`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tipo }),
       });
-      if (resp.ok) {
-        const data = await resp.json();
-        setMensajeSeguimiento(data.mensaje ?? "Seguimiento ejecutado correctamente.");
-      } else {
-        setMensajeSeguimiento("Error al ejecutar el seguimiento. Revisa el backend.");
-      }
+      setMensajeSeguimiento(data.mensaje ?? "Seguimiento ejecutado correctamente.");
     } catch {
-      setMensajeSeguimiento("Backend no disponible. Conecta el backend para usar esta función.");
+      setMensajeSeguimiento("Backend no disponible o no autorizado. Recarga la página o reintenta.");
     } finally {
       setEjecutandoSeguimiento(null);
       await cargarSeguimiento(comercialId);

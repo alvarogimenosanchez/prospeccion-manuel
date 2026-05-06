@@ -14,12 +14,16 @@ from datetime import datetime, timezone, timedelta
 
 import asyncio
 import httpx
-from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from supabase import create_client, Client
 from dotenv import load_dotenv
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from starlette.responses import JSONResponse
 
 from agents.agent5_chatbot import handle_incoming_whatsapp
 from agents.agent6_scoring import score_lead, score_desde_cuestionario
@@ -28,21 +32,45 @@ from agents.agent2_seguimiento import ejecutar_seguimiento, obtener_resumen_pend
 from agents.agent4_linkedin import enriquecer_leads_sin_nombre
 from agents.agent3_mensajes import generar_mensajes_lote, aprobar_mensaje, descartar_mensaje, generar_mensaje_whatsapp
 from agents.agent7_asistente import responder_asistente
+from api.auth import verify_supabase_jwt, verify_jwt_or_cron, verify_director
 
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+ENV = os.environ.get("ENV", "production").lower()
+
 app = FastAPI(title="Manuel Prospección — API")
+
+# Rate limiter para endpoints públicos (captación, etc.)
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+@app.exception_handler(RateLimitExceeded)
+async def _rate_limit_handler(_request: Request, exc: RateLimitExceeded):
+    return JSONResponse(status_code=429, content={"detail": f"Rate limit excedido: {exc.detail}"})
+
 
 @app.on_event("startup")
 async def _check_env():
-    if not os.environ.get("WASSENGER_WEBHOOK_SECRET"):
-        logger.warning("WASSENGER_WEBHOOK_SECRET no configurado — el webhook acepta cualquier POST sin verificar firma")
+    if not os.environ.get("WASSENGER_WEBHOOK_SECRET") and ENV == "production":
+        logger.error("WASSENGER_WEBHOOK_SECRET no configurado en producción — el webhook rechazará todos los POST")
+    if not os.environ.get("SUPABASE_JWT_SECRET"):
+        logger.error("SUPABASE_JWT_SECRET no configurado — los endpoints autenticados devolverán 503")
+    if os.environ.get("ALLOWED_ORIGINS", "").strip() in ("", "*"):
+        logger.warning("ALLOWED_ORIGINS vacío o '*' — CORS permisivo. Configura el dominio del frontend en Railway.")
 
-_origins_env = os.environ.get("ALLOWED_ORIGINS", "*")
-ALLOWED_ORIGINS = _origins_env.split(",") if _origins_env != "*" else ["*"]
+
+_origins_env = os.environ.get("ALLOWED_ORIGINS", "")
+# Default: lista vacía si no se configura (rechaza CORS). Solo en development se permite '*'.
+if _origins_env.strip() == "*" and ENV != "production":
+    ALLOWED_ORIGINS: list[str] = ["*"]
+elif _origins_env.strip():
+    ALLOWED_ORIGINS = [o.strip() for o in _origins_env.split(",") if o.strip()]
+else:
+    ALLOWED_ORIGINS = []
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -69,10 +97,15 @@ def _verify_wassenger_signature(body: bytes, signature_header: str | None) -> bo
     """
     Verifica la firma HMAC-SHA256 del webhook de Wassenger.
     Wassenger envía el header X-Webhook-Signature con el HMAC del body.
-    Si no hay secreto configurado, se omite la verificación (modo desarrollo).
+
+    En producción exige el secreto configurado: si falta, rechaza el webhook.
+    Solo en ENV=development se permite el bypass (con warning ruidoso).
     """
     if not WASSENGER_WEBHOOK_SECRET:
-        return True  # Sin secreto configurado → aceptar (dev/staging)
+        if ENV != "production":
+            logger.warning("WASSENGER_WEBHOOK_SECRET vacío en %s — aceptando webhook sin verificar firma", ENV)
+            return True
+        return False
     if not signature_header:
         return False
     expected = hmac.new(
@@ -389,7 +422,8 @@ async def get_leads(
     prioridad: str | None = None,
     temperatura: str | None = None,
     estado: str | None = None,
-    comercial_id: str | None = None
+    comercial_id: str | None = None,
+    _comercial: dict = Depends(verify_supabase_jwt),
 ):
     """Obtiene leads para el dashboard con filtros opcionales."""
     query = supabase.table("leads_dashboard").select("*")
@@ -411,7 +445,7 @@ async def get_leads(
 
 
 @app.get("/api/leads/{lead_id}")
-async def get_lead_detail(lead_id: str):
+async def get_lead_detail(lead_id: str, _comercial: dict = Depends(verify_supabase_jwt)):
     """Obtiene el detalle completo de un lead con su historial."""
     # supabase-py is sync — run all three queries in threads so they execute in parallel
     lead_r, interactions_r, appointments_r = await asyncio.gather(
@@ -429,7 +463,7 @@ async def get_lead_detail(lead_id: str):
 
 
 @app.get("/api/dashboard/resumen")
-async def get_dashboard_resumen():
+async def get_dashboard_resumen(_comercial: dict = Depends(verify_supabase_jwt)):
     """Resumen diario para el dashboard de Manuel."""
     hoy = datetime.now(timezone.utc)
     inicio_hoy = hoy.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -466,7 +500,7 @@ class ChatIARequest(BaseModel):
     lead_id: Optional[str] = None
 
 @app.post("/ia/chat")
-async def chat_ia(payload: ChatIARequest):
+async def chat_ia(payload: ChatIARequest, _comercial: dict = Depends(verify_supabase_jwt)):
     """
     Chat libre con el asistente IA para uso interno del equipo comercial.
     Si se provee lead_id, la IA recibe el contexto completo del lead.
@@ -484,14 +518,14 @@ async def chat_ia(payload: ChatIARequest):
 
 
 @app.get("/ia/diagnostico")
-async def diagnostico_ia():
-    """Diagnóstico: verifica si ANTHROPIC_API_KEY está configurada."""
+async def diagnostico_ia(_comercial: dict = Depends(verify_director)):
+    """Diagnóstico: verifica si ANTHROPIC_API_KEY está configurada. Solo director."""
     import os
     key = os.environ.get("ANTHROPIC_API_KEY", "")
     return {
         "api_key_configurada": bool(key),
         "api_key_longitud": len(key),
-        "api_key_inicio": key[:8] + "..." if len(key) > 8 else "(vacía)",
+        # No devolver fragmento de la key — leak innecesario
     }
 
 
@@ -510,12 +544,18 @@ class CampanaRequest(BaseModel):
     excluir_sectores: List[str] = []
 
 @app.post("/scraping/lanzar")
-async def lanzar_campana_scraping(payload: CampanaRequest, background_tasks: BackgroundTasks, request: Request):
+async def lanzar_campana_scraping(
+    payload: CampanaRequest,
+    background_tasks: BackgroundTasks,
+    request: Request,
+    comercial: dict = Depends(verify_supabase_jwt),
+):
     """
     Lanza una campaña de scraping en background.
     Valida límite mensual por comercial antes de lanzar.
     """
-    comercial_id = request.headers.get("X-Comercial-Id")
+    # El comercial sale del JWT verificado, no del header (que era falsificable)
+    comercial_id = comercial.get("id") or request.headers.get("X-Comercial-Id")
 
     # Validar límite mensual si se conoce el comercial
     if comercial_id:
@@ -582,7 +622,10 @@ async def lanzar_campana_scraping(payload: CampanaRequest, background_tasks: Bac
 # ============================================================
 
 @app.post("/seguimiento/ejecutar")
-async def lanzar_seguimiento(background_tasks: BackgroundTasks):
+async def lanzar_seguimiento(
+    background_tasks: BackgroundTasks,
+    _auth: dict = Depends(verify_jwt_or_cron),
+):
     """
     Ejecuta el ciclo de seguimiento automático del Agente 2 en background.
     Cadencia: día 1 / 3 / 7 / 14 sin respuesta.
@@ -597,7 +640,10 @@ async def lanzar_seguimiento(background_tasks: BackgroundTasks):
 
 
 @app.post("/seguimiento/renovaciones")
-async def verificar_renovaciones(background_tasks: BackgroundTasks):
+async def verificar_renovaciones(
+    background_tasks: BackgroundTasks,
+    _auth: dict = Depends(verify_jwt_or_cron),
+):
     """
     Verifica renovaciones de clientes próximas (≤7 días) y genera alertas.
     Llamado automáticamente a las 9h por el cron en Railway.
@@ -607,7 +653,7 @@ async def verificar_renovaciones(background_tasks: BackgroundTasks):
 
 
 @app.get("/seguimiento/pendientes")
-async def get_seguimiento_pendientes():
+async def get_seguimiento_pendientes(_comercial: dict = Depends(verify_supabase_jwt)):
     """
     Devuelve cuántos leads están en cada estado de seguimiento pendiente:
     - recordatorio_1_pendientes: leads con 3-6 días sin respuesta (recordatorio 1 aún no enviado)
@@ -627,7 +673,11 @@ class EnriquecimientoRequest(BaseModel):
     limite: int = 50
 
 @app.post("/linkedin/enriquecer")
-async def lanzar_enriquecimiento_linkedin(payload: EnriquecimientoRequest, background_tasks: BackgroundTasks):
+async def lanzar_enriquecimiento_linkedin(
+    payload: EnriquecimientoRequest,
+    background_tasks: BackgroundTasks,
+    _comercial: dict = Depends(verify_supabase_jwt),
+):
     """
     Enriquece leads de scraping: busca nombre propietario, móvil y email desde la web del negocio.
     Corre en background.
@@ -640,7 +690,7 @@ async def lanzar_enriquecimiento_linkedin(payload: EnriquecimientoRequest, backg
 
 
 @app.get("/linkedin/diagnostico")
-async def diagnostico_enriquecimiento():
+async def diagnostico_enriquecimiento(_comercial: dict = Depends(verify_director)):
     """Diagnóstico: muestra los primeros 5 leads candidatos a enriquecer y sus datos clave."""
     resp = supabase.table("leads").select(
         "id, nombre, empresa, ciudad, fuente_detalle, web, apellidos, cargo, estado"
@@ -689,7 +739,11 @@ class EnviarDirectoRequest(BaseModel):
 
 
 @app.post("/mensajes/generar")
-async def lanzar_generacion_mensajes(payload: MensajesLoteRequest, background_tasks: BackgroundTasks):
+async def lanzar_generacion_mensajes(
+    payload: MensajesLoteRequest,
+    background_tasks: BackgroundTasks,
+    _comercial: dict = Depends(verify_supabase_jwt),
+):
     """
     Genera mensajes de primer contacto personalizados con Claude para leads sin mensaje pendiente.
     Corre en background. Los mensajes quedan en estado 'pendiente' para revisión del comercial.
@@ -702,7 +756,7 @@ async def lanzar_generacion_mensajes(payload: MensajesLoteRequest, background_ta
 
 
 @app.post("/mensajes/generar-uno")
-async def generar_mensaje_para_lead(payload: MensajeUnicoRequest):
+async def generar_mensaje_para_lead(payload: MensajeUnicoRequest, _comercial: dict = Depends(verify_supabase_jwt)):
     """
     Genera (o regenera) el mensaje de WhatsApp para un lead específico.
     Devuelve el mensaje generado para previsualización inmediata.
@@ -737,7 +791,7 @@ async def generar_mensaje_para_lead(payload: MensajeUnicoRequest):
 
 
 @app.get("/mensajes/pendientes")
-async def get_mensajes_pendientes(limite: int = 50):
+async def get_mensajes_pendientes(limite: int = 50, _comercial: dict = Depends(verify_supabase_jwt)):
     """
     Devuelve los mensajes pendientes de aprobación con datos del lead.
     """
@@ -750,7 +804,11 @@ async def get_mensajes_pendientes(limite: int = 50):
 
 
 @app.post("/mensajes/{mensaje_id}/aprobar")
-async def aprobar_mensaje_endpoint(mensaje_id: str, payload: AprobarMensajeRequest):
+async def aprobar_mensaje_endpoint(
+    mensaje_id: str,
+    payload: AprobarMensajeRequest,
+    _comercial: dict = Depends(verify_supabase_jwt),
+):
     """
     Aprueba un mensaje (con o sin edición) y lo envía por WhatsApp al lead.
     """
@@ -792,7 +850,7 @@ async def aprobar_mensaje_endpoint(mensaje_id: str, payload: AprobarMensajeReque
 
 
 @app.post("/mensajes/{mensaje_id}/descartar")
-async def descartar_mensaje_endpoint(mensaje_id: str):
+async def descartar_mensaje_endpoint(mensaje_id: str, _comercial: dict = Depends(verify_supabase_jwt)):
     """Descarta un mensaje sin enviarlo."""
     ok = descartar_mensaje(mensaje_id)
     if not ok:
@@ -801,7 +859,7 @@ async def descartar_mensaje_endpoint(mensaje_id: str):
 
 
 @app.post("/mensajes/enviar-directo")
-async def enviar_mensaje_directo(payload: EnviarDirectoRequest):
+async def enviar_mensaje_directo(payload: EnviarDirectoRequest, _comercial: dict = Depends(verify_supabase_jwt)):
     """
     Envía un mensaje de WhatsApp directamente al lead vía Wassenger.
     No pasa por bandeja de aprobación — el comercial lo escribe/edita y lo envía al momento.
@@ -838,3 +896,88 @@ async def enviar_mensaje_directo(payload: EnviarDirectoRequest):
         }).eq("id", payload.lead_id).execute()
 
     return {"status": "enviado", "telefono": telefono}
+
+
+# ============================================================
+# CAPTACIÓN PÚBLICA — formulario inbound (sin auth, con rate limit + honeypot)
+# ============================================================
+
+import re
+
+class CaptacionLeadRequest(BaseModel):
+    nombre: str = Field(..., min_length=2, max_length=80)
+    telefono: str = Field(..., min_length=6, max_length=20)
+    ciudad: Optional[str] = Field(None, max_length=80)
+    tipo_lead: Optional[str] = None
+    tiene_hijos: Optional[bool] = None
+    tiene_hipoteca: Optional[bool] = None
+    mayor_55: Optional[bool] = None
+    urgencia: Optional[str] = None
+    preocupaciones: List[str] = []
+    productos_recomendados: List[str] = []
+    # Honeypot — debe llegar vacío. Si trae valor, es un bot.
+    website: Optional[str] = ""
+
+
+_TELEFONO_RE = re.compile(r"^\+?[0-9\s\-()]{6,20}$")
+_NOMBRE_PROHIBIDO = re.compile(r"https?://|www\.|<[a-z]", re.IGNORECASE)
+
+
+@app.post("/api/public/captacion-lead")
+@limiter.limit("10/hour")
+async def captacion_lead_publica(payload: CaptacionLeadRequest, request: Request):
+    """
+    Endpoint público para el formulario de captación. Inserta en `leads` con service role,
+    nunca expone la anon key ni necesita política RLS abierta.
+    Defensas:
+      - honeypot 'website' → si trae valor, descarta silenciosamente (status ok pero no inserta)
+      - rate limit 10 req/hora por IP
+      - validación de teléfono (E.164/local) y nombre (sin URLs)
+    """
+    # Honeypot — bot detectado, devolvemos ok sin insertar
+    if payload.website and payload.website.strip():
+        logger.info("Honeypot disparado en captacion-lead: %s", payload.website[:40])
+        return {"status": "ok"}
+
+    # Validación de teléfono
+    telefono = payload.telefono.strip()
+    if not _TELEFONO_RE.match(telefono):
+        raise HTTPException(status_code=400, detail="Teléfono inválido")
+
+    # Validación de nombre (evita URLs/HTML inyectados)
+    nombre = payload.nombre.strip()
+    if _NOMBRE_PROHIBIDO.search(nombre):
+        raise HTTPException(status_code=400, detail="Nombre inválido")
+
+    notas_partes = []
+    if payload.urgencia:
+        notas_partes.append(f"Urgencia: {payload.urgencia}")
+    if payload.preocupaciones:
+        notas_partes.append(f"Preocupaciones: {', '.join(payload.preocupaciones)}")
+    if payload.tiene_hijos is not None:
+        notas_partes.append(f"Hijos: {'sí' if payload.tiene_hijos else 'no'}")
+    if payload.mayor_55 is not None:
+        notas_partes.append(f"Mayor 55: {'sí' if payload.mayor_55 else 'no'}")
+
+    try:
+        supabase.table("leads").insert({
+            "nombre": nombre,
+            "telefono_whatsapp": telefono,
+            "ciudad": (payload.ciudad or "").strip() or None,
+            "tipo_lead": payload.tipo_lead,
+            "tiene_hijos": payload.tiene_hijos,
+            "tiene_hipoteca": payload.tiene_hipoteca,
+            "fuente": "inbound",
+            "fuente_detalle": "formulario_captacion",
+            "estado": "nuevo",
+            "temperatura": "templado",
+            "nivel_interes": 6,
+            "prioridad": "media",
+            "productos_recomendados": payload.productos_recomendados or [],
+            "notas": ". ".join(notas_partes) if notas_partes else None,
+        }).execute()
+    except Exception:
+        logger.exception("Error insertando lead de captación")
+        raise HTTPException(status_code=500, detail="No se pudo guardar el lead")
+
+    return {"status": "ok"}

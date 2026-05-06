@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api";
 
 type Mensaje = { role: "user" | "assistant"; content: string };
 
@@ -115,16 +116,13 @@ export default function IAPage() {
     setCargando(true);
 
     try {
-      const res = await fetch(`/api/backend/ia/chat`, {
+      const data = await apiFetch<{ respuesta: string }>(`/api/backend/ia/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           messages: nuevosMensajes,
           lead_id: leadContexto?.id ?? null,
         }),
       });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
       setMensajes(prev => [...prev, { role: "assistant", content: data.respuesta }]);
     } catch {
       setMensajes(prev => [...prev, { role: "assistant", content: "Lo siento, hubo un error. Comprueba que el backend está activo e inténtalo de nuevo." }]);

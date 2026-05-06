@@ -1,6 +1,28 @@
 # Roadmap — Sistema de Prospección Manuel
 
-Estado actualizado: 2026-04-19 (tarde)
+Estado actualizado: 2026-05-06 (hardening de seguridad)
+
+---
+
+## 🛡️ Hardening de seguridad — 2026-05-06
+
+Se aplicó un análisis de seguridad completo (plan en `~/.claude/plans/quiero-que-hagas-un-cuddly-deer.md`) y se implementaron los fixes:
+
+- **RLS granular por `comercial_id`** (`database/schema_security_v2.sql`) — antes cualquier usuario authenticated leía toda la BD; ahora cada comercial solo ve sus leads + huérfanos, los directores ven todo.
+- **Auth en backend FastAPI** (`backend/api/auth.py` + `Depends(verify_supabase_jwt)` en todos los endpoints) — antes los endpoints `/api/leads`, `/scraping/lanzar`, `/mensajes/*`, etc. estaban abiertos a internet; ahora exigen JWT de un comercial activo.
+- **Frontend: wrapper `lib/api.ts`** — llamadas al backend pasan automáticamente el JWT vía `Authorization: Bearer`.
+- **CORS restrictivo** — antes default `*`; ahora exige `ALLOWED_ORIGINS` configurado en Railway.
+- **Webhook Wassenger HMAC obligatorio en producción** — antes aceptaba cualquier POST si faltaba el secret.
+- **`/captacion` con backend + honeypot + rate limit** — endpoint público `/api/public/captacion-lead` (10/hora por IP) en lugar de insert directo a Supabase desde anon.
+- **Roles director/comercial en `/equipo`** — ahora solo el director puede crear/editar/desactivar/reasignar.
+- **Documentación**: `database/README_SECURITY.md` con guía paso a paso para aplicar la migración + rotar credenciales + deshabilitar email signup en Supabase.
+
+**Pasos manuales pendientes para Manuel**:
+1. Aplicar `database/schema_security_v2.sql` en Supabase SQL Editor.
+2. Deshabilitar Email Signup en Supabase Dashboard.
+3. Configurar `SUPABASE_JWT_SECRET`, `INTERNAL_CRON_SECRET`, `ALLOWED_ORIGINS`, `ENV=production` en Railway.
+4. Añadir `X-Cron-Secret` al cron de seguimiento.
+5. (Recomendado) Rotar Service Role Key, Anthropic, Wassenger, Google Places.
 
 ---
 

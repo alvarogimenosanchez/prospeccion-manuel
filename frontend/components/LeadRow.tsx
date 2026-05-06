@@ -9,6 +9,7 @@ import { NivelInteresBar } from "./NivelInteresBar";
 import { FuenteBadge } from "./FuenteBadge";
 import type { LeadDashboard } from "@/lib/supabase";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api";
 import { usePermisos } from "./PermisosProvider";
 
 // ── Estado badge ──────────────────────────────────────────────────────────────
@@ -114,12 +115,11 @@ export function LeadRow({ lead, onEstadoCambiado }: { lead: LeadDashboard; onEst
   async function generarMensajeIA() {
     setGenerandoMsg("generando");
     try {
-      const resp = await fetch("/api/backend/mensajes/generar-uno", {
+      await apiFetch("/api/backend/mensajes/generar-uno", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ lead_id: lead.id }),
       });
-      setGenerandoMsg(resp.ok ? "ok" : "error");
+      setGenerandoMsg("ok");
       setTimeout(() => setGenerandoMsg("idle"), 3000);
     } catch {
       setGenerandoMsg("error");

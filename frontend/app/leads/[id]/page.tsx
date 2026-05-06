@@ -6,6 +6,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api";
 import type { Lead, Interaction, Appointment } from "@/lib/supabase";
 import { TemperaturaBadge } from "@/components/TemperaturaBadge";
 import { PrioridadBadge } from "@/components/PrioridadBadge";
@@ -850,12 +851,10 @@ export default function LeadDetailPage() {
     setInputIA("");
     setCargandoIA(true);
     try {
-      const res = await fetch(`/api/backend/ia/chat`, {
+      const data = await apiFetch<{ respuesta: string }>(`/api/backend/ia/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: nuevosMensajes, lead_id: lead?.id }),
       });
-      const data = await res.json();
       setMensajesIA(prev => [...prev, { role: "assistant" as const, content: data.respuesta }]);
       setTimeout(() => chatIARef.current?.scrollTo({ top: chatIARef.current.scrollHeight, behavior: "smooth" }), 50);
     } catch {

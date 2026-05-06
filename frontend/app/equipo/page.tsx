@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import { usePermisos } from "@/components/PermisosProvider";
 import Link from "next/link";
 
 type Comercial = {
@@ -46,6 +47,8 @@ const ESTADO_LABEL: Record<string, string> = {
 };
 
 export default function EquipoPage() {
+  const { rol } = usePermisos();
+  const esDirector = rol === "director" || rol === "admin";
   const [comerciales, setComerciales] = useState<Comercial[]>([]);
   const [loading, setLoading] = useState(true);
   const [comercialSeleccionado, setComercialSeleccionado] = useState<Comercial | null>(null);
@@ -150,13 +153,15 @@ export default function EquipoPage() {
           <h1 className="text-2xl font-bold text-slate-900">Equipo comercial</h1>
           <p className="text-sm text-slate-500 mt-0.5">{activos.length} comerciales activos</p>
         </div>
-        <button
-          onClick={() => setMostrarNuevo(true)}
-          className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors"
-          style={{ background: "#ea650d" }}
-        >
-          + Añadir comercial
-        </button>
+        {esDirector && (
+          <button
+            onClick={() => setMostrarNuevo(true)}
+            className="flex items-center gap-2 px-4 py-2 text-white text-sm font-medium rounded-lg transition-colors"
+            style={{ background: "#ea650d" }}
+          >
+            + Añadir comercial
+          </button>
+        )}
       </div>
 
       {loading ? (
@@ -191,16 +196,18 @@ export default function EquipoPage() {
                       <p className="font-semibold text-slate-800 text-sm truncate">{c.nombre} {c.apellidos ?? ""}</p>
                       {c.email && <p className="text-xs text-slate-400 truncate">{c.email}</p>}
                     </div>
-                    <div className="flex gap-1 flex-shrink-0">
-                      <button
-                        onClick={e => { e.stopPropagation(); setEditandoComercial({ ...c }); }}
-                        className="text-xs text-slate-400 px-1.5 py-1 rounded hover:bg-orange-50 transition-colors"
-                        onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")}
-                        onMouseLeave={e => (e.currentTarget.style.color = "")}
-                      >
-                        Editar
-                      </button>
-                    </div>
+                    {esDirector && (
+                      <div className="flex gap-1 flex-shrink-0">
+                        <button
+                          onClick={e => { e.stopPropagation(); setEditandoComercial({ ...c }); }}
+                          className="text-xs text-slate-400 px-1.5 py-1 rounded hover:bg-orange-50 transition-colors"
+                          onMouseEnter={e => (e.currentTarget.style.color = "#ea650d")}
+                          onMouseLeave={e => (e.currentTarget.style.color = "")}
+                        >
+                          Editar
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-4 gap-1 text-center">
@@ -241,7 +248,9 @@ export default function EquipoPage() {
                   {inactivos.map(c => (
                     <div key={c.id} className="bg-white rounded-xl border border-slate-200 p-3 opacity-60 flex items-center justify-between">
                       <p className="text-sm text-slate-600">{c.nombre} {c.apellidos ?? ""}</p>
-                      <button onClick={() => toggleActivo(c)} className="text-xs hover:underline" style={{ color: "#ea650d" }}>Reactivar</button>
+                      {esDirector && (
+                        <button onClick={() => toggleActivo(c)} className="text-xs hover:underline" style={{ color: "#ea650d" }}>Reactivar</button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -264,12 +273,14 @@ export default function EquipoPage() {
                     </h2>
                     <p className="text-xs text-slate-400 mt-0.5">{leadsComercial.length} leads asignados</p>
                   </div>
-                  <button
-                    onClick={() => toggleActivo(comercialSeleccionado)}
-                    className="text-xs text-slate-400 hover:text-red-600 border border-slate-200 hover:border-red-200 px-2.5 py-1.5 rounded-lg transition-colors"
-                  >
-                    {comercialSeleccionado.activo ? "Desactivar" : "Activar"}
-                  </button>
+                  {esDirector && (
+                    <button
+                      onClick={() => toggleActivo(comercialSeleccionado)}
+                      className="text-xs text-slate-400 hover:text-red-600 border border-slate-200 hover:border-red-200 px-2.5 py-1.5 rounded-lg transition-colors"
+                    >
+                      {comercialSeleccionado.activo ? "Desactivar" : "Activar"}
+                    </button>
+                  )}
                 </div>
 
                 {loadingLeads ? (
@@ -298,18 +309,20 @@ export default function EquipoPage() {
                           </div>
                         </div>
 
-                        {/* Reasignar a otro comercial */}
-                        <select
-                          defaultValue=""
-                          onChange={e => { if (e.target.value) reasignarLead(lead.id, e.target.value); }}
-                          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-500 bg-white opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 focus:border-orange-300 focus:outline-none"
-                          onClick={e => e.stopPropagation()}
-                        >
-                          <option value="" disabled>Reasignar →</option>
-                          {activos.filter(c => c.id !== comercialSeleccionado.id).map(c => (
-                            <option key={c.id} value={c.id}>{c.nombre} {c.apellidos ?? ""}</option>
-                          ))}
-                        </select>
+                        {/* Reasignar a otro comercial — solo director */}
+                        {esDirector && (
+                          <select
+                            defaultValue=""
+                            onChange={e => { if (e.target.value) reasignarLead(lead.id, e.target.value); }}
+                            className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-500 bg-white opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 focus:border-orange-300 focus:outline-none"
+                            onClick={e => e.stopPropagation()}
+                          >
+                            <option value="" disabled>Reasignar →</option>
+                            {activos.filter(c => c.id !== comercialSeleccionado.id).map(c => (
+                              <option key={c.id} value={c.id}>{c.nombre} {c.apellidos ?? ""}</option>
+                            ))}
+                          </select>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
 
 // ── Tipos ──────────────────────────────────────────────────────────────────────
 type TipoLead = "autonomo" | "pyme" | "particular";
@@ -17,6 +16,8 @@ interface FormData {
   tiene_hipoteca: boolean | null;
   mayor_55: boolean | null;
   urgencia: Urgencia | null;
+  // Honeypot — debe quedarse vacío. Si un bot lo rellena, descartamos el lead.
+  website: string;
 }
 
 // ── Catálogos ──────────────────────────────────────────────────────────────────
@@ -132,6 +133,7 @@ export default function CaptacionPage() {
     tiene_hipoteca: null,
     mayor_55: null,
     urgencia: null,
+    website: "",
   });
 
   const irAPaso = (siguiente: number) => {
@@ -159,24 +161,25 @@ export default function CaptacionPage() {
     setGuardando(true);
 
     try {
-      await supabase.from("leads").insert({
-        nombre: datosFinales.nombre,
-        telefono_whatsapp: datosFinales.telefono,
-        ciudad: datosFinales.ciudad || null,
-        tipo_lead: datosFinales.tipo_lead,
-        tiene_hijos: datosFinales.tiene_hijos,
-        tiene_hipoteca: datosFinales.tiene_hipoteca,
-        fuente: "inbound",
-        fuente_detalle: "formulario_captacion",
-        estado: "nuevo",
-        temperatura: "templado",
-        nivel_interes: 6,
-        prioridad: "media",
-        productos_recomendados: productos,
-        notas: `Urgencia: ${urgencia}. Preocupaciones: ${datosFinales.preocupaciones.join(", ")}. Hijos: ${datosFinales.tiene_hijos ?? "no indicado"}. Mayor 55: ${datosFinales.mayor_55 ?? "no indicado"}.`,
+      await fetch("/api/public/captacion-lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nombre: datosFinales.nombre,
+          telefono: datosFinales.telefono,
+          ciudad: datosFinales.ciudad || null,
+          tipo_lead: datosFinales.tipo_lead,
+          tiene_hijos: datosFinales.tiene_hijos,
+          tiene_hipoteca: datosFinales.tiene_hipoteca,
+          mayor_55: datosFinales.mayor_55,
+          urgencia,
+          preocupaciones: datosFinales.preocupaciones,
+          productos_recomendados: productos,
+          website: datosFinales.website,
+        }),
       });
     } catch {
-      // Silencioso — el lead puede no guardarse si Supabase no está disponible
+      // Silencioso — el lead puede no guardarse si el backend no está disponible
     } finally {
       setGuardando(false);
       irAPaso(5);
@@ -340,6 +343,21 @@ export default function CaptacionPage() {
                 <p className="text-sm text-slate-500">Para que Manuel pueda contactarte</p>
               </div>
               <div className="space-y-4">
+                {/* Honeypot anti-bot — invisible para humanos, los bots autocompletan */}
+                <div aria-hidden="true" style={{ position: "absolute", left: "-9999px", top: "-9999px", height: 0, width: 0, overflow: "hidden" }}>
+                  <label>
+                    Web (no rellenar)
+                    <input
+                      type="text"
+                      name="website"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      value={form.website}
+                      onChange={e => setForm(prev => ({ ...prev, website: e.target.value }))}
+                    />
+                  </label>
+                </div>
+
                 {/* Nombre */}
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-1.5">

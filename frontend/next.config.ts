@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return [
       {
+        source: "/api/public/:path*",
+        destination: `${RAILWAY}/api/public/:path*`,
+      },
+      {
         source: "/api/scraping/:path*",
         destination: `${RAILWAY}/scraping/:path*`,
       },

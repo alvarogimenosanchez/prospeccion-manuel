@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { apiFetch } from "@/lib/api";
 import type { Lead } from "@/lib/supabase";
 import { usePermisos } from "@/components/PermisosProvider";
 import { SinAcceso } from "@/components/SinAcceso";
@@ -256,15 +257,12 @@ export default function ProspeccionPage() {
   const lanzarEnriquecimiento = async () => {
     setEstadoEnriquecimiento("corriendo");
     try {
-      const resp = await fetch("/api/linkedin/enriquecer", {
+      await apiFetch("/api/linkedin/enriquecer", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ limite: 50 }),
       });
-      if (resp.ok) {
-        setEstadoEnriquecimiento("completado");
-        setTimeout(() => { setEstadoEnriquecimiento("idle"); cargarLeads(); }, 4000);
-      }
+      setEstadoEnriquecimiento("completado");
+      setTimeout(() => { setEstadoEnriquecimiento("idle"); cargarLeads(); }, 4000);
     } catch {
       setEstadoEnriquecimiento("idle");
     }
@@ -329,11 +327,9 @@ export default function ProspeccionPage() {
     setMensajeCampana("Iniciando scraping...");
 
     try {
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      if (comercialId) headers["X-Comercial-Id"] = comercialId;
-      const resp = await fetch("/api/scraping/lanzar", {
+      // El comercial_id se infiere del JWT en backend, no hace falta enviarlo
+      await apiFetch("/api/scraping/lanzar", {
         method: "POST",
-        headers,
         body: JSON.stringify({
           ciudades: todasLasZonas,
           categorias: categoriasElegidas,
@@ -345,52 +341,42 @@ export default function ProspeccionPage() {
         }),
       });
 
-      if (resp.ok) {
-        await resp.json();
-        setEstadoCampana("completada");
-        setMensajeCampana(`⏳ Campaña en curso — esperando resultados (puede tardar 30-60s)…`);
+      setEstadoCampana("completada");
+      setMensajeCampana(`⏳ Campaña en curso — esperando resultados (puede tardar 30-60s)…`);
 
-        // Esperar y comprobar el resultado real consultando leads creados después de iniciar
-        const inicio = new Date(Date.now() - 5000).toISOString();
-        await new Promise(r => setTimeout(r, 30000));
-        const { count } = await supabase.from("leads").select("id", { count: "exact", head: true })
-          .eq("fuente", "scraping").gte("fecha_captacion", inicio);
-        const leadsReales = count ?? 0;
+      // Esperar y comprobar el resultado real consultando leads creados después de iniciar
+      const inicio = new Date(Date.now() - 5000).toISOString();
+      await new Promise(r => setTimeout(r, 30000));
+      const { count } = await supabase.from("leads").select("id", { count: "exact", head: true })
+        .eq("fuente", "scraping").gte("fecha_captacion", inicio);
+      const leadsReales = count ?? 0;
 
-        if (leadsReales === 0) {
-          setMensajeCampana(`⚠️ La campaña terminó pero no se añadió ningún lead nuevo. Comprueba que la zona es un nombre de ciudad/barrio reconocible (no solo un código postal).`);
-        } else {
-          setMensajeCampana(`✅ Campaña completada — ${leadsReales} leads nuevos añadidos`);
-        }
-
-        // Guardar en historial local con conteo real
-        const porEntrada = todasLasZonas.length * categoriasElegidas.length;
-        const nuevasEntradas = todasLasZonas.flatMap(zona =>
-          categoriasElegidas.map(cat => ({
-            zona,
-            categoria: cat,
-            fecha: new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "2-digit" }),
-            leadsEstimados: porEntrada > 0 ? Math.round(leadsReales / porEntrada) : leadsReales,
-          }))
-        );
-        const historialActualizado = [...nuevasEntradas, ...historialCampanas].slice(0, 10);
-        setHistorialCampanas(historialActualizado);
-        localStorage.setItem("historial_campanas", JSON.stringify(historialActualizado));
-
-        cargarZonasYUso();
-        setTimeout(() => {
-          setEstadoCampana("idle");
-          setMostrarConfig(false);
-          cargarLeads();
-        }, 5000);
+      if (leadsReales === 0) {
+        setMensajeCampana(`⚠️ La campaña terminó pero no se añadió ningún lead nuevo. Comprueba que la zona es un nombre de ciudad/barrio reconocible (no solo un código postal).`);
       } else {
-        let detail = `HTTP ${resp.status}`;
-        try {
-          const errData = await resp.json();
-          detail = errData.detail || errData.message || JSON.stringify(errData);
-        } catch {}
-        throw new Error(detail);
+        setMensajeCampana(`✅ Campaña completada — ${leadsReales} leads nuevos añadidos`);
       }
+
+      // Guardar en historial local con conteo real
+      const porEntrada = todasLasZonas.length * categoriasElegidas.length;
+      const nuevasEntradas = todasLasZonas.flatMap(zona =>
+        categoriasElegidas.map(cat => ({
+          zona,
+          categoria: cat,
+          fecha: new Date().toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "2-digit" }),
+          leadsEstimados: porEntrada > 0 ? Math.round(leadsReales / porEntrada) : leadsReales,
+        }))
+      );
+      const historialActualizado = [...nuevasEntradas, ...historialCampanas].slice(0, 10);
+      setHistorialCampanas(historialActualizado);
+      localStorage.setItem("historial_campanas", JSON.stringify(historialActualizado));
+
+      cargarZonasYUso();
+      setTimeout(() => {
+        setEstadoCampana("idle");
+        setMostrarConfig(false);
+        cargarLeads();
+      }, 5000);
     } catch (err) {
       setEstadoCampana("error");
       setMensajeCampana(`❌ Error: ${err instanceof Error ? err.message : "No se pudo conectar con el backend"}`);

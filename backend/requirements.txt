@@ -8,3 +8,5 @@ pydantic==2.10.0
 python-multipart==0.0.19
 beautifulsoup4==4.12.3
 requests==2.32.3
+python-jose[cryptography]==3.3.0
+slowapi==0.1.9
