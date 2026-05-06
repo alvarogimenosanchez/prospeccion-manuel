@@ -279,6 +279,10 @@ export default function LeadDetailPage() {
   const [mensajeWhatsapp, setMensajeWhatsapp] = useState("");
   const [mostrarEnvio, setMostrarEnvio] = useState(false);
   const [productoActivoMsg, setProductoActivoMsg] = useState<string | null>(null);
+  const [plantillaActivaId, setPlantillaActivaId] = useState<string | null>(null);
+  const [textoOriginalPlantilla, setTextoOriginalPlantilla] = useState<string>("");
+  const [guardandoPlantilla, setGuardandoPlantilla] = useState(false);
+  const [plantillaGuardadaOk, setPlantillaGuardadaOk] = useState(false);
   const [copiado, setCopiado] = useState(false);
   const [copiadoBrief, setCopiadoBrief] = useState(false);
   const [enviandoWhatsapp, setEnviandoWhatsapp] = useState(false);
@@ -719,7 +723,7 @@ export default function LeadDetailPage() {
     if (!lead) return texto;
     const productoKey = productoOverride ?? productoActivoMsg ?? lead.producto_interes_principal ?? lead.productos_recomendados?.[0] ?? "";
     const productoNombre = PRODUCTOS_NOMBRE[productoKey] ?? productoKey;
-    return texto
+    let result = texto
       .replaceAll("{{nombre}}", lead.nombre || "")
       .replaceAll("{nombre}", lead.nombre || "")
       .replaceAll("{{empresa}}", lead.empresa || "")
@@ -732,6 +736,74 @@ export default function LeadDetailPage() {
       .replaceAll("{cargo}", lead.cargo || "")
       .replaceAll("{{producto}}", productoNombre)
       .replaceAll("{producto}", productoNombre);
+    // Limpieza de espacios y formato natural
+    result = result
+      // Insertar espacio entre minúscula+mayúscula pegadas (ej: autónomoGarauto → autónomo Garauto)
+      .replace(/([a-záéíóúüñ])([A-ZÁÉÍÓÚÜÑ])/g, "$1 $2")
+      // Quitar espacios duplicados
+      .replace(/ {2,}/g, " ")
+      // Quitar espacio antes de signos de puntuación
+      .replace(/ +([,.;:!?])/g, "$1")
+      // Limpiar líneas con solo espacios
+      .replace(/^[ \t]+$/gm, "");
+    return result;
+  }
+
+  // Inverso: convierte valores del lead concreto de vuelta a {variables}
+  // para que al guardar una edición como plantilla, los datos del lead actual
+  // se reemplacen por placeholders y la plantilla siga siendo reusable.
+  function revertirVariables(texto: string): string {
+    if (!lead) return texto;
+    let result = texto;
+    const reemplazos: Array<[string | null | undefined, string]> = [
+      [lead.empresa, "{empresa}"],
+      [lead.nombre, "{nombre}"],
+      [lead.ciudad, "{ciudad}"],
+      [lead.cargo, "{cargo}"],
+      [lead.sector, "{sector}"],
+    ];
+    // Ordenar por longitud descendente para evitar que un substring corto sobrescriba uno largo
+    reemplazos.sort((a, b) => (b[0]?.length ?? 0) - (a[0]?.length ?? 0));
+    for (const [valor, varName] of reemplazos) {
+      if (valor && valor.length >= 3) {
+        // Escape de regex
+        const escaped = valor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        result = result.replace(new RegExp(escaped, "g"), varName);
+      }
+    }
+    return result;
+  }
+
+  // Encontrar plantilla cuyo título empieza por el nombre del producto
+  // Ej: producto "sanitas_salud" → plantilla "Sanitas Salud — Seguro médico privado"
+  function findPlantillaPorProducto(productoKey: string) {
+    const nombre = PRODUCTOS_NOMBRE[productoKey];
+    if (!nombre) return undefined;
+    const nombreLower = nombre.toLowerCase();
+    return plantillasWA.find(p => p.titulo.toLowerCase().startsWith(nombreLower));
+  }
+
+  async function guardarComoplantilla() {
+    if (!plantillaActivaId || !lead) return;
+    setGuardandoPlantilla(true);
+    try {
+      const contenidoConVariables = revertirVariables(mensajeWhatsapp);
+      const { error } = await supabase
+        .from("recursos_rapidos")
+        .update({ contenido: contenidoConVariables, updated_at: new Date().toISOString() })
+        .eq("id", plantillaActivaId);
+      if (error) throw error;
+      // Refresh local
+      setPlantillasWA(prev => prev.map(p => p.id === plantillaActivaId ? { ...p, contenido: contenidoConVariables } : p));
+      setTextoOriginalPlantilla(mensajeWhatsapp);
+      setPlantillaGuardadaOk(true);
+      setTimeout(() => setPlantillaGuardadaOk(false), 2500);
+    } catch (e) {
+      const msg = (e as { message?: string })?.message ?? "Error";
+      alert(`No se pudo guardar la plantilla: ${msg}`);
+    } finally {
+      setGuardandoPlantilla(false);
+    }
   }
 
   if (loading) return <div className="text-center py-20 text-slate-400 text-sm">Cargando...</div>;
@@ -1876,11 +1948,22 @@ export default function LeadDetailPage() {
                           key={key}
                           onClick={() => {
                             setProductoActivoMsg(key);
-                            // Si ya hay un mensaje cargado por una plantilla, re-aplicar variables con el nuevo producto
-                            if (mensajeWhatsapp.trim()) {
-                              const plantillaActiva = plantillasWA.find(p => aplicarVariablesPlantilla(p.contenido) === mensajeWhatsapp || aplicarVariablesPlantilla(p.contenido, productoActivoMsg) === mensajeWhatsapp);
-                              if (plantillaActiva) {
-                                setMensajeWhatsapp(aplicarVariablesPlantilla(plantillaActiva.contenido, key));
+                            // 1) Si hay una plantilla cuyo título empieza con este producto → cargarla
+                            const matching = findPlantillaPorProducto(key);
+                            if (matching) {
+                              const aplicado = aplicarVariablesPlantilla(matching.contenido, key);
+                              setMensajeWhatsapp(aplicado);
+                              setPlantillaActivaId(matching.id);
+                              setTextoOriginalPlantilla(aplicado);
+                              return;
+                            }
+                            // 2) Si hay una plantilla activa, re-aplicar variables con el nuevo producto
+                            if (plantillaActivaId) {
+                              const activa = plantillasWA.find(p => p.id === plantillaActivaId);
+                              if (activa) {
+                                const aplicado = aplicarVariablesPlantilla(activa.contenido, key);
+                                setMensajeWhatsapp(aplicado);
+                                setTextoOriginalPlantilla(aplicado);
                               }
                             }
                           }}
@@ -1915,10 +1998,14 @@ export default function LeadDetailPage() {
                     )}
                     {plantillasWA.map((p) => {
                       const aplicado = aplicarVariablesPlantilla(p.contenido);
-                      const activa = mensajeWhatsapp === aplicado;
+                      const activa = plantillaActivaId === p.id;
                       return (
                         <button key={p.id}
-                          onClick={() => setMensajeWhatsapp(aplicado)}
+                          onClick={() => {
+                            setMensajeWhatsapp(aplicado);
+                            setPlantillaActivaId(p.id);
+                            setTextoOriginalPlantilla(aplicado);
+                          }}
                           className="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
                           style={activa
                             ? { background: "#16a34a", color: "#fff", borderColor: "#16a34a" }
@@ -1949,13 +2036,27 @@ export default function LeadDetailPage() {
                 </div>
 
                 {/* Preview / edición rápida */}
-                {mensajeWhatsapp.trim() && (
+                {mensajeWhatsapp.trim() && (() => {
+                  const textoEditado = plantillaActivaId !== null && mensajeWhatsapp !== textoOriginalPlantilla;
+                  return (
                   <div>
                     <div className="flex items-center justify-between mb-1.5">
                       <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Mensaje (editable)</p>
-                      <button onClick={() => { setMensajeWhatsapp(""); setProductoActivoMsg(null); }} className="text-[11px] text-slate-400 hover:text-red-500">
-                        Limpiar
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {textoEditado && (
+                          <button
+                            onClick={guardarComoplantilla}
+                            disabled={guardandoPlantilla}
+                            className="text-[11px] font-semibold rounded px-2 py-0.5 transition-colors disabled:opacity-50"
+                            style={{ background: "#ea650d", color: "#fff" }}
+                            title="Guarda los cambios en la plantilla, sustituyendo los datos del lead actual por variables">
+                            {guardandoPlantilla ? "Guardando…" : plantillaGuardadaOk ? "✓ Guardado" : "💾 Actualizar plantilla"}
+                          </button>
+                        )}
+                        <button onClick={() => { setMensajeWhatsapp(""); setProductoActivoMsg(null); setPlantillaActivaId(null); setTextoOriginalPlantilla(""); }} className="text-[11px] text-slate-400 hover:text-red-500">
+                          Limpiar
+                        </button>
+                      </div>
                     </div>
                     <textarea
                       value={mensajeWhatsapp}
@@ -1963,8 +2064,14 @@ export default function LeadDetailPage() {
                       rows={4}
                       className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300 resize-none bg-white text-slate-700"
                     />
+                    {plantillaActivaId && !textoEditado && (
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        Edita el texto si quieres cambiar la plantilla. Aparecerá un botón para guardar tus cambios.
+                      </p>
+                    )}
                   </div>
-                )}
+                  );
+                })()}
               </div>
 
               {mostrarEnvio && (
