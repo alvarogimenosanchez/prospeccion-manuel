@@ -8,10 +8,9 @@ import { usePermisos } from "@/components/PermisosProvider";
 import { SinAcceso } from "@/components/SinAcceso";
 import Link from "next/link";
 import * as XLSX from "xlsx";
+import { ESPANA, getCCAAByNombre, getProvinciaByNombre, capitalesDeCCAA, municipiosDeProvincia } from "@/lib/spain-geo";
 
 type LeadNuevo = Lead & { seleccionado?: boolean };
-
-const CIUDADES_SUGERIDAS = ["Madrid", "Barcelona", "Valencia", "Sevilla", "Málaga", "Bilbao", "Zaragoza", "Alicante", "Murcia", "Valladolid"];
 const CATEGORIAS = [
   { id: "inmobiliarias", label: "Inmobiliarias", icon: "🏠", productos: ["contigo_pyme", "hipotecas"] },
   { id: "asesorias", label: "Asesorías / Gestorías", icon: "📋", productos: ["contigo_pyme", "sialp"] },
@@ -106,8 +105,12 @@ export default function ProspeccionPage() {
   }, []);
 
   // Configuración de campaña
-  const [ciudadesElegidas, setCiudadesElegidas] = useState<string[]>(["Madrid"]);
+  const [ciudadesElegidas, setCiudadesElegidas] = useState<string[]>([]);
   const [zonaPersonalizada, setZonaPersonalizada] = useState("");
+  // Selector jerárquico: CCAA → Provincia → Municipio
+  const [ccaaElegidas, setCcaaElegidas] = useState<Set<string>>(new Set());
+  const [provinciasElegidas, setProvinciasElegidas] = useState<Set<string>>(new Set());
+  const [municipiosElegidos, setMunicipiosElegidos] = useState<Set<string>>(new Set());
   const [categoriasElegidas, setCategoriasElegidas] = useState<string[]>(["inmobiliarias"]);
   const [paginasPorCiudad, setPaginasPorCiudad] = useState(2);
   const [soloConTelefono, setSoloConTelefono] = useState(false);
@@ -288,7 +291,27 @@ export default function ProspeccionPage() {
       .map(z => z.trim())
       .filter(Boolean)
       .map(z => /^\d{5}$/.test(z) && CP_A_CIUDAD[z] ? `${CP_A_CIUDAD[z]} (${z})` : z);
-    const todasLasZonas = [...new Set([...ciudadesElegidas, ...zonasCustom])];
+
+    // Calcular zonas desde el selector jerárquico
+    const zonasJerarquicas: string[] = [];
+    // Municipios explícitos
+    zonasJerarquicas.push(...municipiosElegidos);
+    // Provincias sin municipio seleccionado → capital
+    for (const provNombre of provinciasElegidas) {
+      const provData = getProvinciaByNombre(provNombre);
+      if (!provData) continue;
+      const tieneMuni = provData.provincia.municipios.some(m => municipiosElegidos.has(m));
+      if (!tieneMuni) zonasJerarquicas.push(provData.provincia.municipios[0]);
+    }
+    // CCAAs sin provincia seleccionada → capitales de cada provincia
+    for (const ccaaNombre of ccaaElegidas) {
+      const ccaaData = getCCAAByNombre(ccaaNombre);
+      if (!ccaaData) continue;
+      const tieneProv = ccaaData.provincias.some(p => provinciasElegidas.has(p.nombre));
+      if (!tieneProv) zonasJerarquicas.push(...capitalesDeCCAA(ccaaNombre));
+    }
+
+    const todasLasZonas = [...new Set([...zonasJerarquicas, ...ciudadesElegidas, ...zonasCustom])];
 
     if (todasLasZonas.length === 0 || categoriasElegidas.length === 0) {
       alert("Selecciona al menos una zona y una categoría.");
@@ -824,47 +847,176 @@ export default function ProspeccionPage() {
         <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-5">
           <h2 className="font-semibold text-slate-800">Configurar campaña de scraping</h2>
 
-          {/* Zonas */}
-          <div className="space-y-3">
+          {/* Zonas — Selector jerárquico CCAA → Provincia → Municipio */}
+          <div className="space-y-4">
             <label className="text-xs font-medium text-slate-500 uppercase tracking-wide block">
               Zonas a prospectar
             </label>
-            {/* Campo libre — barrio, CP, municipio */}
+
+            {/* Paso 1: CCAA */}
             <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+                1. Comunidad Autónoma <span className="text-slate-300 font-normal normal-case">— click para añadir/quitar</span>
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {ESPANA.map(ccaa => {
+                  const elegida = ccaaElegidas.has(ccaa.nombre);
+                  return (
+                    <button
+                      key={ccaa.nombre}
+                      onClick={() => {
+                        const next = new Set(ccaaElegidas);
+                        if (elegida) {
+                          next.delete(ccaa.nombre);
+                          // Limpiar provincias y municipios de esa CCAA
+                          const nextProv = new Set(provinciasElegidas);
+                          const nextMun = new Set(municipiosElegidos);
+                          for (const p of ccaa.provincias) {
+                            nextProv.delete(p.nombre);
+                            for (const m of p.municipios) nextMun.delete(m);
+                          }
+                          setProvinciasElegidas(nextProv);
+                          setMunicipiosElegidos(nextMun);
+                        } else {
+                          next.add(ccaa.nombre);
+                        }
+                        setCcaaElegidas(next);
+                      }}
+                      className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                        elegida ? "text-white border-transparent" : "bg-white text-slate-600 border-slate-200 hover:border-orange-300"
+                      }`}
+                      style={elegida ? { background: "#ea650d" } : undefined}
+                    >
+                      {ccaa.nombre}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Paso 2: Provincias (solo si hay CCAA seleccionada) */}
+            {ccaaElegidas.size > 0 && (
+              <div className="pl-3 border-l-2 border-orange-200">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+                  2. Provincias <span className="text-slate-300 font-normal normal-case">— elige las concretas o deja vacío para todas</span>
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[...ccaaElegidas].flatMap(ccaaNombre => {
+                    const ccaa = getCCAAByNombre(ccaaNombre);
+                    if (!ccaa) return [];
+                    return ccaa.provincias.map(prov => {
+                      const elegida = provinciasElegidas.has(prov.nombre);
+                      return (
+                        <button
+                          key={prov.nombre}
+                          onClick={() => {
+                            const next = new Set(provinciasElegidas);
+                            if (elegida) {
+                              next.delete(prov.nombre);
+                              // Limpiar municipios de esa provincia
+                              const nextMun = new Set(municipiosElegidos);
+                              for (const m of prov.municipios) nextMun.delete(m);
+                              setMunicipiosElegidos(nextMun);
+                            } else {
+                              next.add(prov.nombre);
+                            }
+                            setProvinciasElegidas(next);
+                          }}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${
+                            elegida ? "text-white border-transparent" : "bg-white text-slate-600 border-slate-200 hover:border-orange-300"
+                          }`}
+                          style={elegida ? { background: "#0ea5e9" } : undefined}
+                        >
+                          {prov.nombre}
+                        </button>
+                      );
+                    });
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Paso 3: Municipios (solo si hay provincia seleccionada) */}
+            {provinciasElegidas.size > 0 && (
+              <div className="pl-3 border-l-2 border-blue-200">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+                  3. Municipios <span className="text-slate-300 font-normal normal-case">— elige los concretos o deja vacío para usar la capital de cada provincia</span>
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {[...provinciasElegidas].flatMap(provNombre => {
+                    const result = getProvinciaByNombre(provNombre);
+                    if (!result) return [];
+                    return result.provincia.municipios.map((mun, i) => {
+                      const elegido = municipiosElegidos.has(mun);
+                      const esCapital = i === 0;
+                      return (
+                        <button
+                          key={`${provNombre}-${mun}`}
+                          onClick={() => {
+                            const next = new Set(municipiosElegidos);
+                            if (elegido) next.delete(mun); else next.add(mun);
+                            setMunicipiosElegidos(next);
+                          }}
+                          className={`px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${
+                            elegido ? "text-white border-transparent" : "bg-white text-slate-600 border-slate-200 hover:border-orange-300"
+                          }`}
+                          style={elegido ? { background: "#16a34a" } : undefined}
+                          title={esCapital ? `Capital de ${provNombre}` : ""}
+                        >
+                          {esCapital ? "★ " : ""}{mun}
+                        </button>
+                      );
+                    });
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Resumen de zonas elegidas */}
+            {(ccaaElegidas.size > 0 || provinciasElegidas.size > 0 || municipiosElegidos.size > 0 || zonaPersonalizada.trim()) && (
+              <div className="rounded-lg bg-orange-50 border border-orange-200 px-3 py-2">
+                <p className="text-xs text-orange-900">
+                  <strong>Zonas a scrapear:</strong> {(() => {
+                    const zonas: string[] = [];
+                    if (municipiosElegidos.size > 0) {
+                      zonas.push(...municipiosElegidos);
+                    }
+                    for (const prov of provinciasElegidas) {
+                      const provData = getProvinciaByNombre(prov);
+                      if (!provData) continue;
+                      const tieneMuniSeleccionado = provData.provincia.municipios.some(m => municipiosElegidos.has(m));
+                      if (!tieneMuniSeleccionado) zonas.push(provData.provincia.municipios[0]); // capital
+                    }
+                    for (const ccaa of ccaaElegidas) {
+                      const ccaaData = getCCAAByNombre(ccaa);
+                      if (!ccaaData) continue;
+                      const tieneProvElegida = ccaaData.provincias.some(p => provinciasElegidas.has(p.nombre));
+                      if (!tieneProvElegida) {
+                        zonas.push(...capitalesDeCCAA(ccaa));
+                      }
+                    }
+                    if (zonaPersonalizada.trim()) {
+                      zonas.push(...zonaPersonalizada.split(",").map(s => s.trim()).filter(Boolean));
+                    }
+                    return [...new Set(zonas)].join(", ") || "ninguna";
+                  })()}
+                </p>
+              </div>
+            )}
+
+            {/* Campo libre — barrio, CP, municipio adicional */}
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
+                Añadir zonas adicionales (opcional)
+              </p>
               <input
                 type="text"
                 value={zonaPersonalizada}
                 onChange={e => setZonaPersonalizada(e.target.value)}
-                placeholder="Escribe barrios, CP o municipios separados por coma — ej: Salamanca, Retiro, 28001, Pozuelo"
+                placeholder="Barrios, CP o municipios — ej: Salamanca, Retiro, 28001, Pozuelo"
                 className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400 placeholder:text-slate-400"
               />
-              <p className="text-xs text-slate-400 mt-1">Puedes combinar barrios, códigos postales y municipios con las ciudades de abajo</p>
-            </div>
-            {/* Ciudades predefinidas */}
-            <div className="flex flex-wrap gap-2">
-              {CIUDADES_SUGERIDAS.map(c => {
-                const zonasCiudad = zonasProspectadas.filter(z => z.ciudad.toLowerCase() === c.toLowerCase());
-                const totalLeadsCiudad = zonasCiudad.reduce((s, z) => s + z.leads_encontrados, 0);
-                return (
-                  <button
-                    key={c}
-                    onClick={() => toggleCiudad(c)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
-                      ciudadesElegidas.includes(c)
-                        ? "text-white border-transparent"
-                        : "bg-white text-slate-600 border-slate-200 hover:border-orange-300"
-                    }`}
-                    style={ciudadesElegidas.includes(c) ? { background: "#ea650d" } : undefined}
-                  >
-                    {c}
-                    {totalLeadsCiudad > 0 && (
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${ciudadesElegidas.includes(c) ? "bg-white/20 text-white" : "bg-green-100 text-green-700"}`}>
-                        ✓{totalLeadsCiudad}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+              <p className="text-xs text-slate-400 mt-1">Para barrios concretos o ciudades pequeñas que no aparecen arriba.</p>
             </div>
           </div>
 

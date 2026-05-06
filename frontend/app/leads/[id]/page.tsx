@@ -715,15 +715,23 @@ export default function LeadDetailPage() {
     setTimeout(() => setGuardadoOk(false), 1500);
   }
 
-  function aplicarVariablesPlantilla(texto: string): string {
+  function aplicarVariablesPlantilla(texto: string, productoOverride?: string | null): string {
     if (!lead) return texto;
+    const productoKey = productoOverride ?? productoActivoMsg ?? lead.producto_interes_principal ?? lead.productos_recomendados?.[0] ?? "";
+    const productoNombre = PRODUCTOS_NOMBRE[productoKey] ?? productoKey;
     return texto
       .replaceAll("{{nombre}}", lead.nombre || "")
+      .replaceAll("{nombre}", lead.nombre || "")
       .replaceAll("{{empresa}}", lead.empresa || "")
+      .replaceAll("{empresa}", lead.empresa || "")
       .replaceAll("{{ciudad}}", lead.ciudad || "")
+      .replaceAll("{ciudad}", lead.ciudad || "")
       .replaceAll("{{sector}}", lead.sector || "")
+      .replaceAll("{sector}", lead.sector || "")
       .replaceAll("{{cargo}}", lead.cargo || "")
-      .replaceAll("{{producto}}", lead.producto_interes_principal || lead.productos_recomendados?.[0] || "");
+      .replaceAll("{cargo}", lead.cargo || "")
+      .replaceAll("{{producto}}", productoNombre)
+      .replaceAll("{producto}", productoNombre);
   }
 
   if (loading) return <div className="text-center py-20 text-slate-400 text-sm">Cargando...</div>;
@@ -1818,28 +1826,143 @@ export default function LeadDetailPage() {
         <div className="lg:col-span-2 space-y-4">
 
           {/* Panel de envío de mensaje */}
-          {lead.telefono_whatsapp && (
+          {lead.telefono_whatsapp && (() => {
+            const mensajeFinal = mensajeWhatsapp.trim()
+              ? mensajeWhatsapp
+              : aplicarVariablesPlantilla(generarMensaje("primer_contacto"));
+            const waUrl = `https://wa.me/${lead.telefono_whatsapp!.replace(/\D/g, "")}?text=${encodeURIComponent(mensajeFinal)}`;
+            return (
             <div data-mensaje-panel className="bg-white rounded-xl border border-slate-200 overflow-hidden">
               <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-800">Enviar mensaje</h2>
-                {!mostrarEnvio && (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={generarMensajeIA}
-                      disabled={generandoMensajeIA}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-medium rounded-lg disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}
-                    >
-                      {generandoMensajeIA ? "Generando..." : "✨ IA"}
-                    </button>
-                    <a
-                      href={`https://wa.me/${lead.telefono_whatsapp!.replace(/\D/g, "")}?text=${encodeURIComponent(generarMensaje("primer_contacto"))}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors"
-                    >
-                      <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                      Escribir a {lead.nombre}
-                    </a>
+                <div>
+                  <h2 className="text-sm font-semibold text-slate-800">Enviar mensaje</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {productoActivoMsg ? <>Producto: <span style={{ color: "#ea650d" }}>{PRODUCTOS_NOMBRE[productoActivoMsg]}</span></> : "Sin producto seleccionado"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={generarMensajeIA}
+                    disabled={generandoMensajeIA}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-white text-xs font-medium rounded-lg disabled:opacity-50 transition-colors" style={{ background: "#ea650d" }}
+                  >
+                    {generandoMensajeIA ? "Generando..." : "✨ IA"}
+                  </button>
+                  <a
+                    href={waUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors"
+                    title={mensajeWhatsapp.trim() ? "Abre WhatsApp con el mensaje seleccionado" : "Abre WhatsApp con un mensaje por defecto"}
+                  >
+                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                    Escribir a {lead.nombre}
+                  </a>
+                </div>
+              </div>
+
+              {/* ── Selector rápido SIEMPRE visible: producto + plantilla ── */}
+              <div className="px-4 py-3 border-b border-slate-100 space-y-3 bg-slate-50/40">
+                {/* Producto */}
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Producto a vender</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Object.entries(PRODUCTOS_NOMBRE).map(([key, nombre]) => {
+                      const esRecomendado = lead.productos_recomendados?.includes(key);
+                      const esPrincipal = key === lead.producto_interes_principal;
+                      const esActivo = productoActivoMsg === key;
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => {
+                            setProductoActivoMsg(key);
+                            // Si ya hay un mensaje cargado por una plantilla, re-aplicar variables con el nuevo producto
+                            if (mensajeWhatsapp.trim()) {
+                              const plantillaActiva = plantillasWA.find(p => aplicarVariablesPlantilla(p.contenido) === mensajeWhatsapp || aplicarVariablesPlantilla(p.contenido, productoActivoMsg) === mensajeWhatsapp);
+                              if (plantillaActiva) {
+                                setMensajeWhatsapp(aplicarVariablesPlantilla(plantillaActiva.contenido, key));
+                              }
+                            }
+                          }}
+                          className="px-2.5 py-1 text-xs font-medium rounded-lg border transition-all"
+                          style={esActivo
+                            ? { background: "#ea650d", color: "#fff", borderColor: "#ea650d" }
+                            : esRecomendado
+                            ? { background: "#fff5f0", color: "#ea650d", borderColor: "#f5a677" }
+                            : { background: "#fff", color: "#64748b", borderColor: "#e2e8f0" }}
+                          title={esPrincipal ? "Producto principal recomendado por IA" : esRecomendado ? "Recomendado por IA" : ""}
+                        >
+                          {esPrincipal ? "★ " : esRecomendado ? "· " : ""}{nombre}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Plantillas */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Plantilla de mensaje</p>
+                    <Link href="/recursos?tipo=plantilla_wa" className="text-[11px] text-slate-400 hover:text-orange-500 transition-colors">
+                      Editar plantillas →
+                    </Link>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {plantillasWA.length === 0 && (
+                      <p className="text-xs text-slate-400 italic py-1">
+                        No hay plantillas todavía. <Link href="/recursos?tipo=plantilla_wa" className="text-orange-500 underline">Crear desde Acceso rápido</Link>
+                      </p>
+                    )}
+                    {plantillasWA.map((p) => {
+                      const aplicado = aplicarVariablesPlantilla(p.contenido);
+                      const activa = mensajeWhatsapp === aplicado;
+                      return (
+                        <button key={p.id}
+                          onClick={() => setMensajeWhatsapp(aplicado)}
+                          className="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                          style={activa
+                            ? { background: "#16a34a", color: "#fff", borderColor: "#16a34a" }
+                            : { background: "#fff", color: "#414141", borderColor: "#e2e8f0" }}
+                          title={p.contenido}>
+                          📋 {p.titulo}
+                        </button>
+                      );
+                    })}
+                    {/* Plantillas estáticas básicas como fallback */}
+                    {[
+                      { key: "primer_contacto", label: "Primer contacto" },
+                      { key: "recordatorio_1", label: "Recordatorio" },
+                    ].map(({ key, label }) => {
+                      const txt = generarMensaje(key as "primer_contacto" | "recordatorio_1" | "recordatorio_2");
+                      const activa = mensajeWhatsapp === txt;
+                      return (
+                        <button key={key} onClick={() => setMensajeWhatsapp(txt)}
+                          className="px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors"
+                          style={activa
+                            ? { background: "#0f172a", color: "#fff", borderColor: "#0f172a" }
+                            : { background: "#fff", color: "#64748b", borderColor: "#e2e8f0" }}>
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Preview / edición rápida */}
+                {mensajeWhatsapp.trim() && (
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Mensaje (editable)</p>
+                      <button onClick={() => { setMensajeWhatsapp(""); setProductoActivoMsg(null); }} className="text-[11px] text-slate-400 hover:text-red-500">
+                        Limpiar
+                      </button>
+                    </div>
+                    <textarea
+                      value={mensajeWhatsapp}
+                      onChange={e => setMensajeWhatsapp(e.target.value)}
+                      rows={4}
+                      className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-300 resize-none bg-white text-slate-700"
+                    />
                   </div>
                 )}
               </div>
@@ -1946,7 +2069,8 @@ export default function LeadDetailPage() {
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* Asistente IA */}
           <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
