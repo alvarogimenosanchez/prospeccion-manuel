@@ -583,7 +583,7 @@ class CampanaRequest(BaseModel):
     max_anos_abierto: Optional[int] = None
     excluir_sectores: List[str] = []
 
-# ─── TEMPORAL DEBUG ENDPOINT — REMOVE AFTER TESTING ───
+# ─── DEBUG ENDPOINTS (mantenidos por si surgen más bugs; protegidos por secreto) ───
 @app.get("/scraping/debug-config")
 async def debug_config(request: Request):
     """
