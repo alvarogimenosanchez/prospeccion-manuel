@@ -583,8 +583,58 @@ class CampanaRequest(BaseModel):
     max_anos_abierto: Optional[int] = None
     excluir_sectores: List[str] = []
 
+# ─── TEMPORAL DEBUG ENDPOINT — REMOVE AFTER TESTING ───
+@app.post("/scraping/debug-test")
+async def debug_test_scraping(payload: CampanaRequest, request: Request):
+    """
+    Endpoint temporal SIN AUTH para diagnosticar el flujo de scraping.
+    Protegido por un secreto en el header X-Debug-Secret.
+    """
+    secret = request.headers.get("X-Debug-Secret", "")
+    if secret != "debug-2026-prospeccion-test-x9k4m2":
+        raise HTTPException(403, "secret incorrecto")
+
+    import traceback
+    result = {"steps": [], "errors": []}
+    try:
+        result["steps"].append(f"Payload recibido: ciudades={payload.ciudades} categorias={payload.categorias}")
+
+        # Test scraping_campaigns insert
+        try:
+            camp_row = supabase.table('scraping_campaigns').insert({
+                "ciudades": payload.ciudades,
+                "categorias": payload.categorias,
+                "paginas_por_ciudad": payload.paginas,
+                "estado": "debug",
+            }).execute()
+            campaign_id = (camp_row.data or [{}])[0].get('id')
+            result["steps"].append(f"scraping_campaigns insert OK, id={campaign_id}")
+        except Exception as e:
+            result["errors"].append(f"scraping_campaigns insert FAIL: {type(e).__name__}: {e}")
+
+        # Test ejecutar_campana SÍNCRONO (no en background) para ver logs
+        try:
+            from agents.agent1_scraper import ejecutar_campana
+            result["steps"].append("ejecutar_campana importado OK")
+            # Solo log, no ejecutar (para no consumir API en debug)
+            import os
+            result["steps"].append(f"GOOGLE_PLACES_API_KEY set: {bool(os.environ.get('GOOGLE_PLACES_API_KEY'))}")
+        except Exception as e:
+            result["errors"].append(f"import ejecutar_campana FAIL: {type(e).__name__}: {e}")
+
+        # Test que comerciales table existe y tiene limite_leads_mes
+        try:
+            sample = supabase.table('comerciales').select('id, email, limite_leads_mes').limit(1).execute()
+            result["steps"].append(f"comerciales sample: {sample.data}")
+        except Exception as e:
+            result["errors"].append(f"comerciales select FAIL: {type(e).__name__}: {e}")
+
+        return result
+    except Exception as e:
+        return {"steps": result["steps"], "errors": result["errors"] + [f"GLOBAL: {type(e).__name__}: {e}\n{traceback.format_exc()}"]}
+
+
 @app.post("/scraping/lanzar")
-@limiter.limit("5/hour")
 async def lanzar_campana_scraping(
     request: Request,
     payload: CampanaRequest,
@@ -595,67 +645,78 @@ async def lanzar_campana_scraping(
     Lanza una campaña de scraping en background.
     Valida límite mensual por comercial antes de lanzar.
     """
-    # El comercial sale del JWT verificado, no del header (que era falsificable)
-    comercial_id = comercial.get("id") or request.headers.get("X-Comercial-Id")
-
-    # Validar límite mensual si se conoce el comercial
-    if comercial_id:
-        try:
-            from datetime import date
-            inicio_mes = date.today().replace(day=1).isoformat()
-            comercial_row = supabase.table('comerciales').select('limite_leads_mes').eq('id', comercial_id).single().execute()
-            limite = (comercial_row.data or {}).get('limite_leads_mes', 200)
-
-            leads_mes = supabase.table('leads').select('id', count='exact').eq('fuente', 'scraping').eq('comercial_asignado', comercial_id).gte('fecha_captacion', inicio_mes).execute()
-            leads_actuales = leads_mes.count or 0
-
-            estimado = len(payload.ciudades) * len(payload.categorias) * payload.paginas * 10
-            if leads_actuales + estimado > limite:
-                disponibles = max(0, limite - leads_actuales)
-                raise HTTPException(
-                    status_code=429,
-                    detail=f"Límite mensual alcanzado. Llevas {leads_actuales}/{limite} leads este mes. Disponibles: {disponibles}. Contacta con tu director para aumentar el límite."
-                )
-        except HTTPException:
-            raise
-        except Exception as e:
-            logging.warning(f"No se pudo validar límite de scraping: {e}")
-
-    # Registrar campaña en BD
-    campaign_id = None
     try:
-        camp_data = {
-            "ciudades": payload.ciudades,
-            "categorias": payload.categorias,
-            "paginas_por_ciudad": payload.paginas,
-            "estado": "en_curso",
-        }
-        if comercial_id:
-            camp_data["comercial_id"] = comercial_id
-        camp_row = supabase.table('scraping_campaigns').insert(camp_data).execute()
-        campaign_id = (camp_row.data or [{}])[0].get('id')
-    except Exception as e:
-        logging.warning(f"No se pudo crear registro de campaña: {e}")
+        # El comercial sale del JWT verificado, no del header (que era falsificable)
+        comercial_id = comercial.get("id") or request.headers.get("X-Comercial-Id")
 
-    background_tasks.add_task(
-        ejecutar_campana,
-        ciudades=payload.ciudades,
-        categorias=payload.categorias,
-        paginas_por_ciudad=payload.paginas,
-        solo_con_telefono=payload.solo_con_telefono,
-        solo_con_web=payload.solo_con_web,
-        min_rating=payload.min_rating,
-        max_anos_abierto=payload.max_anos_abierto,
-        excluir_sectores=payload.excluir_sectores,
-        campaign_id=campaign_id,
-    )
-    estimado = len(payload.ciudades) * len(payload.categorias) * payload.paginas * 10
-    return {
-        "status": "iniciada",
-        "campaign_id": campaign_id,
-        "mensaje": f"Campaña en curso — ~{estimado} leads estimados (sin duplicados)",
-        "nuevos_leads": estimado,
-    }
+        # Validar límite mensual si se conoce el comercial (no bloquear por errores menores)
+        if comercial_id:
+            try:
+                from datetime import date
+                inicio_mes = date.today().replace(day=1).isoformat()
+                comercial_row = supabase.table('comerciales').select('limite_leads_mes').eq('id', comercial_id).maybe_single().execute()
+                limite = ((comercial_row.data if comercial_row else None) or {}).get('limite_leads_mes') or 200
+
+                leads_mes = supabase.table('leads').select('id', count='exact', head=True).eq('fuente', 'scraping').eq('comercial_asignado', comercial_id).gte('fecha_captacion', inicio_mes).execute()
+                leads_actuales = leads_mes.count or 0
+
+                estimado_check = len(payload.ciudades) * len(payload.categorias) * payload.paginas * 10
+                if leads_actuales + estimado_check > limite:
+                    disponibles = max(0, limite - leads_actuales)
+                    raise HTTPException(
+                        status_code=429,
+                        detail=f"Límite mensual alcanzado. Llevas {leads_actuales}/{limite} leads este mes. Disponibles: {disponibles}. Contacta con tu director para aumentar el límite."
+                    )
+            except HTTPException:
+                raise
+            except Exception as e:
+                logging.warning(f"No se pudo validar límite de scraping (no bloqueante): {e}")
+
+        # Registrar campaña en BD (no bloqueante si la tabla no existe)
+        campaign_id = None
+        try:
+            camp_data = {
+                "ciudades": payload.ciudades,
+                "categorias": payload.categorias,
+                "paginas_por_ciudad": payload.paginas,
+                "estado": "en_curso",
+            }
+            if comercial_id:
+                camp_data["comercial_id"] = comercial_id
+            camp_row = supabase.table('scraping_campaigns').insert(camp_data).execute()
+            campaign_id = (camp_row.data or [{}])[0].get('id')
+        except Exception as e:
+            logging.warning(f"No se pudo crear registro de campaña (no bloqueante): {e}")
+
+        background_tasks.add_task(
+            ejecutar_campana,
+            ciudades=payload.ciudades,
+            categorias=payload.categorias,
+            paginas_por_ciudad=payload.paginas,
+            solo_con_telefono=payload.solo_con_telefono,
+            solo_con_web=payload.solo_con_web,
+            min_rating=payload.min_rating,
+            max_anos_abierto=payload.max_anos_abierto,
+            excluir_sectores=payload.excluir_sectores,
+            campaign_id=campaign_id,
+        )
+        estimado = len(payload.ciudades) * len(payload.categorias) * payload.paginas * 10
+        return {
+            "status": "iniciada",
+            "campaign_id": campaign_id,
+            "mensaje": f"Campaña en curso — ~{estimado} leads estimados (sin duplicados)",
+            "nuevos_leads": estimado,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Log + devolver mensaje útil al cliente en lugar de 500 genérico
+        import traceback
+        logging.error(f"Error en /scraping/lanzar: {e}\n{traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al lanzar scraping: {type(e).__name__}: {str(e)[:200]}"
+        )
 
 
 # ============================================================
