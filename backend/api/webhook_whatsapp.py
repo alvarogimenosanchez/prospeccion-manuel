@@ -650,29 +650,36 @@ async def debug_config(request: Request):
 async def debug_test_scraping(payload: CampanaRequest, request: Request):
     """
     Endpoint temporal SIN AUTH para EJECUTAR una campaña real (síncrono) y devolver el resultado.
-    Protegido por un secreto en el header X-Debug-Secret.
+    Captura stdout del scraper para ver el flujo paso a paso.
     """
     secret = request.headers.get("X-Debug-Secret", "")
     if secret != "debug-2026-prospeccion-test-x9k4m2":
         raise HTTPException(403, "secret incorrecto")
 
-    import traceback
+    import traceback, sys, io
     from datetime import datetime, timezone
-    result: dict = {"steps": [], "errors": []}
+    result: dict = {"steps": [], "errors": [], "scraper_logs": ""}
     try:
         result["steps"].append(f"Payload: ciudades={payload.ciudades} categorias={payload.categorias} paginas={payload.paginas}")
 
-        # 1) Snapshot de leads ANTES de la campaña
-        before = supabase.table('leads').select('id', count='exact', head=True).eq('fuente', 'scraping').execute()
-        leads_antes = before.count or 0
-        result["steps"].append(f"Leads scraping ANTES: {leads_antes}")
+        # Capturar stdout durante el scraper
+        captured = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = captured
 
-        inicio = datetime.now(timezone.utc).isoformat()
-        result["steps"].append(f"Inicio: {inicio}")
-
-        # 2) Ejecutar campaña SÍNCRONA (no background) para capturar errores
         try:
-            from agents.agent1_scraper import ejecutar_campana
+            # Probar también la búsqueda directa para ver qué devuelve Google Places
+            from agents.agent1_scraper import scrape_google_places, ejecutar_campana
+
+            for ciudad in payload.ciudades:
+                for cat in payload.categorias:
+                    leads = scrape_google_places(cat, ciudad, max_results=10)
+                    print(f"[direct] {ciudad}/{cat} → {len(leads)} resultados")
+                    for l in leads[:3]:
+                        print(f"  - {l.get('empresa')!r} tel={l.get('telefono')!r} ciudad={l.get('ciudad')!r}")
+
+            # Y también el flujo completo
+            print("\n=== ejecutar_campana ===")
             ejecutar_campana(
                 ciudades=payload.ciudades,
                 categorias=payload.categorias,
@@ -680,24 +687,23 @@ async def debug_test_scraping(payload: CampanaRequest, request: Request):
                 solo_con_telefono=False,
                 solo_con_web=False,
             )
-            result["steps"].append("ejecutar_campana terminó sin excepción")
         except Exception as e:
-            result["errors"].append(f"ejecutar_campana FAIL: {type(e).__name__}: {e}")
+            result["errors"].append(f"scraper FAIL: {type(e).__name__}: {e}")
             result["errors"].append(traceback.format_exc()[:2000])
+        finally:
+            sys.stdout = old_stdout
+            result["scraper_logs"] = captured.getvalue()
 
-        # 3) Snapshot de leads DESPUÉS
-        after = supabase.table('leads').select('id', count='exact', head=True).eq('fuente', 'scraping').execute()
-        leads_despues = after.count or 0
-        result["steps"].append(f"Leads scraping DESPUÉS: {leads_despues}")
-        result["steps"].append(f"NUEVOS LEADS: {leads_despues - leads_antes}")
-
-        # 4) Listar los leads más recientes para ver si son de esta campaña
-        recent = supabase.table('leads').select('id, nombre, empresa, ciudad, sector, telefono, fecha_captacion').eq('fuente', 'scraping').order('fecha_captacion', desc=True).limit(5).execute()
-        result["recent_leads"] = recent.data
+        # Snapshot de leads en BD por ciudad solicitada
+        for ciudad in payload.ciudades:
+            r = supabase.table('leads').select('id, empresa, ciudad').eq('fuente', 'scraping').ilike('ciudad', f"%{ciudad}%").limit(5).execute()
+            result["steps"].append(f"Leads en DB con ciudad ~ {ciudad!r}: {len(r.data)}")
+            if r.data:
+                result["steps"].append(f"  ejemplos: {[l['empresa'] for l in r.data[:3]]}")
 
         return result
     except Exception as e:
-        return {"steps": result["steps"], "errors": result["errors"] + [f"GLOBAL: {type(e).__name__}: {e}\n{traceback.format_exc()[:2000]}"]}
+        return {"steps": result["steps"], "errors": result["errors"] + [f"GLOBAL: {type(e).__name__}: {e}\n{traceback.format_exc()[:2000]}"], "scraper_logs": result.get("scraper_logs", "")}
 
 
 @app.post("/scraping/lanzar")
