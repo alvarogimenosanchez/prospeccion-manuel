@@ -140,6 +140,7 @@ const NAV_GROUPS = [
       { href: "/automatizaciones", label: "Automatiz.", icon: "sparkle",   permiso: "gestionar_ajustes" },
       { href: "/incidencias",      label: "Incidencias",icon: "flag",      permiso: "gestionar_ajustes" },
       { href: "/diagnostico",      label: "Diagnóstico",icon: "clipboard", permiso: "gestionar_ajustes" },
+      { href: "/auditoria",        label: "Auditoría",  icon: "clipboard", permiso: "gestionar_ajustes" },
       { href: "/ajustes",          label: "Ajustes",    icon: "settings",  permiso: "gestionar_ajustes" },
       { href: "/reportes",         label: "Reportes",   icon: "flag",      permiso: "ver_reportes" },
     ],
