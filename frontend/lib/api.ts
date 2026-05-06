@@ -30,18 +30,19 @@ export async function apiFetch<T = unknown>(
 
   const res = await fetch(path, { ...init, headers });
 
-  if (res.status === 401 || res.status === 403) {
-    // Sesión expirada o no autorizado — forzar re-login
-    throw new Error(`No autorizado (${res.status}): ${await res.text()}`);
-  }
-
   if (!res.ok) {
-    let detail = "";
+    // Leer el body UNA SOLA VEZ como texto, luego intentar parsearlo como JSON.
+    // Si llamas a res.json() y falla, el stream ya se ha consumido y .text() peta.
+    const rawBody = await res.text();
+    let detail = rawBody;
     try {
-      const errBody = await res.json();
+      const errBody = JSON.parse(rawBody);
       detail = errBody.detail || JSON.stringify(errBody);
     } catch {
-      detail = await res.text();
+      // No era JSON, usamos el texto plano
+    }
+    if (res.status === 401 || res.status === 403) {
+      throw new Error(`No autorizado (${res.status}): ${detail}`);
     }
     throw new Error(`Error ${res.status}: ${detail}`);
   }
