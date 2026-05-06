@@ -8,7 +8,7 @@ import { BusquedaGlobal } from "./BusquedaGlobal";
 import { QuickCreate } from "./QuickCreate";
 import { AtajosModal } from "./AtajosModal";
 
-const PUBLIC_ROUTES = ["/login", "/auth"];
+const PUBLIC_ROUTES = ["/login", "/auth", "/captacion", "/landing"];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
