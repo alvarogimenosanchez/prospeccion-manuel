@@ -584,6 +584,68 @@ class CampanaRequest(BaseModel):
     excluir_sectores: List[str] = []
 
 # ─── TEMPORAL DEBUG ENDPOINT — REMOVE AFTER TESTING ───
+@app.get("/scraping/debug-config")
+async def debug_config(request: Request):
+    """
+    Endpoint temporal SIN AUTH para verificar config de Supabase en el backend.
+    Protegido por un secreto en el header X-Debug-Secret.
+    """
+    secret = request.headers.get("X-Debug-Secret", "")
+    if secret != "debug-2026-prospeccion-test-x9k4m2":
+        raise HTTPException(403, "secret incorrecto")
+
+    import httpx
+    sb_url = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    sb_service = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    sb_jwt_secret = os.environ.get("SUPABASE_JWT_SECRET", "")
+    google_key = os.environ.get("GOOGLE_PLACES_API_KEY", "")
+    anthropic_key = os.environ.get("ANTHROPIC_API_KEY", "")
+
+    def mask(s: str, head: int = 8, tail: int = 4) -> str:
+        if not s: return "(empty)"
+        if len(s) <= head + tail: return "(too short)"
+        return f"{s[:head]}...{s[-tail:]} (len={len(s)})"
+
+    result = {
+        "config": {
+            "SUPABASE_URL": sb_url or "(empty)",
+            "SUPABASE_SERVICE_ROLE_KEY": mask(sb_service),
+            "SUPABASE_JWT_SECRET": mask(sb_jwt_secret),
+            "GOOGLE_PLACES_API_KEY": mask(google_key),
+            "ANTHROPIC_API_KEY": mask(anthropic_key),
+        },
+        "checks": {},
+    }
+
+    # 1) Probar service_role llamando a la REST API directamente
+    if sb_url and sb_service:
+        try:
+            r = httpx.get(
+                f"{sb_url}/rest/v1/comerciales?select=id&limit=1",
+                headers={"apikey": sb_service, "Authorization": f"Bearer {sb_service}"},
+                timeout=10,
+            )
+            result["checks"]["service_role_REST"] = {"status": r.status_code, "body": r.text[:300]}
+        except Exception as e:
+            result["checks"]["service_role_REST"] = {"error": f"{type(e).__name__}: {e}"}
+
+    # 2) Probar JWKS
+    try:
+        r = httpx.get(f"{sb_url}/auth/v1/.well-known/jwks.json", timeout=10)
+        result["checks"]["jwks"] = {"status": r.status_code, "keys_count": len(r.json().get("keys", []))}
+    except Exception as e:
+        result["checks"]["jwks"] = {"error": f"{type(e).__name__}: {e}"}
+
+    # 3) Probar el cliente supabase-py global
+    try:
+        sample = supabase.table('comerciales').select('id, email').limit(1).execute()
+        result["checks"]["supabase_py_client"] = {"ok": True, "data": sample.data}
+    except Exception as e:
+        result["checks"]["supabase_py_client"] = {"error": f"{type(e).__name__}: {e}"}
+
+    return result
+
+
 @app.post("/scraping/debug-test")
 async def debug_test_scraping(payload: CampanaRequest, request: Request):
     """
