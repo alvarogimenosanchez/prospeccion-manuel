@@ -182,8 +182,11 @@ def scrape_google_places(categoria: str, ciudad: str, max_results: int = 20) -> 
             if details.get("website"):
                 lead["web"] = details["website"]
                 lead["fuente_detalle"] = details["website"]
+            # Nota: la dirección de Google Places se guarda en `notas` porque
+            # la tabla `leads` no tiene columna direccion. Si se añade la
+            # columna en el futuro, cambiar a lead["direccion"].
             if details.get("formatted_address"):
-                lead["direccion"] = details["formatted_address"]
+                lead["notas"] = f"📍 {details['formatted_address']}"
 
             leads.append(lead)
             time.sleep(0.2)  # Rate limit
