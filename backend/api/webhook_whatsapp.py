@@ -586,7 +586,11 @@ class CampanaRequest(BaseModel):
 # ─── DEBUG ENDPOINTS (mantenidos por si surgen más bugs; protegidos por secreto) ───
 @app.post("/admin/seed-comercial")
 async def admin_seed_comercial(request: Request):
-    """Endpoint admin protegido por secret para añadir comerciales."""
+    """Endpoint admin protegido por secret para añadir comerciales.
+    Hace 2 cosas:
+    1. Pre-crear el usuario en auth.users (bypass de 'signups disabled')
+    2. Insertar/actualizar la fila en `comerciales`
+    """
     secret = request.headers.get("X-Debug-Secret", "")
     if secret != "debug-2026-prospeccion-test-x9k4m2":
         raise HTTPException(403, "secret incorrecto")
@@ -601,23 +605,58 @@ async def admin_seed_comercial(request: Request):
     if rol not in ("admin", "director", "comercial"):
         raise HTTPException(400, "rol inválido (admin|director|comercial)")
 
-    # Comprobar si ya existe
-    existing = supabase.table('comerciales').select('id, email, rol, activo').eq('email', email).maybe_single().execute()
-    if existing and existing.data:
-        # Actualizar rol y activo si ya existe
-        supabase.table('comerciales').update({
-            "rol": rol, "activo": True, "updated_at": datetime.now(timezone.utc).isoformat()
-        }).eq('id', existing.data['id']).execute()
-        return {"status": "updated", "id": existing.data['id'], "email": email, "rol": rol}
+    auth_user_status: str = "unknown"
+    auth_user_id: str | None = None
 
-    # Insert nuevo
-    inserted = supabase.table('comerciales').insert({
+    # 1) Crear usuario en auth.users vía admin API (bypassa signups disabled)
+    try:
+        admin_resp = supabase.auth.admin.create_user({
+            "email": email,
+            "email_confirm": True,  # Auto-confirmar para que pueda hacer login inmediatamente
+        })
+        auth_user_id = admin_resp.user.id if admin_resp and admin_resp.user else None
+        auth_user_status = "created"
+    except Exception as e:
+        msg = str(e).lower()
+        if "already" in msg or "exists" in msg or "duplicate" in msg or "registered" in msg:
+            auth_user_status = "already_exists"
+            # Intentar obtener su id
+            try:
+                lst = supabase.auth.admin.list_users()
+                for u in (lst or []):
+                    if (getattr(u, "email", "") or "").lower() == email:
+                        auth_user_id = u.id
+                        break
+            except Exception:
+                pass
+        else:
+            auth_user_status = f"error: {type(e).__name__}: {str(e)[:200]}"
+
+    # 2) Insert/update en comerciales
+    existing = supabase.table('comerciales').select('id, email, rol, activo').eq('email', email).execute()
+    existing_data = (existing.data or [None])[0] if existing else None
+    if existing_data:
+        supabase.table('comerciales').update({
+            "rol": rol, "activo": True,
+        }).eq('id', existing_data['id']).execute()
+        comercial_status = "updated"
+        comercial_id = existing_data['id']
+    else:
+        inserted = supabase.table('comerciales').insert({
+            "email": email,
+            "nombre": nombre,
+            "rol": rol,
+            "activo": True,
+        }).execute()
+        comercial_status = "created"
+        comercial_id = (inserted.data or [{}])[0].get('id')
+
+    return {
+        "auth_user": {"status": auth_user_status, "id": auth_user_id},
+        "comercial": {"status": comercial_status, "id": comercial_id},
         "email": email,
-        "nombre": nombre,
         "rol": rol,
-        "activo": True,
-    }).execute()
-    return {"status": "created", "data": inserted.data}
+    }
 
 
 @app.get("/scraping/debug-config")
