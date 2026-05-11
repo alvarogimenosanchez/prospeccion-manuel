@@ -689,6 +689,13 @@ async def debug_config(request: Request):
     except Exception as e:
         result["checks"]["leads_columns"] = {"error": f"{type(e).__name__}: {e}"}
 
+    # 5) Listado de comerciales activos
+    try:
+        rows = supabase.table('comerciales').select('email, nombre, rol, activo').order('created_at', desc=True).limit(20).execute()
+        result["checks"]["comerciales"] = rows.data
+    except Exception as e:
+        result["checks"]["comerciales"] = {"error": f"{type(e).__name__}: {e}"}
+
     return result
 
 
