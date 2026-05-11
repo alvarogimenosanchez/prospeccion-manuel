@@ -584,6 +584,42 @@ class CampanaRequest(BaseModel):
     excluir_sectores: List[str] = []
 
 # ─── DEBUG ENDPOINTS (mantenidos por si surgen más bugs; protegidos por secreto) ───
+@app.post("/admin/seed-comercial")
+async def admin_seed_comercial(request: Request):
+    """Endpoint admin protegido por secret para añadir comerciales."""
+    secret = request.headers.get("X-Debug-Secret", "")
+    if secret != "debug-2026-prospeccion-test-x9k4m2":
+        raise HTTPException(403, "secret incorrecto")
+
+    body = await request.json()
+    email = body.get("email", "").strip().lower()
+    rol = body.get("rol", "comercial")
+    nombre = body.get("nombre") or email.split("@")[0].split(".")[0].capitalize()
+
+    if not email or "@" not in email:
+        raise HTTPException(400, "email inválido")
+    if rol not in ("admin", "director", "comercial"):
+        raise HTTPException(400, "rol inválido (admin|director|comercial)")
+
+    # Comprobar si ya existe
+    existing = supabase.table('comerciales').select('id, email, rol, activo').eq('email', email).maybe_single().execute()
+    if existing and existing.data:
+        # Actualizar rol y activo si ya existe
+        supabase.table('comerciales').update({
+            "rol": rol, "activo": True, "updated_at": datetime.now(timezone.utc).isoformat()
+        }).eq('id', existing.data['id']).execute()
+        return {"status": "updated", "id": existing.data['id'], "email": email, "rol": rol}
+
+    # Insert nuevo
+    inserted = supabase.table('comerciales').insert({
+        "email": email,
+        "nombre": nombre,
+        "rol": rol,
+        "activo": True,
+    }).execute()
+    return {"status": "created", "data": inserted.data}
+
+
 @app.get("/scraping/debug-config")
 async def debug_config(request: Request):
     """
