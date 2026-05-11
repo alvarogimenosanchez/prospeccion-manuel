@@ -15,13 +15,21 @@ La RLS de Supabase usa estos roles para decidir qué datos puede leer/escribir c
 
 ## Requisito previo: cuenta Google
 
-El sistema usa **Google OAuth** vía Supabase Auth. Para que un nuevo usuario pueda hacer login:
+El sistema usa **Google OAuth** vía Supabase Auth. Para que un nuevo usuario pueda hacer login,
+hacen falta **3 cosas**:
 
 1. Su email debe estar asociado a una cuenta Google real (Gmail, Workspace, etc.).
-2. Debe existir una fila en la tabla `comerciales` con ese email exacto (case-insensitive) y `activo = true`.
+2. Debe existir una entrada en `auth.users` de Supabase (pre-creada con la admin API).
+3. Debe existir una fila en `comerciales` con `activo = true`.
 
-El `middleware.ts` de Next.js comprueba la sesión de Supabase + la fila `comerciales` antes de
-dejar entrar al usuario. Si falta cualquiera de las dos cosas, redirige a `/login`.
+El `middleware.ts` de Next.js comprueba la sesión + la fila `comerciales` antes de dejar entrar.
+
+**Importante**: Supabase tiene `signups_disabled = true` por seguridad. Eso significa que un
+email NUEVO no puede registrarse vía OAuth — devolvería el error
+`error_code=signup_disabled`. Por eso el endpoint `/admin/seed-comercial` pre-crea al usuario
+en `auth.users` con `supabase.auth.admin.create_user()`, que sí bypassa ese límite (admin).
+Cuando luego el usuario hace login con Google, Supabase encuentra el user existente y hace
+link en lugar de signup → permitido.
 
 ## Método rápido — endpoint backend (recomendado)
 
@@ -49,23 +57,18 @@ curl -sS -X POST "https://prospeccion-manuel-production.up.railway.app/admin/see
 
 ```json
 {
-  "status": "created",
-  "data": [{
-    "id": "1ceb4381-e742-4ca8-91e9-4ecc128bb5f1",
-    "email": "info@flowhipotecas.com",
-    "rol": "director",
-    "activo": true,
-    "objetivo_cierres_mes": 5,
-    "objetivo_citas_mes": 20,
-    "max_leads_activos": 50,
-    "limite_leads_mes": 200,
-    ...
-  }]
+  "auth_user": { "status": "created", "id": "1821f09c-..." },
+  "comercial": { "status": "created", "id": "1ceb4381-..." },
+  "email": "info@flowhipotecas.com",
+  "rol": "director"
 }
 ```
 
-Si el email ya existe, el endpoint hace UPDATE de `rol` y `activo=true` en lugar de un
-insert nuevo (idempotente).
+- `auth_user.status`: `"created"` (nuevo) o `"already_exists"` (ya estaba)
+- `comercial.status`: `"created"` (nuevo) o `"updated"` (ya estaba, actualiza rol/activo)
+
+El endpoint es **idempotente** — puedes llamarlo varias veces con el mismo email sin romper
+nada. Si el usuario ya existe en `auth.users`, simplemente actualiza la fila de `comerciales`.
 
 ### Notas:
 
@@ -130,8 +133,24 @@ El `X-Debug-Secret` (`debug-2026-prospeccion-test-x9k4m2`) está hardcodeado en
 
 A medio plazo conviene migrarlo a una env var (`ADMIN_SEED_SECRET`) en Railway.
 
+## Troubleshooting
+
+### `error_code=signup_disabled` en la URL de /login después de Google OAuth
+Significa que el email **no estaba pre-creado en `auth.users`**. Verifica que el endpoint
+`/admin/seed-comercial` devolvió `auth_user.status = "created"` o `"already_exists"`.
+
+### Usuario está en `comerciales` pero al hacer login lo manda a /login con `error=no_autorizado`
+Probablemente había un mismatch de capitalización (`Manulopezz` vs `manulopezz`). El
+middleware ya usa `.ilike()` para hacer match case-insensitive, pero verifica que tanto el
+email en `auth.users` como en `comerciales` están en lowercase.
+
+### El usuario hace login pero no ve nada en la app
+Verifica que `comerciales.activo = true`. También revisa que `rol` no esté vacío.
+
 ## Histórico
 
 | Fecha | Acción |
 |---|---|
 | 2026-05-11 | Alta de 3 directors: `info@flowhipotecas.com`, `nestorcurto85@gmail.com`, `manulopezz2002@gmail.com` |
+| 2026-05-11 | Alta de cuenta de prueba: `alvarogimeno2002.2@gmail.com` (director) |
+| 2026-05-11 | Fix: endpoint ahora pre-crea `auth.users` para bypass `signups_disabled` + middleware ahora case-insensitive |
