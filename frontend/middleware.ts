@@ -59,11 +59,13 @@ export async function middleware(request: NextRequest) {
   }
 
   // Verificar que el email está en la tabla comerciales (activos)
-  const email = user.email ?? "";
+  // Normalizamos a lowercase porque algunos OAuth providers (Google) pueden
+  // devolver el email con la capitalización original.
+  const email = (user.email ?? "").toLowerCase().trim();
   const { data: comercial } = await supabase
     .from("comerciales")
     .select("id")
-    .eq("email", email)
+    .ilike("email", email)
     .eq("activo", true)
     .maybeSingle();
 
