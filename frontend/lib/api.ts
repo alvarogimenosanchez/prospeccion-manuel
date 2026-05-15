@@ -34,10 +34,19 @@ export async function apiFetch<T = unknown>(
     // Leer el body UNA SOLA VEZ como texto, luego intentar parsearlo como JSON.
     // Si llamas a res.json() y falla, el stream ya se ha consumido y .text() peta.
     const rawBody = await res.text();
-    let detail = rawBody;
+    let detail: string = rawBody;
     try {
       const errBody = JSON.parse(rawBody);
-      detail = errBody.detail || JSON.stringify(errBody);
+      const rawDetail = errBody.detail;
+      // FastAPI/Pydantic devuelve detail como objeto/array cuando hay errores
+      // de validación. Hay que stringificarlo para no obtener "[object Object]".
+      if (typeof rawDetail === "string") {
+        detail = rawDetail;
+      } else if (rawDetail !== undefined) {
+        detail = JSON.stringify(rawDetail);
+      } else {
+        detail = JSON.stringify(errBody);
+      }
     } catch {
       // No era JSON, usamos el texto plano
     }
