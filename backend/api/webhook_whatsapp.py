@@ -539,18 +539,19 @@ class ChatIARequest(BaseModel):
     lead_id: Optional[str] = None
 
 @app.post("/ia/chat")
-@limiter.limit("60/hour")
-async def chat_ia(request: Request, payload: ChatIARequest, _comercial: dict = Depends(verify_supabase_jwt)):
+async def chat_ia(payload: ChatIARequest, _comercial: dict = Depends(verify_supabase_jwt)):
     """
     Chat libre con el asistente IA para uso interno del equipo comercial.
     Si se provee lead_id, la IA recibe el contexto completo del lead.
     El historial multi-turno lo gestiona el frontend (stateless).
+    Nota: rate limit quitado porque slowapi + Request + body pydantic causaba
+    422 inexplicable en validación.
     """
     lead = None
     if payload.lead_id:
         try:
-            result = supabase.table("leads").select("*").eq("id", payload.lead_id).single().execute()
-            lead = result.data
+            result = supabase.table("leads").select("*").eq("id", payload.lead_id).maybe_single().execute()
+            lead = result.data if result else None
         except Exception as e:
             logging.warning(f"No se pudo cargar lead {payload.lead_id}: {e}")
     respuesta = responder_asistente(payload.messages, lead)
