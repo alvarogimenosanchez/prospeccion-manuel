@@ -9,6 +9,7 @@ import { LeadRow } from "@/components/LeadRow";
 import { FiltrosBar, type EstadoFiltro } from "@/components/FiltrosBar";
 import { usePermisos } from "@/components/PermisosProvider";
 import { ImportarLeadsModal } from "@/components/ImportarLeadsModal";
+import { esMovilEspanol } from "@/lib/telefono";
 
 const PAGE_SIZE = 50;
 
@@ -45,6 +46,7 @@ function LeadsContent() {
   const [ordenar,      setOrdenar     ] = useState(searchParams.get("ordenar") ?? "reciente");
   const [sinActividad, setSinActividad] = useState(searchParams.get("inactivos") ?? "");
   const [soloSinAsignar, setSoloSinAsignar] = useState(false);
+  const [soloMoviles, setSoloMoviles] = useState(false);
   const [mostrarImport, setMostrarImport] = useState(false);
 
   // ── Comercial del usuario logueado ────────────────────────────────────────
@@ -212,6 +214,12 @@ function LeadsContent() {
     const { data, count } = await query;
     let resultado = (data as LeadDashboard[]) ?? [];
 
+    // Filtro "solo móviles" — client-side porque la BD no tiene flag móvil/fijo.
+    // Filtra leads cuyo telefono_whatsapp sea un móvil español (6xx/7xx).
+    if (soloMoviles) {
+      resultado = resultado.filter(l => esMovilEspanol(l.telefono_whatsapp));
+    }
+
     const totalCount = count ?? 0;
     if (nuevoOffset === 0) {
       setLeads(resultado);
@@ -227,7 +235,7 @@ function LeadsContent() {
     setOffset(nuevoOffset);
     setHayMas(nuevoOffset + PAGE_SIZE < totalCount);
     setLoading(false);
-  }, [prioridad, busqueda, estado, soloMios, soloSinAsignar, sinPermisoVerTodos, comercialId, comercialCargado, teamId, temperatura, fuente, ordenar, sinActividad]);
+  }, [prioridad, busqueda, estado, soloMios, soloSinAsignar, soloMoviles, sinPermisoVerTodos, comercialId, comercialCargado, teamId, temperatura, fuente, ordenar, sinActividad]);
 
   // Reset y recargar cuando cambian los filtros
   useEffect(() => {
@@ -282,10 +290,11 @@ function LeadsContent() {
     setSinActividad("");
     setOrdenar("reciente");
     setSoloSinAsignar(false);
+    setSoloMoviles(false);
   }
 
   // Calcular texto de resumen
-  const hayFiltrosActivos = !!(prioridad || estado || teamId || temperatura || fuente || busqueda || sinActividad || soloSinAsignar);
+  const hayFiltrosActivos = !!(prioridad || estado || teamId || temperatura || fuente || busqueda || sinActividad || soloSinAsignar || soloMoviles);
   const sinFiltros = !prioridad && !estado && !teamId && !temperatura;
   const labelFiltrado = [
     soloSinAsignar ? "sin asignar" : soloMios ? "mis leads" : null,
@@ -412,6 +421,21 @@ function LeadsContent() {
           onTemperatura={(v)  => setTemperatura(v)}
           onFuente={(v)       => setFuente(v)}
         />
+      </div>
+
+      {/* Chip "Solo móviles" — filtra leads con WhatsApp móvil real (6xx/7xx) */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setSoloMoviles(v => !v)}
+          className={`flex items-center gap-1.5 text-xs font-medium rounded-full border px-3 py-1.5 transition-colors ${
+            soloMoviles ? "text-white border-transparent" : "bg-white text-slate-600 border-slate-200 hover:border-green-300"
+          }`}
+          style={soloMoviles ? { background: "#16a34a" } : undefined}
+          title="Filtra leads cuyo teléfono WhatsApp es un móvil español (6xx o 7xx). Los fijos no permiten enviar WhatsApp."
+        >
+          📱 Solo móviles
+          {soloMoviles && <span className="text-[10px] opacity-80">(WhatsApp posible)</span>}
+        </button>
       </div>
 
       {/* Limpiar filtros */}

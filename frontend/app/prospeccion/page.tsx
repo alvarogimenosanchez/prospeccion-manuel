@@ -115,6 +115,7 @@ export default function ProspeccionPage() {
   const [paginasPorCiudad, setPaginasPorCiudad] = useState(2);
   const [soloConTelefono, setSoloConTelefono] = useState(false);
   const [soloConWeb, setSoloConWeb] = useState(false);
+  const [soloMovil, setSoloMovil] = useState(false);
   const [minRating, setMinRating] = useState(0);
   const [maxAnosAbierto, setMaxAnosAbierto] = useState(0);
   const [estadoCampana, setEstadoCampana] = useState<EstadoCampana>("idle");
@@ -359,6 +360,7 @@ export default function ProspeccionPage() {
           paginas: paginasPorCiudad,
           solo_con_telefono: soloConTelefono,
           solo_con_web: soloConWeb,
+          solo_movil: soloMovil,
           min_rating: minRating > 0 ? minRating : undefined,
           max_anos_abierto: maxAnosAbierto > 0 ? maxAnosAbierto : undefined,
         }),
@@ -1110,6 +1112,16 @@ export default function ProspeccionPage() {
                 </div>
                 <span className="text-sm text-slate-700">Solo con web</span>
                 <span className="text-xs text-slate-400">(tienen más presencia digital)</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <div
+                  onClick={() => setSoloMovil(!soloMovil)}
+                  className={`w-9 h-5 rounded-full transition-colors relative ${soloMovil ? "bg-green-600" : "bg-slate-200"}`}
+                >
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${soloMovil ? "translate-x-4" : "translate-x-0.5"}`} />
+                </div>
+                <span className="text-sm text-slate-700">📱 Solo móviles</span>
+                <span className="text-xs text-slate-400">(WhatsApp posible — descarta fijos)</span>
               </label>
             </div>
             <div className="flex flex-wrap items-center gap-6">

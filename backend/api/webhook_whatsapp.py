@@ -579,11 +579,75 @@ class CampanaRequest(BaseModel):
     paginas: int = 2
     solo_con_telefono: bool = False
     solo_con_web: bool = False
+    solo_movil: bool = False
     min_rating: Optional[float] = None
     max_anos_abierto: Optional[int] = None
     excluir_sectores: List[str] = []
 
 # ─── DEBUG ENDPOINTS (mantenidos por si surgen más bugs; protegidos por secreto) ───
+@app.post("/admin/recalcular-moviles")
+async def admin_recalcular_moviles(request: Request):
+    """Recorre todos los leads y limpia telefono_whatsapp si no es móvil español.
+    Idempotente: se puede ejecutar varias veces sin problemas."""
+    secret = request.headers.get("X-Debug-Secret", "")
+    if secret != "debug-2026-prospeccion-test-x9k4m2":
+        raise HTTPException(403, "secret incorrecto")
+
+    from agents.agent1_scraper import es_movil_es
+
+    # Paginar para no traer 10000 leads de golpe
+    page_size = 500
+    offset = 0
+    total_revisados = 0
+    total_limpiados = 0
+    ids_limpiados: list[str] = []
+
+    while True:
+        rows = supabase.table("leads").select("id, telefono_whatsapp").not_.is_("telefono_whatsapp", "null").range(offset, offset + page_size - 1).execute()
+        batch = rows.data or []
+        if not batch:
+            break
+        total_revisados += len(batch)
+        a_limpiar = [r["id"] for r in batch if not es_movil_es(r.get("telefono_whatsapp"))]
+        if a_limpiar:
+            supabase.table("leads").update({"telefono_whatsapp": None}).in_("id", a_limpiar).execute()
+            total_limpiados += len(a_limpiar)
+            ids_limpiados.extend(a_limpiar[:20])  # solo guardar primeros 20 para no inflar respuesta
+        if len(batch) < page_size:
+            break
+        offset += page_size
+
+    return {
+        "revisados": total_revisados,
+        "limpiados": total_limpiados,
+        "fueron_fijos_marcados_como_whatsapp": total_limpiados,
+        "ids_ejemplo": ids_limpiados,
+    }
+
+
+@app.post("/ia/debug-test")
+async def ia_debug_test(request: Request):
+    """Prueba el asistente IA con un mensaje simple y devuelve la respuesta o error completo."""
+    secret = request.headers.get("X-Debug-Secret", "")
+    if secret != "debug-2026-prospeccion-test-x9k4m2":
+        raise HTTPException(403, "secret incorrecto")
+
+    import traceback
+    try:
+        body = await request.json()
+        mensaje = body.get("mensaje", "Dime hola en una línea.")
+        from agents.agent7_asistente import responder_asistente
+        respuesta = responder_asistente([{"role": "user", "content": mensaje}])
+        return {"status": "ok", "respuesta": respuesta}
+    except Exception as e:
+        return {
+            "status": "error",
+            "error_type": type(e).__name__,
+            "error": str(e),
+            "traceback": traceback.format_exc()[:3000],
+        }
+
+
 @app.post("/admin/seed-comercial")
 async def admin_seed_comercial(request: Request):
     """Endpoint admin protegido por secret para añadir comerciales.
@@ -859,6 +923,7 @@ async def lanzar_campana_scraping(
             paginas_por_ciudad=payload.paginas,
             solo_con_telefono=payload.solo_con_telefono,
             solo_con_web=payload.solo_con_web,
+            solo_movil=payload.solo_movil,
             min_rating=payload.min_rating,
             max_anos_abierto=payload.max_anos_abierto,
             excluir_sectores=payload.excluir_sectores,

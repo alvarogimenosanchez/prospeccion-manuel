@@ -81,6 +81,18 @@ def limpiar_telefono(texto: str) -> str:
     return None
 
 
+def es_movil_es(tel: str | None) -> bool:
+    """Devuelve True si el teléfono es un móvil español (empieza por 6 o 7).
+    Acepta formato +34XXXXXXXXX o solo 9 dígitos."""
+    if not tel:
+        return False
+    digits = re.sub(r'\D', '', tel)
+    # Quitar prefijo 34 si existe
+    if len(digits) == 11 and digits.startswith('34'):
+        digits = digits[2:]
+    return len(digits) == 9 and digits[0] in '67'
+
+
 def _cargar_existentes() -> tuple[set, set]:
     """
     Carga en memoria todos los teléfonos y nombres de empresa ya existentes.
@@ -165,7 +177,7 @@ def scrape_google_places(categoria: str, ciudad: str, max_results: int = 20) -> 
                 "nombre": nombre.split()[0] if nombre else "Contacto",
                 "empresa": nombre,
                 "telefono": tel,
-                "telefono_whatsapp": tel,
+                "telefono_whatsapp": tel if es_movil_es(tel) else None,
                 "ciudad": ciudad,
                 "sector": categoria.capitalize(),
                 "fuente": "scraping",
@@ -330,7 +342,7 @@ def scrape_google_search(categoria: str, ciudad: str) -> list[dict]:
                 "nombre": nombre.split()[0] if nombre else "Contacto",
                 "empresa": nombre or f"{categoria.capitalize()} {ciudad}",
                 "telefono": tel,
-                "telefono_whatsapp": tel,
+                "telefono_whatsapp": tel if es_movil_es(tel) else None,
                 "ciudad": ciudad,
                 "sector": categoria.capitalize(),
                 "fuente": "scraping",
@@ -413,6 +425,7 @@ def ejecutar_campana(
     paginas_por_ciudad: int = 2,
     solo_con_telefono: bool = False,
     solo_con_web: bool = False,
+    solo_movil: bool = False,
     min_rating: float | None = None,
     max_anos_abierto: int | None = None,
     radio_km: int | None = None,
@@ -466,8 +479,13 @@ def ejecutar_campana(
 
             if solo_con_telefono:
                 antes = len(leads)
-                leads = [l for l in leads if l.get('telefono_whatsapp')]
+                leads = [l for l in leads if l.get('telefono_whatsapp') or l.get('telefono')]
                 print(f"  → Filtro teléfono: {antes} → {len(leads)} leads")
+
+            if solo_movil:
+                antes = len(leads)
+                leads = [l for l in leads if es_movil_es(l.get('telefono_whatsapp') or l.get('telefono'))]
+                print(f"  → Filtro solo móvil: {antes} → {len(leads)} leads")
 
             if solo_con_web:
                 antes = len(leads)

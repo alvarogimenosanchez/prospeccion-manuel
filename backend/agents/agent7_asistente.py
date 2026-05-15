@@ -119,16 +119,29 @@ def responder_asistente(
                 "content": f"[Contexto del lead]\n{contexto}\n\n[Pregunta]\n{primer_mensaje['content']}",
             }
 
-    try:
-        response = _client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=800,
-            system=SYSTEM_ASISTENTE,
-            messages=mensajes_con_contexto,
-        )
-        return response.content[0].text
-    except Exception as e:
-        import traceback
-        tb = traceback.format_exc()
-        print(f"  ✗ Error en asistente IA: {type(e).__name__}: {e}\n{tb}")
-        return f"Error: {type(e).__name__}: {str(e)[:200]}"
+    # Cadena de fallback por si un modelo está deprecado o no disponible en la cuenta
+    MODELOS = ["claude-sonnet-4-6", "claude-sonnet-4-5", "claude-3-5-sonnet-latest"]
+    ultimo_error: Exception | None = None
+    for modelo in MODELOS:
+        try:
+            response = _client.messages.create(
+                model=modelo,
+                max_tokens=800,
+                system=SYSTEM_ASISTENTE,
+                messages=mensajes_con_contexto,
+            )
+            return response.content[0].text
+        except Exception as e:
+            ultimo_error = e
+            msg = str(e).lower()
+            # Solo hacer fallback en errores de modelo no disponible. Otros errores
+            # (rate limit, auth, etc.) son reales y no deben enmascararse.
+            if any(k in msg for k in ("model", "not_found", "not found", "deprecated", "unavailable")):
+                print(f"  ⚠ Modelo {modelo} no disponible: {e}. Probando siguiente…")
+                continue
+            break
+    # Si llegamos aquí, todos los modelos fallaron o hubo un error que no es de modelo
+    import traceback
+    tb = traceback.format_exc()
+    print(f"  ✗ Error en asistente IA: {type(ultimo_error).__name__}: {ultimo_error}\n{tb}")
+    return f"Error: {type(ultimo_error).__name__ if ultimo_error else 'Unknown'}: {str(ultimo_error)[:200] if ultimo_error else ''}"

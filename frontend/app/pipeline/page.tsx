@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import { Suspense } from "react";
 import { usePermisos } from "@/components/PermisosProvider";
+import { tipoTelefono } from "@/lib/telefono";
 
 type Estado =
   | "nuevo"
@@ -524,9 +525,11 @@ function TarjetaLead({
   // Próxima acción
   const accionInfo = infoProximaAccion(lead.proxima_accion, lead.proxima_accion_fecha);
 
-  // WhatsApp URL con mensaje pre-relleno
+  // WhatsApp URL con mensaje pre-relleno — solo si es móvil (fijo no soporta WhatsApp)
   const telLimpio = lead.telefono_whatsapp ? lead.telefono_whatsapp.replace(/\D/g, "") : null;
-  const waUrl = telLimpio
+  const tipoTel = tipoTelefono(lead.telefono_whatsapp);
+  const esMovil = tipoTel === "movil";
+  const waUrl = telLimpio && esMovil
     ? `https://wa.me/${telLimpio}?text=${encodeURIComponent(mensajePipelineWA(lead))}`
     : null;
   const telUrl = telLimpio ? `tel:+${telLimpio.replace(/^\+/, "")}` : null;

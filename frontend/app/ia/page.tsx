@@ -124,8 +124,10 @@ export default function IAPage() {
         }),
       });
       setMensajes(prev => [...prev, { role: "assistant", content: data.respuesta }]);
-    } catch {
-      setMensajes(prev => [...prev, { role: "assistant", content: "Lo siento, hubo un error. Comprueba que el backend está activo e inténtalo de nuevo." }]);
+    } catch (e) {
+      const errMsg = (e as Error)?.message ?? "error desconocido";
+      console.error("Chat IA error:", e);
+      setMensajes(prev => [...prev, { role: "assistant", content: `❌ Error: ${errMsg}` }]);
     } finally {
       setCargando(false);
       inputRef.current?.focus();
